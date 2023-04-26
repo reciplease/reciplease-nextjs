@@ -11,11 +11,13 @@ export default function Index() {
         <title>Recipes</title>
         <meta name="description" content="View recipes"/>
       </Head>
-      <main className={`${styles.wrapper} ${inter.className}`}>
+      <div className={`${styles.wrapper} ${inter.className}`}>
         <header className={styles.title}>
           <h1>Reciplease</h1>
         </header>
-      </main>
+        <main>
+        </main>
+      </div>
     </>
   )
 }
