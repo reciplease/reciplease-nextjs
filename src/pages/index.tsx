@@ -4,7 +4,7 @@ import styles from '@/styles/Home.module.css'
 
 const inter = Inter({subsets: ['latin']})
 
-export default function Home() {
+export default function Index() {
   return (
     <>
       <Head>
@@ -12,6 +12,7 @@ export default function Home() {
         <meta name="description" content="View recipes"/>
       </Head>
       <main className={`${inter.className}`}>
+        <h1>Reciplease</h1>
       </main>
     </>
   )
