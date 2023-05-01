@@ -1,0 +1,23 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+}
+
+.title {
+  padding: 2rem;
+}
+
+.navigation {
+  display: flex;
+  justify-content: center;
+
+  a {
+    padding: 0.2rem 1rem;
+
+    + a {
+      border-left: 0.2rem solid black;
+    }
+  }
+}
