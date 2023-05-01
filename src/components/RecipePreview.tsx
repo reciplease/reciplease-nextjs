@@ -12,7 +12,7 @@ export default function RecipePreview(props: Props) {
     <article className={styles.recipe_preview}>
       {/*TODO image?*/}
       <h4>{props.title}</h4>
-      <p>{props.description}</p>
+      <p>{props.description ?? 'No description found'}</p>
       <Link href={`/recipes/${props.id}`} passHref>
         <button>View recipe</button>
       </Link>

@@ -1,11 +1,27 @@
 import styles from '@/pages/recipes/Recipes.module.scss';
 import RecipePreview from '@/components/RecipePreview';
 import Metadata from '@/components/Metadata';
+import Recipe from '@/pages/recipes/[recipeId]';
+import useSWR from 'swr';
 
-const example_description: string =
-  'Lorem ipsum dolor sit amet, consectetur adipisicing elit. Blanditiis commodi dolore dolorem dolores eveniet facilis fugit, libero magnam maxime nesciunt nisi non nostrum perferendis placeat ratione rerum sunt vero voluptatem!';
+const fetcher = (url: string): Promise<Recipe[]> =>
+  fetch(url).then((res) => res.json());
 
 export default function Recipes() {
+  const { data: recipes, error } = useSWR(`/api/recipes`, fetcher);
+
+  if (error || !recipes) {
+    return (
+      <>
+        <Metadata title={'No Recipes Found'} description={'No recipes found'} />
+
+        <section className={styles.recipes}>
+          <p>No recipes found</p>
+        </section>
+      </>
+    );
+  }
+
   return (
     <>
       <Metadata title={'Recipes'} description={'View recipes'} />
@@ -13,12 +29,12 @@ export default function Recipes() {
       <section className={styles.recipes}>
         <h3 className={styles.recipes_title}>Recipes</h3>
         <ul className={styles.previews}>
-          {[1, 2, 3, 'dbdc02be-a311-4aee-b974-c88d3c61f51b'].map((i) => (
-            <li key={i}>
+          {recipes.map((recipe) => (
+            <li key={recipe.recipeId}>
               <RecipePreview
-                id={`${i}`}
-                title={`Recipe ${i}`}
-                description={example_description}
+                id={`${recipe.recipeId}`}
+                title={recipe.name}
+                description={recipe.description}
               />
             </li>
           ))}
