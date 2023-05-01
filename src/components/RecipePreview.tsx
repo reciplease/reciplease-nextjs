@@ -1,5 +1,5 @@
-import Link from "next/link";
-import styles from "@/components/RecipePreview.module.scss";
+import Link from 'next/link';
+import styles from '@/components/RecipePreview.module.scss';
 
 interface Props {
   id: string;
@@ -17,5 +17,5 @@ export default function RecipePreview(props: Props) {
         <button>View recipe</button>
       </Link>
     </article>
-  )
+  );
 }

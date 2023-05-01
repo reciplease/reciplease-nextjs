@@ -1,14 +1,13 @@
-import Header from "@/components/Header";
-import {ReactNode} from "react";
-import {Inter} from "next/font/google";
+import Header from '@/components/Header';
+import { Inter } from 'next/font/google';
 
-const font = Inter({subsets: ['latin']})
+const font = Inter({ subsets: ['latin'] });
 
-export default function Layout({children}: { children: ReactNode }) {
+export default function Layout({ children }: { children: JSX.Element }) {
   return (
     <div className={font.className}>
-      <Header/>
+      <Header />
       <main>{children}</main>
     </div>
-  )
+  );
 }
