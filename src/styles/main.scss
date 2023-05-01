@@ -31,6 +31,10 @@ a {
   text-decoration: none;
 }
 
+ul, ol {
+  list-style: none;
+}
+
 /*@media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
@@ -44,7 +48,9 @@ a {
   }
 }*/
 
+h1,
+h2,
 h3,
 h4 {
-  margin-bottom: 0.5em; //TODO move into title component
+  margin-block: 1rem; //TODO move into title component
 }

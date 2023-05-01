@@ -1,7 +1,8 @@
 import Link from "next/link";
 import styles from "@/components/RecipePreview.module.scss";
 
-type Props = {
+interface Props {
+  id: string;
   title: string;
   description: string;
 }
@@ -12,7 +13,7 @@ export default function RecipePreview(props: Props) {
       {/*TODO image?*/}
       <h4>{props.title}</h4>
       <p>{props.description}</p>
-      <Link href="/recipes" passHref>
+      <Link href={`/recipes/${props.id}`} passHref>
         <button>View recipe</button>
       </Link>
     </article>
