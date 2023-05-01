@@ -1,5 +1,4 @@
 import '@/styles/main.scss'
-import '@/styles/fonts.css'
 import type {AppProps} from 'next/app'
 import Head from 'next/head'
 import Layout from "@/components/Layout";
