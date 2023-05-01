@@ -20,7 +20,7 @@ export default function Recipe({ recipeId }: Props) {
 
         <section className={styles.recipe}>
           <p>No recipe found</p>
-          <p>{JSON.stringify(recipe)}</p>
+          {error && <p>{JSON.stringify(error)}</p>}
         </section>
       </>
     );
