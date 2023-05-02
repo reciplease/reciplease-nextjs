@@ -45,6 +45,12 @@ export default function Recipe({ recipeShortId }: Props) {
             </li>
           ))}
         </ul>
+        <h4>Steps</h4>
+        <ol>
+          {recipe.steps.map((step, index) => (
+            <li key={index}>{step}</li>
+          ))}
+        </ol>
       </section>
     </>
   );

@@ -4,6 +4,7 @@ type Recipe = {
   name: string;
   description: string;
   ingredients: Ingredient[];
+  steps: string[];
 };
 
 type Ingredient = {

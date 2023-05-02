@@ -12,12 +12,21 @@
 .navigation {
   display: flex;
   justify-content: center;
+  $light: hsl(0, 0%, 90%);
+  $dark: hsl(0, 0%, 30%);
 
   a {
-    padding: 0.2rem 1rem;
+    padding: 1rem;
+    transition: background-color ease-in-out 100ms;
+
+    @media (hover: hover) {
+      &:hover {
+        background-color: $light;
+      }
+    }
 
     + a {
-      border-left: 0.2rem solid black;
+      border-left: 0.2rem solid $light;
     }
   }
 }
