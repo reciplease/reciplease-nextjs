@@ -2,13 +2,13 @@ import Metadata from '@/components/Metadata';
 import styles from '@/pages/recipes/Recipe.module.scss';
 import { GetServerSidePropsContext } from 'next';
 import useSWR from 'swr';
-import { full } from '@/pages/api/short-uuid';
+import { full } from '@/pages/api/recipes/data';
 
 const fetcher = (url: string): Promise<Recipe> =>
   fetch(url).then((res) => res.json());
 
 interface Props {
-  recipeShortId: string;
+  recipeShortId: RecipeShortId;
 }
 
 export default function Recipe({ recipeShortId }: Props) {
