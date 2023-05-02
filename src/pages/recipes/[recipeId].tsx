@@ -2,15 +2,17 @@ import Metadata from '@/components/Metadata';
 import styles from '@/pages/recipes/Recipe.module.scss';
 import { GetServerSidePropsContext } from 'next';
 import useSWR from 'swr';
+import { full } from '@/pages/api/short-uuid';
 
 const fetcher = (url: string): Promise<Recipe> =>
   fetch(url).then((res) => res.json());
 
 interface Props {
-  recipeId: string;
+  recipeShortId: string;
 }
 
-export default function Recipe({ recipeId }: Props) {
+export default function Recipe({ recipeShortId }: Props) {
+  const recipeId = full(recipeShortId);
   const { data: recipe, error } = useSWR(`/api/recipes/${recipeId}`, fetcher);
 
   if (error || !recipe) {
@@ -39,7 +41,7 @@ export default function Recipe({ recipeId }: Props) {
             <li key={ingredient.ingredientId}>
               {ingredient.name}
               {' - '}
-              {ingredient.amount} {ingredient.measure.toLowerCase()}
+              {displayMeasure(ingredient.measure, ingredient.amount)}
             </li>
           ))}
         </ul>
@@ -48,8 +50,17 @@ export default function Recipe({ recipeId }: Props) {
   );
 }
 
+function displayMeasure(measure: Measure, amount: number) {
+  return `${amount} ${displayMeasureWord(measure, amount)}`;
+}
+
+function displayMeasureWord(measure: Measure, amount: number) {
+  if (amount == 1) return measure.singular;
+  return measure.plural;
+}
+
 export function getServerSideProps(context: GetServerSidePropsContext) {
   return {
-    props: { recipeId: context.params?.recipeId },
+    props: { recipeShortId: context.params?.recipeId },
   };
 }

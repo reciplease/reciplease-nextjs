@@ -1,12 +1,16 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { recipe } from '@/pages/api/recipes/example';
+import { recipes } from '@/pages/api/recipes/data';
 
 export default function handler(
   req: NextApiRequest,
   res: NextApiResponse<Recipe>
 ) {
-  if (req.query.recipeId === recipe.recipeId) {
-    res.status(200).json(recipe);
+  const recipeId = req.query.recipeId;
+
+  const maybeRecipe = recipes.find((recipe) => recipe.recipeId === recipeId);
+
+  if (maybeRecipe) {
+    res.status(200).json(maybeRecipe);
   } else {
     res.status(404);
   }

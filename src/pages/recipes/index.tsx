@@ -31,11 +31,7 @@ export default function Recipes() {
         <ul className={styles.previews}>
           {recipes.map((recipe) => (
             <li key={recipe.recipeId}>
-              <RecipePreview
-                id={`${recipe.recipeId}`}
-                title={recipe.name}
-                description={recipe.description}
-              />
+              <RecipePreview recipe={recipe} />
             </li>
           ))}
         </ul>

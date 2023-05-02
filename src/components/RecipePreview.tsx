@@ -2,18 +2,16 @@ import Link from 'next/link';
 import styles from '@/components/RecipePreview.module.scss';
 
 interface Props {
-  id: string;
-  title: string;
-  description: string;
+  recipe: Recipe;
 }
 
-export default function RecipePreview(props: Props) {
+export default function RecipePreview({ recipe }: Props) {
   return (
     <article className={styles.recipe_preview}>
       {/*TODO image?*/}
-      <h4>{props.title}</h4>
-      <p>{props.description ?? 'No description found'}</p>
-      <Link href={`/recipes/${props.id}`} passHref>
+      <h4>{recipe.name}</h4>
+      <p>{recipe.description ?? 'No description found'}</p>
+      <Link href={`/recipes/${recipe.recipeShortId}`} passHref>
         <button>View recipe</button>
       </Link>
     </article>
