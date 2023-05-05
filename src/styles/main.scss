@@ -13,6 +13,11 @@ body {
   font-size: 1.6rem;
 }
 
+body > * {
+  max-width: 140ch;
+  margin-inline: auto;
+}
+
 .debug {
   &, & * {
     outline: 0.2rem solid rgba(255 0 0 / 1);
@@ -35,11 +40,11 @@ ul, ol {
   list-style: none;
 }
 
-/*@media (prefers-color-scheme: dark) {
+@media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
   }
-}*/
+}
 
 /*@media (prefers-reduced-motion: reduce) {
   h1::after {
