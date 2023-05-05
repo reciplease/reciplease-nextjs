@@ -3,13 +3,16 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 2rem;
+  //gap: 2rem;
 }
 
 .title {
+  flex: 0;
+  margin-inline: 2rem;
 }
 
 .navigation {
+  flex: 1;
   display: flex;
   justify-content: center;
   $light: hsl(0, 0%, 90%);
