@@ -16,14 +16,16 @@
   display: flex;
   justify-content: center;
   $light: hsl(0, 0%, 90%);
-  $dark: hsl(0, 0%, 30%);
+  $dark: hsl(0, 0%, 20%);
 
   a {
     padding: 1rem;
-    transition: background-color ease-in-out 100ms;
+    transition: ease-in-out 100ms;
+    transition-property: color, background-color;
 
     @media (hover: hover) {
       &:hover {
+        color: $dark;
         background-color: $light;
       }
     }
