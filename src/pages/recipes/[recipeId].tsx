@@ -33,19 +33,17 @@ export default function Recipe({ recipeShortId }: Props) {
       <Metadata title={`${recipe.name}`} description={'View recipe'} />
 
       <section className={styles.recipe}>
-        <h3>Recipe: {recipe.name}</h3>
+        <h3>{recipe.name}</h3>
         <p>{recipe.description}</p>
         <h4>Ingredients</h4>
         <ul>
           {recipe.ingredients.map((ingredient) => (
             <li key={ingredient.ingredientId}>
-              {ingredient.name}
-              {' - '}
-              {displayMeasure(ingredient.measure, ingredient.amount)}
+              {displayIngredient(ingredient)}
             </li>
           ))}
         </ul>
-        <h4>Steps</h4>
+        <h4>Preparation</h4>
         <ol>
           {recipe.steps.map((step, index) => (
             <li key={index}>{step}</li>
@@ -56,13 +54,15 @@ export default function Recipe({ recipeShortId }: Props) {
   );
 }
 
-function displayMeasure(measure: Measure, amount: number) {
-  return `${amount} ${displayMeasureWord(measure, amount)}`;
+function displayIngredient(ingredient: Ingredient) {
+  return `${ingredient.name} - ${ingredient.amount} ${displayMeasure(
+    ingredient
+  )}`;
 }
 
-function displayMeasureWord(measure: Measure, amount: number) {
-  if (amount == 1) return measure.singular;
-  return measure.plural;
+function displayMeasure(ingredient: Ingredient) {
+  if (ingredient.amount == 1) return ingredient.measure.singular;
+  return ingredient.measure.plural;
 }
 
 export function getServerSideProps(context: GetServerSidePropsContext) {

@@ -34,7 +34,8 @@ const recipesInternal: Omit<Recipe, 'recipeShortId'>[] = [
     ],
     steps: [
       'Toast the bread',
-      'Spread butter on toast (optionally wait for toast to cool down)',
+      'Optionally: Wait for toast to cool down',
+      'Spread butter on toast',
     ],
   },
 ];

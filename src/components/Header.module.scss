@@ -30,6 +30,11 @@
       }
     }
 
+    &:active {
+      color: $dark;
+      background-color: $light;
+    }
+
     + a {
       border-left: 0.2rem solid $light;
     }
