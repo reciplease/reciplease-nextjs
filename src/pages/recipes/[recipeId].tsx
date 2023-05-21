@@ -13,7 +13,23 @@ interface Props {
 
 export default function Recipe({ recipeShortId }: Props) {
   const recipeId = full(recipeShortId);
-  const { data: recipe, error } = useSWR(`/api/recipes/${recipeId}`, fetcher);
+  const {
+    data: recipe,
+    error,
+    isLoading,
+  } = useSWR(`/api/recipes/${recipeId}`, fetcher);
+
+  if (isLoading) {
+    return (
+      <>
+        <Metadata title={'Loading Recipe'} description={'Loading recipe...'} />
+
+        <section className={styles.recipe}>
+          <p>Loading...</p>
+        </section>
+      </>
+    );
+  }
 
   if (error || !recipe) {
     return (
@@ -43,7 +59,7 @@ export default function Recipe({ recipeShortId }: Props) {
             </li>
           ))}
         </ul>
-        <h4>Preparation</h4>
+        <h4>Method</h4>
         <ol>
           {recipe.steps.map((step, index) => (
             <li key={index}>{step}</li>

@@ -5,6 +5,11 @@ export const measures: Measure[] = [
     plural: 'items',
   },
   {
+    measureId: 'PIECES',
+    singular: 'piece',
+    plural: 'pieces',
+  },
+  {
     measureId: 'KILOGRAMS',
     singular: 'kilogram',
     plural: 'kilograms',
@@ -23,6 +28,16 @@ export const measures: Measure[] = [
     measureId: 'MILLILITRES',
     singular: 'millilitre',
     plural: 'millilitres',
+  },
+  {
+    measureId: 'tbsp',
+    singular: 'tbsp',
+    plural: 'tbsp',
+  },
+  {
+    measureId: 'tsp',
+    singular: 'tsp',
+    plural: 'tsp',
   },
 ];
 

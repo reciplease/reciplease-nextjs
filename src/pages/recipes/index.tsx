@@ -8,7 +8,22 @@ const fetcher = (url: string): Promise<Recipe[]> =>
   fetch(url).then((res) => res.json());
 
 export default function Recipes() {
-  const { data: recipes, error } = useSWR(`/api/recipes`, fetcher);
+  const { data: recipes, error, isLoading } = useSWR(`/api/recipes`, fetcher);
+
+  if (isLoading) {
+    return (
+      <>
+        <Metadata
+          title={'Loading Recipes'}
+          description={'Loading recipes...'}
+        />
+
+        <section className={styles.recipes}>
+          <p>Loading...</p>
+        </section>
+      </>
+    );
+  }
 
   if (error || !recipes) {
     return (

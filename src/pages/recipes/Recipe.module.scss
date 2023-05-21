@@ -1,12 +1,16 @@
 .recipe {
   padding-inline: 2rem;
 
+  h4 {
+    margin-block-start: 3rem;
+  }
+
   p {
     margin-block: 1rem;
   }
 
   ul, ol {
-    margin-inline-start: 3rem;
+    margin-inline-start: 4rem;
   }
 
   ul {
