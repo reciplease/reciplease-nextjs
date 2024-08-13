@@ -4,15 +4,6 @@
   margin: 0;
 }
 
-//configure 1rem size
-html {
-  font-size: 62.5%;
-}
-
-body {
-  font-size: 1.6rem;
-}
-
 body > * {
   max-width: 140ch;
   margin-inline: auto;
@@ -43,6 +34,8 @@ ul, ol {
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
+
+    background: black;
   }
 }
 
@@ -55,6 +48,6 @@ ul, ol {
 
 h1,
 h2,
-h3{
+h3 {
   //margin-block: 1.5rem 1rem;
 }

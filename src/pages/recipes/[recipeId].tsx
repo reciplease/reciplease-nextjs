@@ -72,7 +72,7 @@ export default function Recipe({ recipeShortId }: Props) {
 
 function displayIngredient(ingredient: Ingredient) {
   return `${ingredient.name} - ${ingredient.amount} ${displayMeasure(
-    ingredient
+S    ingredient,
   )}`;
 }
 
