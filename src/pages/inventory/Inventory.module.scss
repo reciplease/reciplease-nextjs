@@ -1,0 +1,56 @@
+.inventory {
+  display: grid;
+  padding-inline: 2rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.items {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1em;
+  margin-block: 2rem;
+}
+
+.item {
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.expired {
+  opacity: 0.6;
+}
+
+.expiration {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.form {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 400px;
+
+  input,
+  select {
+    padding: 0.5rem;
+    font-size: 1rem;
+  }
+
+  button {
+    margin-block-start: 0.5rem;
+  }
+}
