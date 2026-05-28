@@ -1,4 +1,4 @@
-import { shorten, full } from './data';
+import { shorten, full } from '@/pages/api/recipes/data';
 
 const UUID = 'dbdc02be-a311-4aee-b974-c88d3c61f51b';
 

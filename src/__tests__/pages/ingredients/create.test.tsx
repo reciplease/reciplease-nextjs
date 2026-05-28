@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import CreateIngredient from './create';
+import CreateIngredient from '@/pages/ingredients/create';
 
 jest.mock('next/router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('@/components/Metadata', () => () => null);

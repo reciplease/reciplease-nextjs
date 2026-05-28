@@ -70,13 +70,13 @@ export default function Recipe({ recipeShortId }: Props) {
   );
 }
 
-function displayIngredient(ingredient: Ingredient) {
+function displayIngredient(ingredient: RecipeIngredient) {
   return `${ingredient.name} - ${ingredient.amount} ${displayMeasure(
     ingredient,
   )}`;
 }
 
-function displayMeasure(ingredient: Ingredient) {
+function displayMeasure(ingredient: RecipeIngredient) {
   if (ingredient.amount == 1) return ingredient.measure.singular;
   return ingredient.measure.plural;
 }

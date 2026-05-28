@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import InventoryList from './index';
+import InventoryList from '@/pages/inventory';
 
 jest.mock('swr');
 jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; href: string }) => (

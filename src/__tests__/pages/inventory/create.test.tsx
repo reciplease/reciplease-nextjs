@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import CreateInventoryItem from './create';
+import CreateInventoryItem from '@/pages/inventory/create';
 
 jest.mock('swr');
 jest.mock('next/router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
