@@ -1,10 +1,48 @@
-// Next.js API route support: https://nextjs.org/docs/api-routes/introduction
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { recipes } from '@/pages/api/recipes/data';
+import { backendFetch } from '@/lib/backend';
+import { toMeasure } from '@/lib/measures';
+import { shorten } from './data';
 
-export default function handler(
+type BackendRecipe = {
+  recipeId: string;
+  name: string;
+  description: string | null;
+  steps: string[] | null;
+  ingredients: BackendIngredient[];
+};
+
+type BackendIngredient = {
+  ingredientId: string;
+  name: string;
+  measure: string;
+  amount: number;
+};
+
+function toRecipe(b: BackendRecipe): Recipe {
+  return {
+    recipeId: b.recipeId,
+    recipeShortId: shorten(b.recipeId),
+    name: b.name,
+    description: b.description ?? null,
+    steps: b.steps ?? [],
+    ingredients: (b.ingredients ?? []).map((i) => ({
+      ingredientId: i.ingredientId,
+      name: i.name,
+      measure: toMeasure(i.measure),
+      amount: i.amount,
+    })),
+  };
+}
+
+export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<Recipe[]>
+  res: NextApiResponse<Recipe[]>,
 ) {
-  res.status(200).json(recipes);
+  const response = await backendFetch('/api/recipes');
+  if (!response.ok) {
+    res.status(response.status).end();
+    return;
+  }
+  const backendRecipes: BackendRecipe[] = await response.json();
+  res.status(200).json(backendRecipes.map(toRecipe));
 }
