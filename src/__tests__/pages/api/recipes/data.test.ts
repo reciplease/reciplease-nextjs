@@ -1,17 +1,17 @@
 import { shorten, full } from '@/pages/api/recipes/data';
 
-const UUID = 'dbdc02be-a311-4aee-b974-c88d3c61f51b';
+const OBJECT_ID = '5f8d04b3d3b9a72b8c7e1a4f';
 
-describe('short UUID helpers', () => {
-  it('shorten produces a shorter string than a UUID', () => {
-    expect(shorten(UUID).length).toBeLessThan(UUID.length);
+describe('short ObjectId helpers', () => {
+  it('shorten produces a shorter string than an ObjectId', () => {
+    expect(shorten(OBJECT_ID).length).toBeLessThan(OBJECT_ID.length);
   });
 
   it('full reverses shorten', () => {
-    expect(full(shorten(UUID))).toBe(UUID);
+    expect(full(shorten(OBJECT_ID))).toBe(OBJECT_ID);
   });
 
-  it('same UUID always produces the same short ID', () => {
-    expect(shorten(UUID)).toBe(shorten(UUID));
+  it('same ObjectId always produces the same short ID', () => {
+    expect(shorten(OBJECT_ID)).toBe(shorten(OBJECT_ID));
   });
 });
