@@ -1,14 +1,22 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import CreateIngredient from '@/pages/ingredients/create';
 
+jest.mock('swr');
 jest.mock('next/router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('@/components/Metadata', () => () => null);
 
+const useSWR = require('swr').default;
 global.fetch = jest.fn();
+
+const mockMeasures: Measure[] = [
+  { measureId: 'ITEMS', singular: 'item', plural: 'items' },
+  { measureId: 'GRAMS', singular: 'gram', plural: 'grams' },
+];
 
 describe('CreateIngredient form', () => {
   beforeEach(() => {
     (fetch as jest.Mock).mockReset();
+    useSWR.mockReturnValue({ data: mockMeasures });
   });
 
   it('renders name input and measure select', () => {
@@ -17,10 +25,12 @@ describe('CreateIngredient form', () => {
     expect(screen.getByLabelText('Measure')).toBeInTheDocument();
   });
 
-  it('renders all measure options', () => {
+  it('renders a measure option for each backend measure', () => {
     render(<CreateIngredient />);
     const select = screen.getByLabelText('Measure') as HTMLSelectElement;
-    expect(select.options.length).toBeGreaterThan(0);
+    expect(select.options.length).toBe(mockMeasures.length);
+    expect(screen.getByText('items')).toBeInTheDocument();
+    expect(screen.getByText('grams')).toBeInTheDocument();
   });
 
   it('submits correct payload and redirects on success', async () => {
@@ -35,7 +45,10 @@ describe('CreateIngredient form', () => {
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
         '/api/ingredients',
-        expect.objectContaining({ method: 'POST' }),
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ name: 'Milk', measureId: 'ITEMS' }),
+        }),
       );
       expect(push).toHaveBeenCalledWith('/inventory');
     });

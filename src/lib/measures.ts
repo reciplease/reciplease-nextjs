@@ -1,17 +1,23 @@
-export const measureDisplayMap: Record<string, { singular: string; plural: string }> = {
-  ITEMS: { singular: 'item', plural: 'items' },
-  KILOGRAMS: { singular: 'kilogram', plural: 'kilograms' },
-  GRAMS: { singular: 'gram', plural: 'grams' },
-  LITRES: { singular: 'litre', plural: 'litres' },
-  MILLILITRES: { singular: 'millilitre', plural: 'millilitres' },
-};
+import { backendFetch } from '@/lib/backend';
 
-export function toMeasure(measureId: string): Measure {
-  const display = measureDisplayMap[measureId];
-  if (!display) throw new Error(`Unknown measure: ${measureId}`);
-  return { measureId, ...display };
+export async function fetchMeasures(): Promise<Measure[]> {
+  const response = await backendFetch('/api/measures');
+  if (!response.ok) {
+    throw new Error(`Failed to fetch measures: ${response.status}`);
+  }
+  return response.json();
 }
 
-export const allMeasures: Measure[] = Object.entries(measureDisplayMap).map(
-  ([measureId, display]) => ({ measureId, ...display }),
-);
+export function toMeasure(measureId: string, measures: Measure[]): Measure {
+  const measure = measures.find((m) => m.measureId === measureId);
+  if (!measure) throw new Error(`Unknown measure: ${measureId}`);
+  return measure;
+}
+
+export async function fetchMeasureById(measureId: string): Promise<Measure> {
+  const response = await backendFetch(`/api/measures/${measureId}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch measure '${measureId}': ${response.status}`);
+  }
+  return response.json();
+}

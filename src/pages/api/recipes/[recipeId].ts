@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { backendFetch } from '@/lib/backend';
-import { toMeasure } from '@/lib/measures';
+import { fetchMeasures, toMeasure } from '@/lib/measures';
 
 type BackendRecipe = {
   recipeId: string;
@@ -32,6 +32,7 @@ export default async function handler(
     return;
   }
   const b: BackendRecipe = await response.json();
+  const measures = await fetchMeasures();
   const recipe: Recipe = {
     recipeId: b.recipeId,
     recipeShortId: '',
@@ -41,7 +42,7 @@ export default async function handler(
     ingredients: (b.ingredients ?? []).map((i) => ({
       ingredientId: i.ingredientId,
       name: i.name,
-      measure: toMeasure(i.measure),
+      measure: toMeasure(i.measure, measures),
       amount: i.amount,
     })),
   };

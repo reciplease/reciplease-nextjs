@@ -1,9 +1,15 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { allMeasures } from '@/lib/measures';
+import { backendFetch } from '@/lib/backend';
 
-export default function handler(
+export default async function handler(
   _req: NextApiRequest,
   res: NextApiResponse<Measure[]>,
 ) {
-  res.status(200).json(allMeasures);
+  const response = await backendFetch('/api/measures');
+  if (!response.ok) {
+    res.status(response.status).end();
+    return;
+  }
+  const measures: Measure[] = await response.json();
+  res.status(200).json(measures);
 }

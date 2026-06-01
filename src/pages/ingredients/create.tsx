@@ -1,15 +1,25 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
-import { allMeasures } from '@/lib/measures';
 import styles from './Ingredients.module.scss';
+
+const fetcher = (url: string): Promise<Measure[]> =>
+  fetch(url).then((res) => res.json());
 
 export default function CreateIngredient() {
   const router = useRouter();
+  const { data: measures } = useSWR('/api/measures', fetcher);
   const [name, setName] = useState('');
-  const [measureId, setMeasureId] = useState<MeasureId>(allMeasures[0].measureId);
+  const [measureId, setMeasureId] = useState<MeasureId>('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (measures && measures.length > 0 && !measureId) {
+      setMeasureId(measures[0].measureId);
+    }
+  }, [measures, measureId]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -56,7 +66,7 @@ export default function CreateIngredient() {
             value={measureId}
             onChange={(e) => setMeasureId(e.target.value)}
           >
-            {allMeasures.map((m) => (
+            {(measures ?? []).map((m) => (
               <option key={m.measureId} value={m.measureId}>
                 {m.plural}
               </option>

@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { backendFetch } from '@/lib/backend';
-import { toMeasure } from '@/lib/measures';
+import { fetchMeasures, toMeasure } from '@/lib/measures';
 
 type BackendInventoryItem = {
   uuid: string;
@@ -11,12 +11,15 @@ type BackendInventoryItem = {
   expiration: string;
 };
 
-function toInventoryItem(b: BackendInventoryItem): InventoryItem {
+function toInventoryItem(
+  b: BackendInventoryItem,
+  measures: Measure[],
+): InventoryItem {
   return {
     uuid: b.uuid,
     ingredientUuid: b.ingredientUuid,
     name: b.name,
-    measure: toMeasure(b.measure),
+    measure: toMeasure(b.measure, measures),
     amount: b.amount,
     expiration: b.expiration,
   };
@@ -38,7 +41,8 @@ export default async function handler(
       return;
     }
     const b: BackendInventoryItem = await response.json();
-    res.status(201).json(toInventoryItem(b));
+    const measures = await fetchMeasures();
+    res.status(201).json(toInventoryItem(b, measures));
     return;
   }
 
@@ -48,5 +52,6 @@ export default async function handler(
     return;
   }
   const items: BackendInventoryItem[] = await response.json();
-  res.status(200).json(items.map(toInventoryItem));
+  const measures = await fetchMeasures();
+  res.status(200).json(items.map((b) => toInventoryItem(b, measures)));
 }

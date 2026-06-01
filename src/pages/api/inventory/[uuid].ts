@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { backendFetch } from '@/lib/backend';
-import { toMeasure } from '@/lib/measures';
+import { fetchMeasureById } from '@/lib/measures';
 
 type BackendInventoryItem = {
   uuid: string;
@@ -30,7 +30,7 @@ export default async function handler(
     uuid: b.uuid,
     ingredientUuid: b.ingredientUuid,
     name: b.name,
-    measure: toMeasure(b.measure),
+    measure: await fetchMeasureById(b.measure),
     amount: b.amount,
     expiration: b.expiration,
   });

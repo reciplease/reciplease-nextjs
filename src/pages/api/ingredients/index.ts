@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { backendFetch } from '@/lib/backend';
-import { toMeasure } from '@/lib/measures';
+import { fetchMeasures, toMeasure } from '@/lib/measures';
 
 type BackendIngredient = {
   uuid: string;
@@ -8,11 +8,11 @@ type BackendIngredient = {
   measure: string;
 };
 
-function toIngredient(b: BackendIngredient): Ingredient {
+function toIngredient(b: BackendIngredient, measures: Measure[]): Ingredient {
   return {
     uuid: b.uuid,
     name: b.name,
-    measure: toMeasure(b.measure),
+    measure: toMeasure(b.measure, measures),
   };
 }
 
@@ -32,7 +32,8 @@ export default async function handler(
       return;
     }
     const b: BackendIngredient = await response.json();
-    res.status(201).json(toIngredient(b));
+    const measures = await fetchMeasures();
+    res.status(201).json(toIngredient(b, measures));
     return;
   }
 
@@ -42,5 +43,6 @@ export default async function handler(
     return;
   }
   const backendIngredients: BackendIngredient[] = await response.json();
-  res.status(200).json(backendIngredients.map(toIngredient));
+  const measures = await fetchMeasures();
+  res.status(200).json(backendIngredients.map((b) => toIngredient(b, measures)));
 }
