@@ -14,17 +14,12 @@ export async function GET() {
   const hasSecure = cookieStore.has('__Secure-next-auth.session-token');
   const hasPlain = cookieStore.has('next-auth.session-token');
 
-  const cookieHeader = cookieStore
-    .getAll()
-    .map((c) => `${c.name}=${c.value}`)
-    .join('; ');
-
   type TokenShape = { idToken?: string; error?: unknown; [k: string]: unknown };
   let getTokenResult: unknown;
   let token: TokenShape | null = null;
   try {
     token = (await getToken({
-      req: { headers: { cookie: cookieHeader } } as never,
+      req: { cookies: cookieStore } as never,
       secret: process.env.NEXTAUTH_SECRET,
       secureCookie: hasSecure,
     })) as TokenShape | null;

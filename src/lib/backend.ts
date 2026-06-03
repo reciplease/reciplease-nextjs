@@ -11,15 +11,16 @@ export const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:8080';
 export async function idToken(): Promise<string | undefined> {
   const cookieStore = await cookies();
 
-  // getToken chooses the session cookie name from `secureCookie`, which it
-  // otherwise derives from NEXTAUTH_URL/VERCEL env — on Netlify that lands on
-  // the non-secure name and misses the actual `__Secure-` cookie, so no token
-  // is found. Detect "secure" from the cookie that is genuinely present.
+  // getToken reads `req.cookies` (a parsed store), NOT a cookie header string —
+  // passing the header left req.cookies undefined, so it always returned null.
+  // next-auth's SessionStore accepts anything with a `.getAll()`, which is
+  // exactly what next/headers `cookies()` provides, so hand it the store.
+  // `secureCookie` must also be set so it looks for the `__Secure-` cookie name
+  // (it otherwise derives this from NEXTAUTH_URL/VERCEL env and misses it).
   const secureCookie = cookieStore.has('__Secure-next-auth.session-token');
 
   const token = await getToken({
-    // getToken only needs the cookie header; build a minimal req-like from it.
-    req: { headers: { cookie: cookieStore.toString() } } as never,
+    req: { cookies: cookieStore } as never,
     secret: process.env.NEXTAUTH_SECRET,
     secureCookie,
   });
