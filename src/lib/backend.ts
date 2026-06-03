@@ -1,14 +1,14 @@
 import { cookies } from 'next/headers';
 import { getToken } from 'next-auth/jwt';
 
-const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:8080';
+export const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:8080';
 
 /**
  * Resolves the current user's Google id_token from the NextAuth session cookie.
  * Uses `next/headers`, so it works ambiently inside any App Router server code
  * (route handlers, server components) without threading the request through.
  */
-async function idToken(): Promise<string | undefined> {
+export async function idToken(): Promise<string | undefined> {
   const cookieStore = await cookies();
   const token = await getToken({
     // getToken only needs the cookie header; build a minimal req-like from it.
