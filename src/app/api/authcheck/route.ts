@@ -19,15 +19,15 @@ export async function GET() {
     .map((c) => `${c.name}=${c.value}`)
     .join('; ');
 
+  type TokenShape = { idToken?: string; error?: unknown; [k: string]: unknown };
   let getTokenResult: unknown;
-  let token: { idToken?: string; error?: unknown; [k: string]: unknown } | null =
-    null;
+  let token: TokenShape | null = null;
   try {
     token = (await getToken({
       req: { headers: { cookie: cookieHeader } } as never,
       secret: process.env.NEXTAUTH_SECRET,
       secureCookie: hasSecure,
-    })) as typeof token;
+    })) as TokenShape | null;
     getTokenResult = token
       ? {
           returned: 'object',
