@@ -5,6 +5,9 @@ import { withAuth } from 'next-auth/middleware';
 // fetch() calls to an HTML sign-in page would break them. Auth, Next internals
 // and static assets are also excluded.
 export default withAuth({
+  // Redirect unauthenticated visitors to our branded page; withAuth lets the
+  // sign-in page through itself, so this doesn't loop.
+  pages: { signIn: '/login' },
   callbacks: {
     authorized: ({ token }) => token != null,
   },

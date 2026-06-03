@@ -53,6 +53,8 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   session: { strategy: 'jwt' },
+  // Use our own branded sign-in page instead of NextAuth's default UI.
+  pages: { signIn: '/login', error: '/login' },
   callbacks: {
     async jwt({ token, account }) {
       // Initial sign-in: persist the Google tokens.
