@@ -2,7 +2,7 @@ import Metadata from '@/components/Metadata';
 import styles from '@/pages/recipes/Recipe.module.scss';
 import { GetServerSidePropsContext } from 'next';
 import useSWR from 'swr';
-import { full } from '@/pages/api/recipes/data';
+import { full } from '@/lib/recipe-id';
 
 const fetcher = (url: string): Promise<Recipe> =>
   fetch(url).then((res) => res.json());

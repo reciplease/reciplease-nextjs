@@ -1,4 +1,4 @@
-import { shorten, full } from '@/pages/api/recipes/data';
+import { shorten, full } from '@/lib/recipe-id';
 
 const OBJECT_ID = '5f8d04b3d3b9a72b8c7e1a4f';
 

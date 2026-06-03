@@ -1,7 +1,11 @@
 import { fetchMeasureById, fetchMeasures, toMeasure } from './measures';
 import { backendFetch } from '@/lib/backend';
 
-jest.mock('@/lib/backend');
+// Explicit factory so jest doesn't load the real backend module (which imports
+// next-auth/jwt -> jose, an ESM-only package jest can't parse here).
+jest.mock('@/lib/backend', () => ({
+  backendFetch: jest.fn(),
+}));
 
 const mockedBackendFetch = backendFetch as jest.MockedFunction<
   typeof backendFetch

@@ -1,4 +1,4 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import { NextResponse } from 'next/server';
 import { backendFetch } from '@/lib/backend';
 import { fetchMeasureById } from '@/lib/measures';
 
@@ -11,27 +11,25 @@ type BackendInventoryItem = {
   expiration: string;
 };
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<InventoryItem>,
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ uuid: string }> },
 ) {
-  const { uuid } = req.query;
+  const { uuid } = await params;
   const response = await backendFetch(`/api/inventory/${uuid}`);
   if (response.status === 404) {
-    res.status(404).end();
-    return;
+    return new NextResponse(null, { status: 404 });
   }
   if (!response.ok) {
-    res.status(response.status).end();
-    return;
+    return new NextResponse(null, { status: response.status });
   }
   const b: BackendInventoryItem = await response.json();
-  res.status(200).json({
+  return NextResponse.json({
     uuid: b.uuid,
     ingredientUuid: b.ingredientUuid,
     name: b.name,
     measure: await fetchMeasureById(b.measure),
     amount: b.amount,
     expiration: b.expiration,
-  });
+  } satisfies InventoryItem);
 }

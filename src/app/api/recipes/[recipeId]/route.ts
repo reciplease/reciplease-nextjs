@@ -1,7 +1,6 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import { NextResponse } from 'next/server';
 import { backendFetch } from '@/lib/backend';
 import { fetchMeasures, toMeasure } from '@/lib/measures';
-import { shorten } from './data';
 
 type BackendRecipe = {
   recipeId: string;
@@ -18,10 +17,23 @@ type BackendIngredient = {
   amount: number;
 };
 
-function toRecipe(b: BackendRecipe, measures: Measure[]): Recipe {
-  return {
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ recipeId: string }> },
+) {
+  const { recipeId } = await params;
+  const response = await backendFetch(`/api/recipes/${recipeId}`);
+  if (response.status === 404) {
+    return new NextResponse(null, { status: 404 });
+  }
+  if (!response.ok) {
+    return new NextResponse(null, { status: response.status });
+  }
+  const b: BackendRecipe = await response.json();
+  const measures = await fetchMeasures();
+  const recipe: Recipe = {
     recipeId: b.recipeId,
-    recipeShortId: shorten(b.recipeId),
+    recipeShortId: '',
     name: b.name,
     description: b.description ?? null,
     steps: b.steps ?? [],
@@ -32,18 +44,5 @@ function toRecipe(b: BackendRecipe, measures: Measure[]): Recipe {
       amount: i.amount,
     })),
   };
-}
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Recipe[]>,
-) {
-  const response = await backendFetch('/api/recipes');
-  if (!response.ok) {
-    res.status(response.status).end();
-    return;
-  }
-  const backendRecipes: BackendRecipe[] = await response.json();
-  const measures = await fetchMeasures();
-  res.status(200).json(backendRecipes.map((b) => toRecipe(b, measures)));
+  return NextResponse.json(recipe);
 }
