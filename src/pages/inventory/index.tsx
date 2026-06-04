@@ -1,7 +1,6 @@
 import useSWR from 'swr';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
-import styles from './Inventory.module.scss';
 
 const fetcher = (url: string): Promise<InventoryItem[]> =>
   fetch(url).then((res) => res.json());
@@ -17,9 +16,7 @@ export default function InventoryList() {
     return (
       <>
         <Metadata title="Loading Inventory" description="Loading inventory..." />
-        <section className={styles.inventory}>
-          <p>Loading...</p>
-        </section>
+        <p>Loading...</p>
       </>
     );
   }
@@ -28,9 +25,7 @@ export default function InventoryList() {
     return (
       <>
         <Metadata title="Inventory" description="Your ingredient inventory" />
-        <section className={styles.inventory}>
-          <p>Could not load inventory</p>
-        </section>
+        <p>Could not load inventory</p>
       </>
     );
   }
@@ -39,41 +34,34 @@ export default function InventoryList() {
     <>
       <Metadata title="Inventory" description="Your ingredient inventory" />
 
-      <section className={styles.inventory}>
-        <div className={styles.header}>
-          <h3>Inventory</h3>
-          <div className={styles.actions}>
-            <Link href="/ingredients/create">
-              <button>Add ingredient</button>
-            </Link>
-            <Link href="/inventory/create">
-              <button>Add to inventory</button>
-            </Link>
-            <Link href="/inventory/scan">
-              <button>📷 Scan</button>
-            </Link>
-          </div>
+      <section className="grid gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <h3 className="text-xl font-semibold mr-auto">Inventory</h3>
+          <Link href="/ingredients/create">
+            <button>Add ingredient</button>
+          </Link>
+          <Link href="/inventory/create">
+            <button>Add to inventory</button>
+          </Link>
+          <Link href="/inventory/scan">
+            <button>📷 Scan</button>
+          </Link>
         </div>
 
         {items.length === 0 ? (
           <p>No items in inventory</p>
         ) : (
-          <ul className={styles.items}>
+          <ul className="list-none p-0 grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4 my-8">
             {items.map((item) => (
-              <li
-                key={item.uuid}
-                className={isExpired(item.expiration) ? styles.expired : ''}
-              >
+              <li key={item.uuid}>
                 <Link href={`/inventory/${item.uuid}`}>
-                  <article className={styles.item}>
-                    <h4>{item.name}</h4>
+                  <article className={`p-4 border border-[#ccc] rounded cursor-pointer${isExpired(item.expiration) ? ' opacity-60' : ''}`}>
+                    <h4 className="font-medium">{item.name}</h4>
                     <p>
                       {item.amount}{' '}
-                      {item.amount === 1
-                        ? item.measure.singular
-                        : item.measure.plural}
+                      {item.amount === 1 ? item.measure.singular : item.measure.plural}
                     </p>
-                    <p className={styles.expiration}>
+                    <p className="text-sm text-[#666]">
                       Expires: {item.expiration}
                       {isExpired(item.expiration) && ' (expired)'}
                     </p>
