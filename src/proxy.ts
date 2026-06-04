@@ -14,5 +14,6 @@ export default withAuth({
 });
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+  // Recipes pages are publicly readable — exclude them from the auth gate.
+  matcher: ['/((?!api|recipes|_next/static|_next/image|favicon.ico).*)'],
 };
