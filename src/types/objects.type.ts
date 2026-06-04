@@ -45,3 +45,8 @@ type Measure = {
   singular: string;
   plural: string;
 };
+
+type CreateMeasure = {
+  singular: string;
+  plural: string;
+};

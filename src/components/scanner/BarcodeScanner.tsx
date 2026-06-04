@@ -1,0 +1,86 @@
+import { useEffect, useRef } from 'react';
+
+type Props = {
+  active: boolean;
+  onDetected: (barcode: string) => void;
+};
+
+/**
+ * I/O adapter — owns the camera stream and ZXing decode loop.
+ * Fires onDetected(barcode) once when a barcode is read, then stops.
+ * Not unit tested; covered by manual / integration testing.
+ */
+export default function BarcodeScanner({ active, onDetected }: Props) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  // @zxing/browser types omit reset() but it exists on the base class
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const readerRef = useRef<any>(null);
+
+  // Camera lifecycle
+  useEffect(() => {
+    async function start() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+          audio: false,
+        });
+        streamRef.current = stream;
+        if (videoRef.current) videoRef.current.srcObject = stream;
+      } catch {
+        // Camera unavailable — silently degrade; parent can detect via no callback
+      }
+    }
+    start();
+    return () => {
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      readerRef.current?.reset();
+    };
+  }, []);
+
+  // ZXing decode loop
+  useEffect(() => {
+    if (!active) {
+      readerRef.current?.reset();
+      return;
+    }
+    let alive = true;
+
+    async function startDecode() {
+      const { BrowserMultiFormatReader } = await import('@zxing/browser');
+      const reader = new BrowserMultiFormatReader() as any;
+      readerRef.current = reader;
+      if (!videoRef.current) return;
+      try {
+        await reader.decodeFromVideoElement(
+          videoRef.current,
+          async (result: import('@zxing/library').Result | undefined) => {
+            if (!alive || !result) return;
+            reader.reset();
+            alive = false;
+            onDetected(result.getText());
+          },
+        );
+      } catch {
+        // decode errors are expected when no barcode is in frame
+      }
+    }
+
+    startDecode();
+    return () => {
+      alive = false;
+      readerRef.current?.reset();
+    };
+  }, [active, onDetected]);
+
+  return (
+    <div className="relative w-full h-full">
+      <video ref={videoRef} className="w-full h-full object-cover block" autoPlay playsInline muted />
+      {/* Targeting reticle */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-24 border-2 border-white/60 rounded-lg pointer-events-none">
+        <span className="absolute -top-0.5 -left-0.5 w-5 h-5 border-t-[3px] border-l-[3px] border-sky-400 rounded-tl" />
+        <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 border-b-[3px] border-r-[3px] border-sky-400 rounded-br" />
+      </div>
+    </div>
+  );
+}

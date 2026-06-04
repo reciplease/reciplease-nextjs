@@ -49,6 +49,9 @@ export default function InventoryList() {
             <Link href="/inventory/create">
               <button>Add to inventory</button>
             </Link>
+            <Link href="/inventory/scan">
+              <button>📷 Scan</button>
+            </Link>
           </div>
         </div>
 
