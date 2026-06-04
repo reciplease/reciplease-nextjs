@@ -22,7 +22,7 @@ export default function Header() {
             {session.user?.email && (
               <span className={styles.email}>{session.user.email}</span>
             )}
-            <button className={styles.signOut} onClick={() => signOut()}>
+            <button className={styles.signOut} onClick={() => signOut({ callbackUrl: '/' })}>
               Sign out
             </button>
           </>
