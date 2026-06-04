@@ -41,7 +41,11 @@ function sessionToken(store: CookieStore): string | undefined {
 async function refreshIdToken(refreshToken: string): Promise<string | undefined> {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return undefined;
+  if (!clientId || !clientSecret) {
+    console.error('[idToken] missing GOOGLE_CLIENT_ID/SECRET in function env');
+    return undefined;
+  }
+  const start = Date.now();
   try {
     const response = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -52,11 +56,20 @@ async function refreshIdToken(refreshToken: string): Promise<string | undefined>
         grant_type: 'refresh_token',
         refresh_token: refreshToken,
       }),
+      // Never let a stuck egress hang the whole function (was timing out at 30s).
+      signal: AbortSignal.timeout(8000),
     });
+    console.error(
+      `[idToken] google refresh status=${response.status} in ${Date.now() - start}ms`,
+    );
     if (!response.ok) return undefined;
     const refreshed = await response.json();
     return refreshed.id_token as string | undefined;
-  } catch {
+  } catch (e) {
+    console.error(
+      `[idToken] google refresh threw in ${Date.now() - start}ms:`,
+      e instanceof Error ? `${e.name}: ${e.message}` : e,
+    );
     return undefined;
   }
 }
