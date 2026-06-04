@@ -28,7 +28,7 @@ export default function Header() {
           </>
         ) : (
           <button className={styles.signOut} onClick={() => signIn('google')}>
-            Sign in
+            Sign in with Google
           </button>
         )}
       </div>
