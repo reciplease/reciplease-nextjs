@@ -1,36 +1,37 @@
 import styles from '@/components/Header.module.scss';
 import Link from 'next/link';
-import { useSession, signOut } from 'next-auth/react';
-
-function Account() {
-  const { data: session, status } = useSession();
-
-  if (status !== 'authenticated') {
-    return null;
-  }
-
-  return (
-    <div className={styles.account}>
-      {session.user?.email && (
-        <span className={styles.email}>{session.user.email}</span>
-      )}
-      <button className={styles.signOut} onClick={() => signOut()}>
-        Sign out
-      </button>
-    </div>
-  );
-}
+import { useSession, signIn, signOut } from 'next-auth/react';
 
 export default function Header() {
+  const { data: session, status } = useSession();
+  const authenticated = status === 'authenticated';
+
   return (
     <header className={styles.header}>
       <h1 className={styles.title}>Reciplease</h1>
-      <nav className={styles.navigation}>
-        <Link href={'/recipes'}>Recipes</Link>
-        <Link href={'/inventory'}>Inventory</Link>
-        <Link href={'/planner'}>Planner</Link>
-      </nav>
-      <Account />
+      {authenticated && (
+        <nav className={styles.navigation}>
+          <Link href={'/recipes'}>Recipes</Link>
+          <Link href={'/inventory'}>Inventory</Link>
+          <Link href={'/planner'}>Planner</Link>
+        </nav>
+      )}
+      <div className={styles.account}>
+        {authenticated ? (
+          <>
+            {session.user?.email && (
+              <span className={styles.email}>{session.user.email}</span>
+            )}
+            <button className={styles.signOut} onClick={() => signOut()}>
+              Sign out
+            </button>
+          </>
+        ) : (
+          <button className={styles.signOut} onClick={() => signIn('google')}>
+            Sign in
+          </button>
+        )}
+      </div>
     </header>
   );
 }
