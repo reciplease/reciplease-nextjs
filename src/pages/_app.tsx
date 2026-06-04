@@ -12,9 +12,12 @@ export default function App({
   pageProps,
 }: AppProps<{ session?: Session }>) {
   const router = useRouter();
-  // The login page is the unauthenticated entry point, so it renders standalone
-  // (no app chrome) and outside AccessGate, which would otherwise intercept it.
+  // The login page renders standalone (no chrome, no AccessGate).
   const standalone = router.pathname === '/login';
+  // Recipes are publicly readable — show them inside the Layout but without
+  // the AccessGate sign-in wall.
+  const publicPage =
+    router.pathname === '/recipes' || router.pathname === '/recipes/[recipeId]';
 
   return (
     <SessionProvider session={pageProps.session}>
@@ -23,6 +26,10 @@ export default function App({
       </Head>
       {standalone ? (
         <Component {...pageProps} />
+      ) : publicPage ? (
+        <Layout>
+          <Component {...pageProps} />
+        </Layout>
       ) : (
         <Layout>
           <AccessGate>
