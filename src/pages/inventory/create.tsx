@@ -2,7 +2,6 @@ import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
-import styles from './Inventory.module.scss';
 
 const fetcher = (url: string): Promise<Ingredient[]> =>
   fetch(url).then((res) => res.json());
@@ -48,9 +47,9 @@ export default function CreateInventoryItem() {
     <>
       <Metadata title="Add to Inventory" description="Add an ingredient to your inventory" />
 
-      <section className={styles.inventory}>
-        <h3>Add to Inventory</h3>
-        <form onSubmit={handleSubmit} className={styles.form}>
+      <section>
+        <h3 className="text-xl font-semibold mb-4">Add to Inventory</h3>
+        <form onSubmit={handleSubmit} className="grid gap-2 max-w-sm">
           <label htmlFor="ingredient">Ingredient</label>
           {isLoading ? (
             <select id="ingredient" disabled>
@@ -62,6 +61,7 @@ export default function CreateInventoryItem() {
               value={ingredientUuid}
               onChange={(e) => setIngredientUuid(e.target.value)}
               required
+              className="p-2 text-base"
             >
               <option value="" disabled>
                 Select an ingredient
@@ -84,6 +84,7 @@ export default function CreateInventoryItem() {
             onChange={(e) => setAmount(e.target.value)}
             required
             placeholder="e.g. 500"
+            className="p-2 text-base"
           />
 
           <label htmlFor="expiration">Expiration date</label>
@@ -93,11 +94,12 @@ export default function CreateInventoryItem() {
             value={expiration}
             onChange={(e) => setExpiration(e.target.value)}
             required
+            className="p-2 text-base"
           />
 
           {error && <p role="alert">{error}</p>}
 
-          <button type="submit" disabled={submitting || isLoading}>
+          <button type="submit" disabled={submitting || isLoading} className="mt-2">
             {submitting ? 'Saving...' : 'Add to inventory'}
           </button>
         </form>

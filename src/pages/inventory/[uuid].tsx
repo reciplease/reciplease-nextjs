@@ -2,7 +2,6 @@ import useSWR from 'swr';
 import { GetServerSidePropsContext } from 'next';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
-import styles from './Inventory.module.scss';
 
 const fetcher = (url: string): Promise<InventoryItem> =>
   fetch(url).then((res) => {
@@ -25,9 +24,7 @@ export default function InventoryItemPage({ uuid }: Props) {
     return (
       <>
         <Metadata title="Loading" description="Loading inventory item..." />
-        <section className={styles.inventory}>
-          <p>Loading...</p>
-        </section>
+        <p>Loading...</p>
       </>
     );
   }
@@ -36,10 +33,8 @@ export default function InventoryItemPage({ uuid }: Props) {
     return (
       <>
         <Metadata title="Not Found" description="Inventory item not found" />
-        <section className={styles.inventory}>
-          <p>Item not found</p>
-          <Link href="/inventory">Back to inventory</Link>
-        </section>
+        <p>Item not found</p>
+        <Link href="/inventory">Back to inventory</Link>
       </>
     );
   }
@@ -50,14 +45,14 @@ export default function InventoryItemPage({ uuid }: Props) {
     <>
       <Metadata title={item.name} description={`${item.name} inventory item`} />
 
-      <section className={styles.inventory}>
-        <Link href="/inventory">← Back to inventory</Link>
-        <h3>{item.name}</h3>
+      <section className="grid gap-3">
+        <Link href="/inventory" className="text-sm">← Back to inventory</Link>
+        <h3 className="text-xl font-semibold">{item.name}</h3>
         <p>
           Amount: {item.amount}{' '}
           {item.amount === 1 ? item.measure.singular : item.measure.plural}
         </p>
-        <p className={expired ? styles.expired : ''}>
+        <p className={expired ? 'opacity-60' : ''}>
           Expires: {item.expiration}
           {expired && ' — expired'}
         </p>

@@ -18,14 +18,21 @@ function Centered({ children }: { children: ReactNode }) {
  * - Not signed in: prompt Google login (middleware also redirects here).
  * - Signed in: probe the backend. A 200 renders the app; a 403 means the Google
  *   account is valid but not on the allowlist, so we show a "not allowed" notice.
+ *
+ * Set NEXT_PUBLIC_AUTH_DISABLED=true to bypass entirely for local development.
  */
 export default function AccessGate({ children }: { children: ReactNode }) {
-  const { data: session, status } = useSession();
+  const authDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED === 'true';
+  const { data: session, status } = useSession({ required: !authDisabled });
 
   const { data, isLoading } = useSWR<Access>(
-    status === 'authenticated' ? '/api/access' : null,
+    !authDisabled && status === 'authenticated' ? '/api/access' : null,
     probe,
   );
+
+  if (authDisabled) {
+    return <>{children}</>;
+  }
 
   if (status === 'loading') {
     return <Centered>Loading…</Centered>;
