@@ -6,7 +6,7 @@ type Props = {
 };
 
 /**
- * I/O adapter — ZXing manages both camera acquisition and decode loop.
+ * I/O adapter — owns the camera stream and ZXing decode loop.
  * Fires onDetected(barcode) once when a barcode is read, then stops.
  * Not unit tested; covered by manual / integration testing.
  */
@@ -19,19 +19,37 @@ export default function BarcodeScanner({ active, onDetected }: Props) {
       readerRef.current?.reset();
       return;
     }
+
     let alive = true;
+    let stream: MediaStream | null = null;
 
     async function start() {
+      if (!videoRef.current) return;
+
+      // 1. Acquire camera
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+          audio: false,
+        });
+      } catch {
+        return; // Camera unavailable — silently degrade
+      }
+      if (!alive) { stream.getTracks().forEach((t) => t.stop()); return; }
+
+      // 2. Attach stream and wait for video to be playing
+      const video = videoRef.current;
+      video.srcObject = stream;
+      try { await video.play(); } catch { /* autoplay policy — playsInline muted should allow it */ }
+      if (!alive) { stream.getTracks().forEach((t) => t.stop()); return; }
+
+      // 3. Start ZXing — video is guaranteed to have a live stream now
       const { BrowserMultiFormatReader } = await import('@zxing/browser');
-      // decodeFromConstraints handles camera acquisition internally —
-      // no race condition between getUserMedia and decodeFromVideoElement.
       const reader = new BrowserMultiFormatReader() as any;
       readerRef.current = reader;
-      if (!videoRef.current) return;
       try {
-        await reader.decodeFromConstraints(
-          { video: { facingMode: 'environment' } },
-          videoRef.current,
+        await reader.decodeFromVideoElement(
+          video,
           (result: import('@zxing/library').Result | undefined) => {
             if (!alive || !result) return;
             reader.reset();
@@ -48,6 +66,7 @@ export default function BarcodeScanner({ active, onDetected }: Props) {
     return () => {
       alive = false;
       readerRef.current?.reset();
+      stream?.getTracks().forEach((t) => t.stop());
     };
   }, [active, onDetected]);
 
