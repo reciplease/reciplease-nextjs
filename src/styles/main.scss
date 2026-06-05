@@ -28,15 +28,16 @@
 /**
  * Content grid: children sit in a centred, reading-width column by default,
  * but can break out to a wider track or full width via .breakout / .full-bleed.
- * The minmax() gutters centre the column and guarantee a small side margin;
- * min(…, 100% - 2rem) keeps it responsive without media queries.
+ * The minmax() gutters centre the column and guarantee a side margin;
+ * min(…, 100% - 3rem) keeps it responsive without media queries (the 3rem
+ * matches the 1.5rem gutters, so small screens keep a comfortable margin).
  */
 .content-grid {
   display: grid;
   grid-template-columns:
-    [full-start] minmax(1rem, 1fr)
-    [content-start] min(80ch, 100% - 2rem) [content-end]
-    minmax(1rem, 1fr) [full-end];
+    [full-start] minmax(1.5rem, 1fr)
+    [content-start] min(80ch, 100% - 3rem) [content-end]
+    minmax(1.5rem, 1fr) [full-end];
 }
 
 .content-grid > * {
