@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
@@ -11,15 +11,13 @@ export default function CreateIngredient() {
   const router = useRouter();
   const { data: measures } = useSWR('/api/measures', fetcher);
   const [name, setName] = useState('');
+  // Empty string means "use first available measure" — resolved at submit time
   const [measureId, setMeasureId] = useState<MeasureId>('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (measures && measures.length > 0 && !measureId) {
-      setMeasureId(measures[0].measureId);
-    }
-  }, [measures, measureId]);
+  // Derive the effective measure: explicit selection or first in list
+  const effectiveMeasureId = measureId || measures?.[0]?.measureId || '';
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -29,7 +27,7 @@ export default function CreateIngredient() {
       const res = await fetch('/api/ingredients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, measureId } satisfies CreateIngredient),
+        body: JSON.stringify({ name, measureId: effectiveMeasureId } satisfies CreateIngredient),
       });
       if (!res.ok) {
         setError('Failed to create ingredient. Please try again.');
@@ -63,7 +61,7 @@ export default function CreateIngredient() {
           <label htmlFor="measure">Measure</label>
           <select
             id="measure"
-            value={measureId}
+            value={effectiveMeasureId}
             onChange={(e) => setMeasureId(e.target.value)}
           >
             {(measures ?? []).map((m) => (

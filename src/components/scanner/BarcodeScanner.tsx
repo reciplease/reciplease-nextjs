@@ -14,7 +14,6 @@ export default function BarcodeScanner({ active, onDetected }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   // @zxing/browser types omit reset() but it exists on the base class
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const readerRef = useRef<any>(null);
 
   // Camera lifecycle

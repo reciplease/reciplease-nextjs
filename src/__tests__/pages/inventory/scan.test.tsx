@@ -32,7 +32,6 @@ jest.mock('@/components/scanner/ExpirationScanner', () =>
 jest.mock('next/dynamic', () => (fn: () => Promise<{ default: unknown }>) => {
   let Component: React.ComponentType<any> | null = null;
   fn().then((mod) => { Component = (mod as any).default ?? mod; });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return function DynamicMock(props: any) {
     return Component ? <Component {...props} /> : null;
   };

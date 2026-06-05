@@ -7,9 +7,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/set-version.mjs && next build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src e2e",
+    "check": "npm run typecheck && npm run lint",
+    "build": "node scripts/set-version.mjs && npm run check && next build",
     "start": "next start",
-    "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:e2e": "playwright test",
