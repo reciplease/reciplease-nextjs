@@ -103,7 +103,7 @@ export default function ScanPage() {
       <Metadata title="Scan item" description="Scan a food barcode to add to inventory" />
 
       {/* Standalone full-screen page — no Layout header above us */}
-      <div className="flex flex-col bg-black text-white h-dvh"
+      <div className="flex flex-col bg-black text-white h-svh"
            style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
 
         {/* Camera view — fills remaining space */}
