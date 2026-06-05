@@ -7,9 +7,9 @@ import { useSession, signIn, signOut } from 'next-auth/react';
 // was too bright against the dark UI.
 const navLink =
   'p-4 transition-colors duration-100 hover:bg-secondary hover:text-white active:bg-secondary active:text-white';
-// Current page: partial brand-coral highlight (translucent fill + underline).
+// Current page: brand-coral underline (no fill).
 const navLinkActive =
-  'bg-highlight/[0.18] shadow-[inset_0_-0.2rem_0_var(--color-highlight)]';
+  'shadow-[inset_0_-0.2rem_0_var(--color-highlight)]';
 
 // Official "Sign in with Google" button per Google's branding guidelines
 // (light theme): white surface, #747775 border, the 4-colour G mark, and the
@@ -57,16 +57,11 @@ export default function Header() {
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`);
 
-  // `prevHref` adds the separator before all but the first item. The divider
-  // turns primary when the item on either side of it is active.
-  const linkClass = (href: string, prevHref?: string) => {
-    const divider = prevHref
-      ? ` border-l-2 ${
-          isActive(href) || isActive(prevHref) ? 'border-highlight' : 'border-secondary'
-        }`
-      : '';
-    return `${navLink}${divider}${isActive(href) ? ` ${navLinkActive}` : ''}`;
-  };
+  // `divider` adds the secondary-coloured separator before all but the first item.
+  const linkClass = (href: string, divider = false) =>
+    `${navLink}${divider ? ' border-l-2 border-secondary' : ''}${
+      isActive(href) ? ` ${navLinkActive}` : ''
+    }`;
 
   return (
     <header className="flex flex-wrap items-center justify-start mt-4 mb-8">
@@ -89,10 +84,10 @@ export default function Header() {
           <Link href={'/recipes'} className={linkClass('/recipes')}>
             Recipes
           </Link>
-          <Link href={'/inventory'} className={linkClass('/inventory', '/recipes')}>
+          <Link href={'/inventory'} className={linkClass('/inventory', true)}>
             Inventory
           </Link>
-          <Link href={'/planner'} className={linkClass('/planner', '/inventory')}>
+          <Link href={'/planner'} className={linkClass('/planner', true)}>
             Planner
           </Link>
         </nav>
