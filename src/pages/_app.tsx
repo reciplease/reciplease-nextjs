@@ -13,7 +13,8 @@ export default function App({
 }: AppProps<{ session?: Session }>) {
   const router = useRouter();
   // The login page renders standalone (no chrome, no AccessGate).
-  const standalone = router.pathname === '/login';
+  // login and the scanner are full-screen standalone pages (no header/layout chrome)
+  const standalone = router.pathname === '/login' || router.pathname === '/inventory/scan';
   // Recipes are publicly readable — show them inside the Layout but without
   // the AccessGate sign-in wall.
   const publicPage =

@@ -9,40 +9,17 @@ type Props = {
 /**
  * I/O adapter — owns the Tesseract OCR loop over the camera stream.
  * Fires onDetected(isoDate) once two consecutive frames agree on the same date.
- * Shows a live candidate label so the user knows what was spotted.
  * Not unit tested; covered by manual / integration testing.
  */
 export default function ExpirationScanner({ active, onDetected }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
   const workerRef = useRef<import('tesseract.js').Worker | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastCandidateRef = useRef<string | null>(null);
   const countRef = useRef(0);
   const [candidate, setCandidate] = useState<string | null>(null);
 
-  // Camera lifecycle
-  useEffect(() => {
-    async function start() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-          audio: false,
-        });
-        streamRef.current = stream;
-        if (videoRef.current) videoRef.current.srcObject = stream;
-      } catch {
-        // silently degrade
-      }
-    }
-    start();
-    return () => {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-    };
-  }, []);
-
-  // OCR loop
   useEffect(() => {
     if (!active) {
       clearInterval(intervalRef.current ?? undefined);
@@ -52,13 +29,38 @@ export default function ExpirationScanner({ active, onDetected }: Props) {
     let alive = true;
 
     async function init() {
+      // Acquire camera first, attach to video, wait for it to play
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+          audio: false,
+        });
+      } catch {
+        return; // Camera unavailable
+      }
+
+      if (!videoRef.current || !alive) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      const video = videoRef.current;
+      video.srcObject = stream;
+      // Wait for video to be playing before starting OCR
+      await new Promise<void>((resolve) => {
+        if (video.readyState >= 3) { resolve(); return; }
+        video.addEventListener('canplay', () => resolve(), { once: true });
+      });
+
+      if (!alive) { stream.getTracks().forEach((t) => t.stop()); return; }
+
       const { createWorker } = await import('tesseract.js');
       const worker = await createWorker('eng');
       workerRef.current = worker;
 
       intervalRef.current = setInterval(async () => {
-        if (!alive || !videoRef.current || !canvasRef.current) return;
-        const video = videoRef.current;
+        if (!alive || !canvasRef.current) return;
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         if (!ctx || video.readyState < 2) return;
@@ -95,6 +97,8 @@ export default function ExpirationScanner({ active, onDetected }: Props) {
           // ignore OCR errors
         }
       }, 1500);
+
+      return () => stream.getTracks().forEach((t) => t.stop());
     }
 
     init();

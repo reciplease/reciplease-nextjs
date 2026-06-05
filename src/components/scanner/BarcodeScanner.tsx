@@ -6,38 +6,14 @@ type Props = {
 };
 
 /**
- * I/O adapter — owns the camera stream and ZXing decode loop.
+ * I/O adapter — ZXing manages both camera acquisition and decode loop.
  * Fires onDetected(barcode) once when a barcode is read, then stops.
  * Not unit tested; covered by manual / integration testing.
  */
 export default function BarcodeScanner({ active, onDetected }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  // @zxing/browser types omit reset() but it exists on the base class
   const readerRef = useRef<any>(null);
 
-  // Camera lifecycle
-  useEffect(() => {
-    async function start() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-          audio: false,
-        });
-        streamRef.current = stream;
-        if (videoRef.current) videoRef.current.srcObject = stream;
-      } catch {
-        // Camera unavailable — silently degrade; parent can detect via no callback
-      }
-    }
-    start();
-    return () => {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      readerRef.current?.reset();
-    };
-  }, []);
-
-  // ZXing decode loop
   useEffect(() => {
     if (!active) {
       readerRef.current?.reset();
@@ -45,15 +21,18 @@ export default function BarcodeScanner({ active, onDetected }: Props) {
     }
     let alive = true;
 
-    async function startDecode() {
+    async function start() {
       const { BrowserMultiFormatReader } = await import('@zxing/browser');
+      // decodeFromConstraints handles camera acquisition internally —
+      // no race condition between getUserMedia and decodeFromVideoElement.
       const reader = new BrowserMultiFormatReader() as any;
       readerRef.current = reader;
       if (!videoRef.current) return;
       try {
-        await reader.decodeFromVideoElement(
+        await reader.decodeFromConstraints(
+          { video: { facingMode: 'environment' } },
           videoRef.current,
-          async (result: import('@zxing/library').Result | undefined) => {
+          (result: import('@zxing/library').Result | undefined) => {
             if (!alive || !result) return;
             reader.reset();
             alive = false;
@@ -65,7 +44,7 @@ export default function BarcodeScanner({ active, onDetected }: Props) {
       }
     }
 
-    startDecode();
+    start();
     return () => {
       alive = false;
       readerRef.current?.reset();
