@@ -1,9 +1,5 @@
 import Metadata from '@/components/Metadata';
-import {
-  useSettings,
-  type ThemeSetting,
-  type MotionSetting,
-} from '@/lib/settings';
+import { useSettings, type MotionSetting } from '@/lib/settings';
 
 // A labelled segmented radio group. Generic over the option value so both the
 // theme and motion controls can share it.
@@ -55,12 +51,6 @@ function OptionGroup<T extends string>({
   );
 }
 
-const themeOptions: { value: ThemeSetting; label: string }[] = [
-  { value: 'system', label: 'Automatic' },
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-];
-
 const motionOptions: { value: MotionSetting; label: string }[] = [
   { value: 'system', label: 'Automatic' },
   { value: 'full', label: 'Full' },
@@ -68,7 +58,7 @@ const motionOptions: { value: MotionSetting; label: string }[] = [
 ];
 
 export default function SettingsPage() {
-  const { settings, setTheme, setMotion } = useSettings();
+  const { settings, setMotion } = useSettings();
 
   return (
     <>
@@ -76,15 +66,6 @@ export default function SettingsPage() {
 
       <section>
         <h3 className="mb-6 text-2xl font-semibold">Settings</h3>
-
-        <OptionGroup
-          legend="Appearance"
-          hint="Automatic follows your device's light/dark setting. Choose Light or Dark to override it."
-          name="theme"
-          value={settings.theme}
-          options={themeOptions}
-          onChange={setTheme}
-        />
 
         <OptionGroup
           legend="Animations"

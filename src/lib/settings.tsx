@@ -9,16 +9,16 @@ import {
 // User-facing UI preferences, stored locally in the browser (no server round
 // trip). `system` defers to the OS / browser (the prefers-* media queries);
 // the explicit values let the user override that automatic behaviour.
-export type ThemeSetting = 'system' | 'light' | 'dark';
+//
+// The app is dark-only — there is no light or automatic theme — so the only
+// preference exposed here is the reduce-motion setting.
 export type MotionSetting = 'system' | 'full' | 'reduced';
 
 export interface Settings {
-  theme: ThemeSetting;
   motion: MotionSetting;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  theme: 'system',
   motion: 'system',
 };
 
@@ -38,13 +38,6 @@ function readStored(): Settings {
   }
 }
 
-function prefersDark(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-color-scheme: dark)').matches
-  );
-}
-
 function prefersReducedMotion(): boolean {
   return (
     typeof window !== 'undefined' &&
@@ -52,18 +45,14 @@ function prefersReducedMotion(): boolean {
   );
 }
 
-// Resolve the `system` values against the live media queries and reflect the
-// result onto <html> as classes. The CSS in main.scss keys off these classes,
-// so an explicit override always wins over the browser default.
+// Reflect the resolved settings onto <html> as classes. The CSS in main.scss
+// keys off these classes. The theme is always dark; only the reduce-motion
+// preference resolves a `system` value against the live media query.
 function applySettings(settings: Settings) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
 
-  const dark =
-    settings.theme === 'dark' ||
-    (settings.theme === 'system' && prefersDark());
-  root.classList.toggle('theme-dark', dark);
-  root.classList.toggle('theme-light', !dark);
+  root.classList.add('theme-dark');
 
   const reduced =
     settings.motion === 'reduced' ||
@@ -73,7 +62,6 @@ function applySettings(settings: Settings) {
 
 interface SettingsContextValue {
   settings: Settings;
-  setTheme: (theme: ThemeSetting) => void;
   setMotion: (motion: MotionSetting) => void;
 }
 
@@ -99,22 +87,18 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }
   }, [settings]);
 
-  // Re-apply when the OS preference changes while a `system` setting is active.
+  // Re-apply when the OS reduce-motion preference changes while `system` is active.
   useEffect(() => {
-    const colorScheme = window.matchMedia('(prefers-color-scheme: dark)');
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const onChange = () => applySettings(settings);
-    colorScheme.addEventListener('change', onChange);
     motion.addEventListener('change', onChange);
     return () => {
-      colorScheme.removeEventListener('change', onChange);
       motion.removeEventListener('change', onChange);
     };
   }, [settings]);
 
   const value: SettingsContextValue = {
     settings,
-    setTheme: (theme) => setSettings((s) => ({ ...s, theme })),
     setMotion: (motion) => setSettings((s) => ({ ...s, motion })),
   };
 

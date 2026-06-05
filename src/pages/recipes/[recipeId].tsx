@@ -1,5 +1,4 @@
 import Metadata from '@/components/Metadata';
-import styles from '@/pages/recipes/Recipe.module.scss';
 import { GetServerSidePropsContext } from 'next';
 import useSWR from 'swr';
 import { full } from '@/lib/recipe-id';
@@ -24,7 +23,7 @@ export default function Recipe({ recipeShortId }: Props) {
       <>
         <Metadata title={'Loading Recipe'} description={'Loading recipe...'} />
 
-        <section className={styles.recipe}>
+        <section>
           <p>Loading...</p>
         </section>
       </>
@@ -36,7 +35,7 @@ export default function Recipe({ recipeShortId }: Props) {
       <>
         <Metadata title={'No Recipe Found'} description={'No recipe found'} />
 
-        <section className={styles.recipe}>
+        <section>
           <p>No recipe found</p>
           {error && <p>{JSON.stringify(error)}</p>}
         </section>
@@ -48,21 +47,21 @@ export default function Recipe({ recipeShortId }: Props) {
     <>
       <Metadata title={`${recipe.name}`} description={'View recipe'} />
 
-      <section className={styles.recipe}>
+      <section>
         <h3>{recipe.name}</h3>
-        <p>{recipe.description}</p>
-        <h4>Ingredients</h4>
-        <ul>
+        <p className="my-4">{recipe.description}</p>
+        <h4 className="mt-12">Ingredients</h4>
+        <ul className="ms-16 list-disc">
           {recipe.ingredients.map((ingredient) => (
-            <li key={ingredient.ingredientId}>
+            <li key={ingredient.ingredientId} className="my-4">
               {displayIngredient(ingredient)}
             </li>
           ))}
         </ul>
-        <h4>Method</h4>
-        <ol>
+        <h4 className="mt-12">Method</h4>
+        <ol className="ms-16 list-decimal">
           {recipe.steps.map((step, index) => (
-            <li key={index}>{step}</li>
+            <li key={index} className="my-4">{step}</li>
           ))}
         </ol>
       </section>

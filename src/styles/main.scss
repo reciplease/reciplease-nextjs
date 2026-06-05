@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+// The SettingsProvider reflects the resolved theme onto <html> as
+// .theme-dark / .theme-light (see src/lib/settings.tsx), so Tailwind's `dark:`
+// variant must key off that class rather than the default prefers-color-scheme.
+@custom-variant dark (&:where(.theme-dark, .theme-dark *));
+
 // Brand palette, taken from the recipe-book logo (public/reciplease-book.svg).
 // Exposed as Tailwind tokens (bg-highlight, text-highlight, ring-highlight, …)
 // and as CSS variables (var(--color-highlight)) for use in .scss modules.
@@ -89,22 +94,19 @@ dialog {
   }
 }
 
-ul, ol {
-  list-style: none;
+// In @layer base so a `list-disc` / `list-decimal` utility can opt back in
+// (unlayered rules would otherwise beat Tailwind's utilities layer).
+@layer base {
+  ul, ol {
+    list-style: none;
+  }
 }
 
-// Dark/light mode. The SettingsProvider (src/lib/settings.tsx) resolves the
-// `system` preference against prefers-color-scheme and reflects the result onto
-// <html> as .theme-dark / .theme-light, so an explicit user override always
-// wins over the browser default.
+// The app is dark-only. The SettingsProvider (src/lib/settings.tsx) always
+// reflects .theme-dark onto <html>, which the Tailwind `dark:` variant keys off.
 html.theme-dark {
   color-scheme: dark;
   background: black;
-}
-
-html.theme-light {
-  color-scheme: light;
-  background: white;
 }
 
 // Reduced animations. Driven by the .reduce-motion class the SettingsProvider

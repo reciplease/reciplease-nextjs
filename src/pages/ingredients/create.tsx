@@ -2,7 +2,6 @@ import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
-import styles from './Ingredients.module.scss';
 
 const fetcher = (url: string): Promise<Measure[]> =>
   fetch(url).then((res) => res.json());
@@ -45,9 +44,9 @@ export default function CreateIngredient() {
     <>
       <Metadata title="Add Ingredient" description="Create a new ingredient" />
 
-      <section className={styles.form_page}>
+      <section>
         <h3>Add Ingredient</h3>
-        <form onSubmit={handleSubmit} className={styles.form}>
+        <form onSubmit={handleSubmit} className="grid max-w-[400px] gap-2">
           <label htmlFor="name">Name</label>
           <input
             id="name"
@@ -56,6 +55,7 @@ export default function CreateIngredient() {
             onChange={(e) => setName(e.target.value)}
             required
             placeholder="e.g. Milk"
+            className="p-2 text-base"
           />
 
           <label htmlFor="measure">Measure</label>
@@ -63,6 +63,7 @@ export default function CreateIngredient() {
             id="measure"
             value={effectiveMeasureId}
             onChange={(e) => setMeasureId(e.target.value)}
+            className="p-2 text-base"
           >
             {(measures ?? []).map((m) => (
               <option key={m.measureId} value={m.measureId}>
@@ -73,7 +74,7 @@ export default function CreateIngredient() {
 
           {error && <p role="alert">{error}</p>}
 
-          <button type="submit" disabled={submitting}>
+          <button type="submit" disabled={submitting} className="mt-2">
             {submitting ? 'Saving...' : 'Save ingredient'}
           </button>
         </form>

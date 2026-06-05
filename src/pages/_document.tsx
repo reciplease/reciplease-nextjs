@@ -2,7 +2,9 @@ import { Head, Html, Main, NextScript } from 'next/document';
 
 export default function Document() {
   return (
-    <Html lang='en'>
+    // The app is dark-only; set the class up front so there's no light flash
+    // before the SettingsProvider hydrates (see src/lib/settings.tsx).
+    <Html lang='en' className='theme-dark'>
       <Head>
         <link rel='apple-touch-icon' href='/logo192.png' />
         {/*manifest.json provides metadata used when your web app is installed on a*/}

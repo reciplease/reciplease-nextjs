@@ -1,4 +1,3 @@
-import styles from '@/pages/recipes/Recipes.module.scss';
 import RecipePreview from '@/components/RecipePreview';
 import Metadata from '@/components/Metadata';
 import Recipe from '@/pages/recipes/[recipeId]';
@@ -18,7 +17,7 @@ export default function Recipes() {
           description={'Loading recipes...'}
         />
 
-        <section className={styles.recipes}>
+        <section className="grid">
           <p>Loading...</p>
         </section>
       </>
@@ -30,7 +29,7 @@ export default function Recipes() {
       <>
         <Metadata title={'No Recipes Found'} description={'No recipes found'} />
 
-        <section className={styles.recipes}>
+        <section className="grid">
           <p>No recipes found</p>
         </section>
       </>
@@ -41,8 +40,8 @@ export default function Recipes() {
     <>
       <Metadata title={'Recipes'} description={'View recipes'} />
 
-      <section className={styles.recipes}>
-        <ul className={styles.previews}>
+      <section className="grid">
+        <ul className="my-8 grid list-none grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
           {recipes.map((recipe) => (
             <li key={recipe.recipeId}>
               <RecipePreview recipe={recipe} />

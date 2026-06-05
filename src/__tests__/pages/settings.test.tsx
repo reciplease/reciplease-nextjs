@@ -24,20 +24,11 @@ describe('Settings page', () => {
     window.localStorage.clear();
   });
 
-  it('defaults both preferences to Automatic', () => {
+  it('defaults the motion preference to Automatic', () => {
     renderPage();
-    // Both the Appearance and Animations groups default to their Automatic option.
-    const automatic = screen.getAllByRole('radio', { name: 'Automatic' });
-    expect(automatic).toHaveLength(2);
-    automatic.forEach((radio) => expect(radio).toBeChecked());
-  });
-
-  it('records a dark-mode override and persists it', () => {
-    renderPage();
-    fireEvent.click(screen.getByRole('radio', { name: 'Dark' }));
-
-    expect(screen.getByRole('radio', { name: 'Dark' })).toBeChecked();
-    expect(stored().theme).toBe('dark');
+    // The app is dark-only, so Animations is the only preference group.
+    const automatic = screen.getByRole('radio', { name: 'Automatic' });
+    expect(automatic).toBeChecked();
   });
 
   it('records a reduced-motion preference and persists it', () => {
@@ -51,11 +42,10 @@ describe('Settings page', () => {
   it('restores previously stored preferences on mount', () => {
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ theme: 'dark', motion: 'reduced' }),
+      JSON.stringify({ motion: 'reduced' }),
     );
     renderPage();
 
-    expect(screen.getByRole('radio', { name: 'Dark' })).toBeChecked();
     expect(screen.getByRole('radio', { name: 'Reduced' })).toBeChecked();
   });
 });
