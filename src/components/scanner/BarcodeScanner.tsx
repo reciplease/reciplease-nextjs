@@ -43,22 +43,26 @@ export default function BarcodeScanner({ active, onDetected }: Props) {
       try { await video.play(); } catch { /* autoplay policy — playsInline muted should allow it */ }
       if (!alive) { stream.getTracks().forEach((t) => t.stop()); return; }
 
-      // 3. Start ZXing — video is guaranteed to have a live stream now
+      // 3. Start ZXing continuous decode — video is guaranteed to have a live stream now
       const { BrowserMultiFormatReader } = await import('@zxing/browser');
       const reader = new BrowserMultiFormatReader() as any;
       readerRef.current = reader;
       try {
-        await reader.decodeFromVideoElement(
+        // decodeFromVideoElementContinuously polls every frame until reset() is called.
+        // The callback receives (result, error) — error just means "no barcode this frame".
+        reader.decodeFromVideoElementContinuously(
           video,
-          (result: import('@zxing/library').Result | undefined) => {
-            if (!alive || !result) return;
+          (result: import('@zxing/library').Result | undefined, err: unknown) => {
+            if (!alive) return;
+            if (err) return; // no barcode in this frame — keep scanning
+            if (!result) return;
             reader.reset();
             alive = false;
             onDetected(result.getText());
           },
         );
       } catch {
-        // decode errors are expected when no barcode is in frame
+        // unexpected setup errors
       }
     }
 
