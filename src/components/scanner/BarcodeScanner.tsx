@@ -6,76 +6,53 @@ type Props = {
 };
 
 /**
- * I/O adapter — owns the camera stream and ZXing decode loop.
+ * I/O adapter — owns the ZXing decode loop.
+ * decodeFromVideoDevice handles getUserMedia + stream attachment + continuous scan.
  * Fires onDetected(barcode) once when a barcode is read, then stops.
  * Not unit tested; covered by manual / integration testing.
  */
 export default function BarcodeScanner({ active, onDetected }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const readerRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!active) {
-      readerRef.current?.reset();
-      return;
-    }
+    if (!active || !videoRef.current) return;
 
-    let alive = true;
-    let stream: MediaStream | null = null;
+    // controls is set asynchronously; use a ref so the cleanup can call stop()
+    // even if the effect cleans up before decodeFromVideoDevice resolves.
+    let controls: { stop: () => void } | null = null;
+    let stopped = false;
 
     async function start() {
-      if (!videoRef.current) return;
-
-      // 1. Acquire camera
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-          audio: false,
-        });
-      } catch {
-        return; // Camera unavailable — silently degrade
-      }
-      if (!alive) { stream.getTracks().forEach((t) => t.stop()); return; }
-
-      // 2. Attach stream and wait for video to be playing
-      const video = videoRef.current;
-      video.srcObject = stream;
-      try { await video.play(); } catch { /* autoplay policy — playsInline muted should allow it */ }
-      if (!alive) { stream.getTracks().forEach((t) => t.stop()); return; }
-
-      // 3. Start ZXing continuous decode — video is guaranteed to have a live stream now
       const { BrowserMultiFormatReader } = await import('@zxing/browser');
-      const reader = new BrowserMultiFormatReader() as any;
-      readerRef.current = reader;
+      const reader = new BrowserMultiFormatReader();
+      if (stopped || !videoRef.current) return;
       try {
-        // decodeFromVideoElementContinuously polls every frame until reset() is called.
-        // The callback receives (result, error) — error just means "no barcode this frame".
-        reader.decodeFromVideoElementContinuously(
-          video,
-          (result: import('@zxing/library').Result | undefined, err: unknown) => {
-            if (!alive) return;
-            if (err) return; // no barcode in this frame — keep scanning
-            if (!result) return;
-            reader.reset();
-            alive = false;
+        controls = await reader.decodeFromVideoDevice(
+          // undefined = use environment-facing camera (back camera on phones)
+          undefined,
+          videoRef.current,
+          (result, err) => {
+            if (err || !result) return; // no barcode this frame — keep scanning
+            controls?.stop();
             onDetected(result.getText());
           },
         );
+        if (stopped) controls.stop();
       } catch {
-        // unexpected setup errors
+        // camera access denied or setup error — silently degrade
       }
     }
 
     start();
     return () => {
-      alive = false;
-      readerRef.current?.reset();
-      stream?.getTracks().forEach((t) => t.stop());
+      stopped = true;
+      controls?.stop();
     };
   }, [active, onDetected]);
 
   return (
     <div className="relative w-full h-full">
+      {/* ZXing attaches the stream to this element via decodeFromVideoDevice */}
       <video ref={videoRef} className="w-full h-full object-cover block" autoPlay playsInline muted />
       {/* Targeting reticle */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-24 border-2 border-white/60 rounded-lg pointer-events-none">
