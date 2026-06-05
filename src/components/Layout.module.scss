@@ -1,3 +1,5 @@
 .main {
-  padding-inline: 2rem;
+  // Horizontal spacing now comes from the content grid's gutters (see main.scss).
+  // Keep a little breathing room above the content.
+  padding-block-start: 1rem;
 }

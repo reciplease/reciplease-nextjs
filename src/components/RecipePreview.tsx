@@ -9,10 +9,14 @@ export default function RecipePreview({ recipe }: Props) {
   return (
     <article className={styles.recipe_preview}>
       {/*TODO image?*/}
-      <h4>{recipe.name}</h4>
+      <h4 className="underline decoration-highlight decoration-2 underline-offset-4">
+        {recipe.name}
+      </h4>
       <p>{recipe.description ?? 'No description found'}</p>
       <Link href={`/recipes/${recipe.recipeShortId}`} passHref>
-        <button>View recipe</button>
+        <button className="px-3 py-1 transition-colors hover:bg-secondary hover:text-white">
+          View recipe
+        </button>
       </Link>
     </article>
   );

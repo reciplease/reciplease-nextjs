@@ -42,7 +42,6 @@ export default function Recipes() {
       <Metadata title={'Recipes'} description={'View recipes'} />
 
       <section className={styles.recipes}>
-        <h3 className={styles.recipes_title}>Recipes</h3>
         <ul className={styles.previews}>
           {recipes.map((recipe) => (
             <li key={recipe.recipeId}>
