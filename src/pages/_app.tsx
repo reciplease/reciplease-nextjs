@@ -7,6 +7,17 @@ import Head from 'next/head';
 import Layout from '@/components/Layout';
 import AccessGate from '@/components/AccessGate';
 
+// Local-only profile: NEXT_PUBLIC_FAKE_AUTH=true injects a signed-in session
+// (user@reciplease.org) so the authenticated UI is reachable without Google.
+// Pair it with the middleware/AccessGate bypass (see proxy.ts / AccessGate).
+const FAKE_AUTH = process.env.NEXT_PUBLIC_FAKE_AUTH === 'true';
+const fakeSession: Session | undefined = FAKE_AUTH
+  ? {
+      user: { name: 'Local User', email: 'user@reciplease.org' },
+      expires: '2999-12-31T23:59:59.999Z',
+    }
+  : undefined;
+
 export default function App({
   Component,
   pageProps,
@@ -21,7 +32,12 @@ export default function App({
     router.pathname === '/recipes' || router.pathname === '/recipes/[recipeId]';
 
   return (
-    <SessionProvider session={pageProps.session}>
+    <SessionProvider
+      session={pageProps.session ?? fakeSession}
+      // Don't let a background revalidation against /api/auth/session wipe the
+      // injected fake session in local dev.
+      refetchOnWindowFocus={!FAKE_AUTH}
+    >
       <Head>
         <meta name='viewport' content='width=device-width, initial-scale=1' />
       </Head>

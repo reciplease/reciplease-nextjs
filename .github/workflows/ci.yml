@@ -15,8 +15,20 @@ jobs:
         with:
           node-version: 24
           cache: yarn
-      - run: yarn install --frozen-lockfile
-      - run: yarn check
+      # Cache the installed node_modules, keyed on the lockfile hash, so an
+      # unchanged yarn.lock skips reinstalling dependencies entirely.
+      - name: Cache node_modules
+        id: node-modules-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node24-modules-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node24-modules-
+      - if: steps.node-modules-cache.outputs.cache-hit != 'true'
+        run: yarn install --frozen-lockfile
+      # `yarn run check` (not `yarn check`, which is Yarn's lockfile verifier).
+      - run: yarn run check
       - run: yarn test
 
   e2e:
@@ -28,7 +40,16 @@ jobs:
         with:
           node-version: 24
           cache: yarn
-      - run: yarn install --frozen-lockfile
+      - name: Cache node_modules
+        id: node-modules-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node24-modules-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node24-modules-
+      - if: steps.node-modules-cache.outputs.cache-hit != 'true'
+        run: yarn install --frozen-lockfile
       - run: npx playwright install --with-deps chromium
       # playwright.config.ts boots `npm run dev` with the env it needs
       # (auth disabled, BACKEND_URL pointing at the production API).

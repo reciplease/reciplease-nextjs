@@ -17,7 +17,10 @@ const authMiddleware = withAuth({
 });
 
 export default function middleware(req: NextRequest, event: Parameters<typeof authMiddleware>[1]) {
-  if (process.env.NEXT_PUBLIC_AUTH_DISABLED === 'true') {
+  if (
+    process.env.NEXT_PUBLIC_AUTH_DISABLED === 'true' ||
+    process.env.NEXT_PUBLIC_FAKE_AUTH === 'true'
+  ) {
     return NextResponse.next();
   }
   return authMiddleware(req as NextRequestWithAuth, event);

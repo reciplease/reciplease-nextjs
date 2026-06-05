@@ -20,9 +20,13 @@ function Centered({ children }: { children: ReactNode }) {
  *   account is valid but not on the allowlist, so we show a "not allowed" notice.
  *
  * Set NEXT_PUBLIC_AUTH_DISABLED=true to bypass entirely for local development.
+ * NEXT_PUBLIC_FAKE_AUTH=true injects a fake session (see _app.tsx) — there's no
+ * real bearer token, so skip the backend allowlist probe too.
  */
 export default function AccessGate({ children }: { children: ReactNode }) {
-  const authDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED === 'true';
+  const authDisabled =
+    process.env.NEXT_PUBLIC_AUTH_DISABLED === 'true' ||
+    process.env.NEXT_PUBLIC_FAKE_AUTH === 'true';
   const { data: session, status } = useSession({ required: !authDisabled });
 
   const { data, isLoading } = useSWR<Access>(

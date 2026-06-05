@@ -57,11 +57,16 @@ export default function Header() {
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`);
 
-  // `divider` adds the secondary-coloured separator before all but the first item.
-  const linkClass = (href: string, divider = false) =>
-    `${navLink}${divider ? ' border-l-2 border-secondary' : ''}${
-      isActive(href) ? ` ${navLinkActive}` : ''
-    }`;
+  // `prevHref` adds the separator before all but the first item. The divider
+  // turns primary when the item on either side of it is active.
+  const linkClass = (href: string, prevHref?: string) => {
+    const divider = prevHref
+      ? ` border-l-2 ${
+          isActive(href) || isActive(prevHref) ? 'border-highlight' : 'border-secondary'
+        }`
+      : '';
+    return `${navLink}${divider}${isActive(href) ? ` ${navLinkActive}` : ''}`;
+  };
 
   return (
     <header className="flex flex-wrap items-center justify-start mt-4 mb-8">
@@ -84,10 +89,10 @@ export default function Header() {
           <Link href={'/recipes'} className={linkClass('/recipes')}>
             Recipes
           </Link>
-          <Link href={'/inventory'} className={linkClass('/inventory', true)}>
+          <Link href={'/inventory'} className={linkClass('/inventory', '/recipes')}>
             Inventory
           </Link>
-          <Link href={'/planner'} className={linkClass('/planner', true)}>
+          <Link href={'/planner'} className={linkClass('/planner', '/inventory')}>
             Planner
           </Link>
         </nav>
