@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useSession, signIn, signOut } from 'next-auth/react';
+import { useEffect, useState } from 'react';
 
 // Hover/active use the secondary brand colour (navy) — the old near-white fill
 // was too bright against the dark UI.
@@ -10,6 +11,13 @@ const navLink =
 // Current page: brand-coral underline (no fill).
 const navLinkActive =
   'shadow-[inset_0_-0.2rem_0_var(--color-highlight)]';
+
+// The primary nav, shared between the desktop bar and the mobile menu.
+const navItems = [
+  { href: '/recipes', label: 'Recipes' },
+  { href: '/inventory', label: 'Inventory' },
+  { href: '/planner', label: 'Planner' },
+];
 
 // Official "Sign in with Google" button per Google's branding guidelines
 // (light theme): white surface, #747775 border, the 4-colour G mark, and the
@@ -47,7 +55,17 @@ function GoogleSignInButton({ onClick }: { onClick: () => void }) {
 export default function Header() {
   const { data: session, status } = useSession();
   const authenticated = status === 'authenticated';
-  const { pathname } = useRouter();
+  const router = useRouter();
+  const { pathname } = router;
+
+  // Mobile menu (hamburger). Collapsed by default; closes on navigation so it
+  // never lingers over a freshly loaded page.
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    const close = () => setMenuOpen(false);
+    router.events.on('routeChangeStart', close);
+    return () => router.events.off('routeChangeStart', close);
+  }, [router.events]);
 
   // Mirror AccessGate/RecipeFab: local dev shows the nav even without a session.
   const authDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED === 'true';
@@ -57,11 +75,55 @@ export default function Header() {
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`);
 
-  // `divider` adds the secondary-coloured separator before all but the first item.
+  // `divider` adds the secondary-coloured separator before all but the first
+  // item. Dividers only read on the horizontal desktop bar, so the mobile menu
+  // opts out (stacked = false).
   const linkClass = (href: string, divider = false) =>
     `${navLink}${divider ? ' border-l-2 border-secondary' : ''}${
       isActive(href) ? ` ${navLinkActive}` : ''
     }`;
+
+  const settingsLink = (
+    <Link
+      href={'/settings'}
+      aria-label="Settings"
+      className={`transition-colors duration-100 hover:text-secondary${
+        isActive('/settings') ? ' text-secondary' : ''
+      }`}
+    >
+      {/* Gear icon */}
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </svg>
+    </Link>
+  );
+
+  const authControls = authenticated ? (
+    <>
+      {session.user?.email && (
+        <span className="text-[0.85rem] opacity-70">{session.user.email}</span>
+      )}
+      <button
+        className="cursor-pointer whitespace-nowrap"
+        onClick={() => signOut({ callbackUrl: '/' })}
+      >
+        Sign out
+      </button>
+    </>
+  ) : (
+    <GoogleSignInButton onClick={() => signIn('google')} />
+  );
 
   return (
     <header className="flex flex-wrap items-center justify-start mt-4 mb-8">
@@ -79,36 +141,84 @@ export default function Header() {
           />
         </Link>
       </h1>
+
+      {/* Desktop nav — collapses into the hamburger menu below the md breakpoint. */}
       {showNav && (
-        <nav className="flex justify-start ms-4">
-          <Link href={'/recipes'} className={linkClass('/recipes')}>
-            Recipes
-          </Link>
-          <Link href={'/inventory'} className={linkClass('/inventory', true)}>
-            Inventory
-          </Link>
-          <Link href={'/planner'} className={linkClass('/planner', true)}>
-            Planner
-          </Link>
+        <nav className="ms-4 hidden md:flex">
+          {navItems.map((item, i) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={isActive(item.href) ? 'page' : undefined}
+              className={linkClass(item.href, i > 0)}
+            >
+              {item.label}
+            </Link>
+          ))}
         </nav>
       )}
+
       <div className="ml-auto mr-8 flex items-center gap-3">
-        {authenticated ? (
-          <>
-            {session.user?.email && (
-              <span className="text-[0.85rem] opacity-70">{session.user.email}</span>
+        {settingsLink}
+
+        {/* Desktop account controls. */}
+        <div className="hidden items-center gap-3 md:flex">{authControls}</div>
+
+        {/* Mobile hamburger — toggles the collapsed menu. */}
+        <button
+          type="button"
+          aria-label="Menu"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((open) => !open)}
+          className="border-none p-1 md:hidden"
+        >
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            {menuOpen ? (
+              <>
+                <path d="M6 6l12 12" />
+                <path d="M18 6L6 18" />
+              </>
+            ) : (
+              <>
+                <path d="M3 6h18" />
+                <path d="M3 12h18" />
+                <path d="M3 18h18" />
+              </>
             )}
-            <button
-              className="cursor-pointer whitespace-nowrap"
-              onClick={() => signOut({ callbackUrl: '/' })}
-            >
-              Sign out
-            </button>
-          </>
-        ) : (
-          <GoogleSignInButton onClick={() => signIn('google')} />
-        )}
+          </svg>
+        </button>
       </div>
+
+      {/* Mobile menu panel. `basis-full` makes it wrap onto its own row beneath
+          the bar; hidden once the viewport reaches md. */}
+      {menuOpen && (
+        <div className="basis-full md:hidden">
+          {showNav && (
+            <nav className="flex flex-col">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={isActive(item.href) ? 'page' : undefined}
+                  className={linkClass(item.href)}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          )}
+          <div className="flex flex-col items-start gap-3 p-4">{authControls}</div>
+        </div>
+      )}
     </header>
   );
 }

@@ -6,6 +6,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Layout from '@/components/Layout';
 import AccessGate from '@/components/AccessGate';
+import { SettingsProvider } from '@/lib/settings';
 
 // Local-only profile: NEXT_PUBLIC_FAKE_AUTH=true injects a signed-in session
 // (user@reciplease.org) so the authenticated UI is reachable without Google.
@@ -29,7 +30,10 @@ export default function App({
   // Recipes are publicly readable — show them inside the Layout but without
   // the AccessGate sign-in wall.
   const publicPage =
-    router.pathname === '/recipes' || router.pathname === '/recipes/[recipeId]';
+    router.pathname === '/recipes' ||
+    router.pathname === '/recipes/[recipeId]' ||
+    // Appearance/accessibility prefs are client-only — no sign-in needed.
+    router.pathname === '/settings';
 
   return (
     <SessionProvider
@@ -41,19 +45,21 @@ export default function App({
       <Head>
         <meta name='viewport' content='width=device-width, initial-scale=1' />
       </Head>
-      {standalone ? (
-        <Component {...pageProps} />
-      ) : publicPage ? (
-        <Layout>
+      <SettingsProvider>
+        {standalone ? (
           <Component {...pageProps} />
-        </Layout>
-      ) : (
-        <Layout>
-          <AccessGate>
+        ) : publicPage ? (
+          <Layout>
             <Component {...pageProps} />
-          </AccessGate>
-        </Layout>
-      )}
+          </Layout>
+        ) : (
+          <Layout>
+            <AccessGate>
+              <Component {...pageProps} />
+            </AccessGate>
+          </Layout>
+        )}
+      </SettingsProvider>
     </SessionProvider>
   );
 }

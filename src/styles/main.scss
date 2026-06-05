@@ -93,20 +93,32 @@ ul, ol {
   list-style: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-
-    background: black;
-  }
+// Dark/light mode. The SettingsProvider (src/lib/settings.tsx) resolves the
+// `system` preference against prefers-color-scheme and reflects the result onto
+// <html> as .theme-dark / .theme-light, so an explicit user override always
+// wins over the browser default.
+html.theme-dark {
+  color-scheme: dark;
+  background: black;
 }
 
-/*@media (prefers-reduced-motion: reduce) {
-  h1::after {
-    content: " for e-ink";
-    font-style: italic;
-  }
-}*/
+html.theme-light {
+  color-scheme: light;
+  background: white;
+}
+
+// Reduced animations. Driven by the .reduce-motion class the SettingsProvider
+// applies (from the user's explicit choice or prefers-reduced-motion). Near-
+// instant rather than 0s so animation/transition end events still fire.
+html.reduce-motion,
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
 
 h1,
 h2,
