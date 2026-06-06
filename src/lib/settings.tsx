@@ -73,6 +73,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   // Hydrate from storage on mount (kept out of useState's initialiser so SSR
   // and the first client render agree, avoiding a hydration mismatch).
   useEffect(() => {
+    // Intentional: read persisted settings after mount so SSR and the first
+    // client render agree (the two-pass render avoids a hydration mismatch).
+    // TODO: migrate to useSyncExternalStore to read localStorage in a way the
+    // rule accepts, instead of disabling it here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSettings(readStored());
   }, []);
 
