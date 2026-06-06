@@ -3,18 +3,23 @@ import { useRouter } from 'next/router';
 import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
 
-const fetcher = (url: string): Promise<Ingredient[]> =>
+const fetcher = (url: string): Promise<Measure[]> =>
   fetch(url).then((res) => res.json());
 
 export default function CreateInventoryItem() {
   const router = useRouter();
-  const { data: ingredients, isLoading } = useSWR('/api/ingredients', fetcher);
+  const { data: measures, isLoading } = useSWR('/api/measures', fetcher);
 
-  const [ingredientUuid, setIngredientUuid] = useState('');
+  const [name, setName] = useState('');
+  const [measureId, setMeasureId] = useState<MeasureId>('');
   const [amount, setAmount] = useState('');
   const [expiration, setExpiration] = useState('');
+  const [barcode, setBarcode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Default to the first measure when none is explicitly chosen.
+  const effectiveMeasureId = measureId || measures?.[0]?.measureId || '';
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -22,9 +27,11 @@ export default function CreateInventoryItem() {
     setSubmitting(true);
     try {
       const body: CreateInventoryItem = {
-        ingredientUuid,
+        name: name.trim(),
+        measureId: effectiveMeasureId,
         amount: parseFloat(amount),
         expiration,
+        ...(barcode.trim() ? { barcode: barcode.trim() } : {}),
       };
       const res = await fetch('/api/inventory', {
         method: 'POST',
@@ -45,30 +52,37 @@ export default function CreateInventoryItem() {
 
   return (
     <>
-      <Metadata title="Add to Inventory" description="Add an ingredient to your inventory" />
+      <Metadata title="Add to Inventory" description="Add an item to your inventory" />
 
       <section>
         <h3 className="text-xl font-semibold mb-4">Add to Inventory</h3>
         <form onSubmit={handleSubmit} className="grid gap-2 max-w-sm">
-          <label htmlFor="ingredient">Ingredient</label>
+          <label htmlFor="name">Name</label>
+          <input
+            id="name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            placeholder="e.g. Milk"
+            className="p-2 text-base"
+          />
+
+          <label htmlFor="measure">Measure</label>
           {isLoading ? (
-            <select id="ingredient" disabled>
+            <select id="measure" disabled>
               <option>Loading...</option>
             </select>
           ) : (
             <select
-              id="ingredient"
-              value={ingredientUuid}
-              onChange={(e) => setIngredientUuid(e.target.value)}
-              required
+              id="measure"
+              value={effectiveMeasureId}
+              onChange={(e) => setMeasureId(e.target.value)}
               className="p-2 text-base"
             >
-              <option value="" disabled>
-                Select an ingredient
-              </option>
-              {(ingredients ?? []).map((ing) => (
-                <option key={ing.uuid} value={ing.uuid}>
-                  {ing.name}
+              {(measures ?? []).map((m) => (
+                <option key={m.measureId} value={m.measureId}>
+                  {m.plural}
                 </option>
               ))}
             </select>
@@ -94,6 +108,17 @@ export default function CreateInventoryItem() {
             value={expiration}
             onChange={(e) => setExpiration(e.target.value)}
             required
+            className="p-2 text-base"
+          />
+
+          <label htmlFor="barcode">Barcode (optional)</label>
+          <input
+            id="barcode"
+            type="text"
+            inputMode="numeric"
+            value={barcode}
+            onChange={(e) => setBarcode(e.target.value)}
+            placeholder="e.g. 5012345678900"
             className="p-2 text-base"
           />
 

@@ -47,12 +47,6 @@ const { lookupBarcode } = require('@/lib/openfoodfacts');
 
 global.fetch = jest.fn();
 
-const mockIngredient: Ingredient = {
-  uuid: 'ing-1',
-  name: 'Oat Milk',
-  measure: { measureId: 'ML', singular: 'millilitre', plural: 'millilitres' },
-};
-
 const mockMeasures: Measure[] = [
   { measureId: 'GRAMS', singular: 'gram', plural: 'grams' },
 ];
@@ -63,10 +57,16 @@ function setup() {
   return render(<ScanPage />);
 }
 
-async function scanBarcode(matches: Ingredient[] = [mockIngredient]) {
-  (fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => matches });
+// Drive: barcode scan → confirm-item (details) phase.
+async function scanToDetails() {
   fireEvent.click(screen.getByTestId('barcode-scanner'));
-  await waitFor(() => screen.getByText('Select ingredient'));
+  await waitFor(() => screen.getByText('Confirm item'));
+}
+
+// Pick the single mock measure via the combobox.
+function pickMeasure() {
+  fireEvent.click(screen.getByText('Select measure…'));
+  fireEvent.click(screen.getByText('gram / grams'));
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -84,11 +84,6 @@ describe('ScanPage', () => {
     expect(screen.getByTestId('barcode-scanner')).toBeInTheDocument();
   });
 
-  it('shows back to inventory button', () => {
-    setup();
-    expect(screen.getByText('← Back to inventory')).toBeInTheDocument();
-  });
-
   it('navigates back to inventory', () => {
     const push = jest.fn();
     jest.spyOn(require('next/router'), 'useRouter').mockReturnValue({ push });
@@ -98,110 +93,50 @@ describe('ScanPage', () => {
   });
 
   describe('after barcode scan', () => {
-    it('opens ingredient modal with suggested name and matches', async () => {
+    it('prefills the name from Open Food Facts and records the barcode', async () => {
       setup();
-      (lookupBarcode as jest.Mock).mockResolvedValue({ productName: 'Oat Milk', brands: 'Oatly' });
-      await scanBarcode([mockIngredient]);
+      await scanToDetails();
 
-      expect(screen.getByText('Select ingredient')).toBeInTheDocument();
-      // suggestedName appears in subtitle; match name appears in list button
-      expect(screen.getAllByText('Oat Milk').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByLabelText('Name')).toHaveValue('Oat Milk');
+      expect(screen.getByText(/Barcode: 1234567890123/)).toBeInTheDocument();
     });
 
-    it('shows no-match message when search returns empty', async () => {
-      (lookupBarcode as jest.Mock).mockResolvedValue({ productName: 'Unknown Thing', brands: '' });
-      setup();
-      await scanBarcode([]);
-
-      expect(screen.getByText('No matching ingredients found.')).toBeInTheDocument();
-    });
-
-    it('always shows "+ Create ingredient" in the modal', async () => {
-      (lookupBarcode as jest.Mock).mockResolvedValue({ productName: 'Oat Milk', brands: '' });
-      setup();
-      await scanBarcode([mockIngredient]);
-
-      expect(screen.getByText('+ Create ingredient')).toBeInTheDocument();
-    });
-
-    it('uses barcode string as suggested name when Open Food Facts returns nothing', async () => {
-      setup();
+    it('leaves the name blank when Open Food Facts returns nothing', async () => {
+      useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
       (lookupBarcode as jest.Mock).mockResolvedValue(null);
-      (fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => [] });
-      fireEvent.click(screen.getByTestId('barcode-scanner'));
-      await waitFor(() => screen.getByText('Select ingredient'));
+      render(<ScanPage />);
+      await scanToDetails();
 
-      expect(screen.getByText('1234567890123')).toBeInTheDocument();
+      expect(screen.getByLabelText('Name')).toHaveValue('');
+    });
+
+    it('Continue is disabled until a measure is chosen', async () => {
+      setup();
+      await scanToDetails();
+      expect(screen.getByText('Continue →')).toBeDisabled();
+      pickMeasure();
+      expect(screen.getByText('Continue →')).not.toBeDisabled();
     });
   });
 
-  describe('ingredient selection → expiration phase', () => {
-    it('advances to expiration phase when an existing ingredient is selected', async () => {
-      (lookupBarcode as jest.Mock).mockResolvedValue({ productName: 'Oat Milk', brands: '' });
+  describe('details → expiration → amount → save', () => {
+    async function advanceToAmount() {
       setup();
-      await scanBarcode();
-
-      fireEvent.click(screen.getByRole('button', { name: /Oat Milk/i }));
-
-      expect(screen.getByText('Scan expiration date')).toBeInTheDocument();
-      expect(screen.getByTestId('expiration-scanner')).toBeInTheDocument();
-    });
-
-    it('closes modal and resumes barcode scanner when cancel is clicked', async () => {
-      (lookupBarcode as jest.Mock).mockResolvedValue({ productName: 'Oat Milk', brands: '' });
-      setup();
-      await scanBarcode();
-
-      fireEvent.click(screen.getByText('✕ Cancel scan'));
-
-      expect(screen.getByText('Scan barcode')).toBeInTheDocument();
-    });
-  });
-
-  describe('expiration phase', () => {
-    beforeEach(async () => {
-      (lookupBarcode as jest.Mock).mockResolvedValue({ productName: 'Oat Milk', brands: '' });
-      setup();
-      await scanBarcode();
-      fireEvent.click(screen.getByRole('button', { name: /Oat Milk/i }));
-    });
-
-    it('advances to amount phase when scanner fires a date', () => {
+      await scanToDetails();
+      pickMeasure();
+      fireEvent.click(screen.getByText('Continue →'));
       fireEvent.click(screen.getByTestId('expiration-scanner'));
-      expect(screen.getByText('Enter amount')).toBeInTheDocument();
-    });
+    }
 
-    it('advances to amount phase when manual date is entered and confirmed', () => {
-      fireEvent.change(screen.getByDisplayValue(''), { target: { value: '2027-12-31' } });
-      fireEvent.click(screen.getByText('Use this date →'));
-      expect(screen.getByText('Enter amount')).toBeInTheDocument();
-    });
-
-    it('"Use this date" button is hidden until a date is entered', () => {
-      expect(screen.queryByText('Use this date →')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('amount phase', () => {
-    beforeEach(async () => {
-      (lookupBarcode as jest.Mock).mockResolvedValue({ productName: 'Oat Milk', brands: '' });
-      setup();
-      await scanBarcode();
-      fireEvent.click(screen.getByRole('button', { name: /Oat Milk/i }));
-      fireEvent.click(screen.getByTestId('expiration-scanner'));
-    });
-
-    it('shows ingredient name, expiration and measure hint', () => {
+    it('reaches the amount phase showing name, expiration and measure hint', async () => {
+      await advanceToAmount();
       expect(screen.getByText('Oat Milk')).toBeInTheDocument();
       expect(screen.getByText(/2027-06-01/)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Amount \(millilitres\)/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Amount \(grams\)/)).toBeInTheDocument();
     });
 
-    it('Save button is disabled until amount is entered', () => {
-      expect(screen.getByText('Save')).toBeDisabled();
-    });
-
-    it('posts correct payload and resets to barcode phase on success', async () => {
+    it('posts the new flattened payload with barcode and resets', async () => {
+      await advanceToAmount();
       (fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({}) });
 
       fireEvent.change(screen.getByLabelText(/Amount/), { target: { value: '250' } });
@@ -212,7 +147,13 @@ describe('ScanPage', () => {
           '/api/inventory',
           expect.objectContaining({
             method: 'POST',
-            body: JSON.stringify({ ingredientUuid: 'ing-1', amount: 250, expiration: '2027-06-01' }),
+            body: JSON.stringify({
+              name: 'Oat Milk',
+              measureId: 'GRAMS',
+              amount: 250,
+              expiration: '2027-06-01',
+              barcode: '1234567890123',
+            }),
           }),
         );
       });
@@ -220,7 +161,8 @@ describe('ScanPage', () => {
       await waitFor(() => expect(screen.getByText('Scan barcode')).toBeInTheDocument());
     });
 
-    it('shows error message when save fails', async () => {
+    it('shows an error when save fails', async () => {
+      await advanceToAmount();
       (fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
 
       fireEvent.change(screen.getByLabelText(/Amount/), { target: { value: '250' } });
@@ -229,11 +171,6 @@ describe('ScanPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Failed to save. Please try again.')).toBeInTheDocument();
       });
-    });
-
-    it('"Rescan date" goes back to expiration phase', () => {
-      fireEvent.click(screen.getByText('← Rescan date'));
-      expect(screen.getByText('Scan expiration date')).toBeInTheDocument();
     });
   });
 });

@@ -8,122 +8,66 @@ const fetcher = <T,>(url: string): Promise<T> =>
 
 type IngredientRowState = {
   key: number;
-  selected: Ingredient | null;
+  name: string;
+  measureId: MeasureId;
   amount: string;
 };
 
 /**
- * One auto-growing ingredient row: a search-as-you-type picker (with an inline
- * "create new ingredient" fallback) plus an amount. The parent appends a fresh
- * empty row as soon as this one gets an ingredient, so the user never clicks
- * "add" — they just keep typing.
+ * One auto-growing ingredient row: a free-text name, a measure, and an amount.
+ * Recipe ingredients are self-contained (not tied to any catalog or inventory),
+ * so the name is just typed in. The parent appends a fresh empty row as soon as
+ * this one gets a name, so the user never clicks "add".
  */
 function IngredientRow({
   index,
-  selected,
+  name,
+  measureId,
   amount,
   measures,
-  onSelect,
+  onName,
+  onMeasure,
   onAmount,
   onRemove,
   removable,
 }: {
   index: number;
-  selected: Ingredient | null;
+  name: string;
+  measureId: MeasureId;
   amount: string;
   measures: Measure[] | undefined;
-  onSelect: (ingredient: Ingredient | null) => void;
+  onName: (name: string) => void;
+  onMeasure: (measureId: MeasureId) => void;
   onAmount: (amount: string) => void;
   onRemove: () => void;
   removable: boolean;
 }) {
-  const [query, setQuery] = useState(selected?.name ?? '');
-  const [creating, setCreating] = useState(false);
-  const [newMeasureId, setNewMeasureId] = useState<MeasureId>('');
-  const [creatingError, setCreatingError] = useState<string | null>(null);
-
-  const { data: results } = useSWR<Ingredient[]>(
-    query.trim() && !selected
-      ? `/api/ingredients/search?q=${encodeURIComponent(query.trim())}`
-      : null,
-    fetcher,
-  );
-  const effectiveMeasureId = newMeasureId || measures?.[0]?.measureId || '';
   const number = index + 1;
-
-  function pick(ingredient: Ingredient) {
-    setQuery(ingredient.name);
-    setCreating(false);
-    setCreatingError(null);
-    onSelect(ingredient);
-  }
-
-  async function createIngredient() {
-    setCreatingError(null);
-    const trimmed = query.trim();
-    if (!trimmed || !effectiveMeasureId) return;
-    try {
-      const res = await fetch('/api/ingredients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: trimmed, measureId: effectiveMeasureId }),
-      });
-      if (!res.ok) {
-        setCreatingError('Could not create ingredient. Please try again.');
-        return;
-      }
-      const ingredient: Ingredient = await res.json();
-      pick(ingredient);
-    } catch {
-      setCreatingError('An unexpected error occurred.');
-    }
-  }
+  const effectiveMeasureId = measureId || measures?.[0]?.measureId || '';
 
   return (
     <li className="grid gap-2">
       <div className="flex flex-wrap items-start gap-2">
-        <div className="relative flex-1 min-w-[12rem]">
-          <input
-            type="text"
-            aria-label={`Ingredient ${number}`}
-            value={selected ? selected.name : query}
-            onChange={(e) => {
-              if (selected) onSelect(null);
-              setCreating(false);
-              setQuery(e.target.value);
-            }}
-            placeholder="Add an ingredient…"
-            className="w-full p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
-          />
-          {!selected && !creating && query.trim() && (
-            <ul className="absolute z-10 mt-1 w-full list-none p-0 m-0 max-h-48 overflow-auto border border-[#ccc] rounded bg-white shadow">
-              {(results ?? []).map((ing) => (
-                <li key={ing.uuid}>
-                  <button
-                    type="button"
-                    onClick={() => pick(ing)}
-                    className="block w-full text-left px-3 py-2 hover:bg-[#f0f0f0]"
-                  >
-                    {ing.name}{' '}
-                    <span className="text-sm text-[#666]">({ing.measure.plural})</span>
-                  </button>
-                </li>
-              ))}
-              <li>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCreating(true);
-                    setCreatingError(null);
-                  }}
-                  className="block w-full text-left px-3 py-2 text-emerald-700 hover:bg-[#f0f0f0]"
-                >
-                  + Create “{query.trim()}”
-                </button>
-              </li>
-            </ul>
-          )}
-        </div>
+        <input
+          type="text"
+          aria-label={`Ingredient ${number}`}
+          value={name}
+          onChange={(e) => onName(e.target.value)}
+          placeholder="Add an ingredient…"
+          className="flex-1 min-w-[12rem] p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
+        />
+        <select
+          aria-label={`Measure ${number}`}
+          value={effectiveMeasureId}
+          onChange={(e) => onMeasure(e.target.value)}
+          className="w-32 p-2 text-base border border-[#ccc] rounded"
+        >
+          {(measures ?? []).map((m) => (
+            <option key={m.measureId} value={m.measureId}>
+              {m.plural}
+            </option>
+          ))}
+        </select>
         <input
           type="number"
           min="0"
@@ -134,7 +78,7 @@ function IngredientRow({
           placeholder="Amount"
           className="w-28 p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
         />
-        {/* Reserve the column so the search box keeps a constant width. */}
+        {/* Reserve the column so the row keeps a constant width. */}
         <span className="w-4 mt-1 shrink-0">
           {removable && (
             <button
@@ -147,41 +91,6 @@ function IngredientRow({
           )}
         </span>
       </div>
-
-      {creating && (
-        <div className="flex flex-wrap items-center gap-2 border border-[#eee] rounded p-3">
-          <span>
-            New ingredient: <strong>{query.trim()}</strong>
-          </span>
-          <label htmlFor={`new-measure-${number}`} className="text-sm text-[#666]">
-            Measure
-          </label>
-          <select
-            id={`new-measure-${number}`}
-            aria-label="Measure"
-            value={effectiveMeasureId}
-            onChange={(e) => setNewMeasureId(e.target.value)}
-            className="p-2 text-base border border-[#ccc] rounded"
-          >
-            {(measures ?? []).map((m) => (
-              <option key={m.measureId} value={m.measureId}>
-                {m.plural}
-              </option>
-            ))}
-          </select>
-          <button type="button" onClick={createIngredient} disabled={!effectiveMeasureId}>
-            Create
-          </button>
-          <button type="button" onClick={() => setCreating(false)}>
-            Cancel
-          </button>
-          {creatingError && (
-            <p role="alert" className="text-red-600 w-full">
-              {creatingError}
-            </p>
-          )}
-        </div>
-      )}
     </li>
   );
 }
@@ -195,7 +104,7 @@ export default function NewRecipe() {
   // Both lists keep a single trailing empty entry; filling it spawns the next.
   const [steps, setSteps] = useState<string[]>(['']);
   const [rows, setRows] = useState<IngredientRowState[]>([
-    { key: 0, selected: null, amount: '' },
+    { key: 0, name: '', measureId: '', amount: '' },
   ]);
   const nextKey = useRef(1);
 
@@ -204,16 +113,20 @@ export default function NewRecipe() {
 
   const { data: measures } = useSWR<Measure[]>('/api/measures', fetcher);
 
-  function selectIngredient(key: number, ingredient: Ingredient | null) {
+  function setRowName(key: number, value: string) {
     setRows((prev) => {
-      const updated = prev.map((r) => (r.key === key ? { ...r, selected: ingredient } : r));
+      const updated = prev.map((r) => (r.key === key ? { ...r, name: value } : r));
       const last = updated[updated.length - 1];
-      // Picking an ingredient in the last row reveals a fresh empty row.
-      if (ingredient && last.key === key) {
-        updated.push({ key: nextKey.current++, selected: null, amount: '' });
+      // Naming the last row reveals a fresh empty row.
+      if (value.trim() && last.key === key) {
+        updated.push({ key: nextKey.current++, name: '', measureId: '', amount: '' });
       }
       return updated;
     });
+  }
+
+  function setRowMeasure(key: number, measureId: MeasureId) {
+    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, measureId } : r)));
   }
 
   function setAmount(key: number, amount: string) {
@@ -223,8 +136,8 @@ export default function NewRecipe() {
   function removeRow(key: number) {
     setRows((prev) => {
       const updated = prev.filter((r) => r.key !== key);
-      if (updated.length === 0 || updated[updated.length - 1].selected) {
-        updated.push({ key: nextKey.current++, selected: null, amount: '' });
+      if (updated.length === 0 || updated[updated.length - 1].name.trim()) {
+        updated.push({ key: nextKey.current++, name: '', measureId: '', amount: '' });
       }
       return updated;
     });
@@ -252,7 +165,7 @@ export default function NewRecipe() {
     e.preventDefault();
     setError(null);
 
-    const filledRows = rows.filter((r) => r.selected);
+    const filledRows = rows.filter((r) => r.name.trim());
     if (filledRows.some((r) => Number.isNaN(parseFloat(r.amount)) || parseFloat(r.amount) <= 0)) {
       setError('Enter an amount greater than 0 for each ingredient.');
       return;
@@ -282,7 +195,8 @@ export default function NewRecipe() {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ingredientId: row.selected!.uuid,
+            name: row.name.trim(),
+            measure: row.measureId || measures?.[0]?.measureId || '',
             amount: parseFloat(row.amount),
           }),
         });
@@ -338,10 +252,12 @@ export default function NewRecipe() {
                 <IngredientRow
                   key={row.key}
                   index={index}
-                  selected={row.selected}
+                  name={row.name}
+                  measureId={row.measureId}
                   amount={row.amount}
                   measures={measures}
-                  onSelect={(ing) => selectIngredient(row.key, ing)}
+                  onName={(value) => setRowName(row.key, value)}
+                  onMeasure={(m) => setRowMeasure(row.key, m)}
                   onAmount={(amt) => setAmount(row.key, amt)}
                   onRemove={() => removeRow(row.key)}
                   removable={rows.length > 1 && index < rows.length - 1}

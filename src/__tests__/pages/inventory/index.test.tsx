@@ -15,7 +15,6 @@ const items: Measure = { measureId: 'ITEMS', singular: 'item', plural: 'items' }
 const mockItems: InventoryItem[] = [
   {
     uuid: 'uuid-1',
-    ingredientUuid: 'ing-1',
     name: 'Bread',
     measure: items,
     amount: 2,
@@ -23,7 +22,6 @@ const mockItems: InventoryItem[] = [
   },
   {
     uuid: 'uuid-2',
-    ingredientUuid: 'ing-2',
     name: 'Flour',
     measure: grams,
     amount: 500,

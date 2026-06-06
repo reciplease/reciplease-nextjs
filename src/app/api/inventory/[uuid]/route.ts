@@ -4,11 +4,11 @@ import { fetchMeasureById } from '@/lib/measures';
 
 type BackendInventoryItem = {
   uuid: string;
-  ingredientUuid: string;
   name: string;
   measure: string;
   amount: number;
   expiration: string;
+  barcode?: string | null;
 };
 
 export async function GET(
@@ -26,10 +26,10 @@ export async function GET(
   const b: BackendInventoryItem = await response.json();
   return NextResponse.json({
     uuid: b.uuid,
-    ingredientUuid: b.ingredientUuid,
     name: b.name,
     measure: await fetchMeasureById(b.measure),
     amount: b.amount,
     expiration: b.expiration,
+    ...(b.barcode ? { barcode: b.barcode } : {}),
   } satisfies InventoryItem);
 }

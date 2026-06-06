@@ -2,17 +2,18 @@ import { useCallback, useState } from 'react';
 import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
 import Metadata from '@/components/Metadata';
-import IngredientModal from '@/components/scanner/IngredientModal';
+import MeasureCombobox from '@/components/scanner/MeasureCombobox';
 import { lookupBarcode } from '@/lib/openfoodfacts';
 
 // Load scanner adapters client-side only (they use browser APIs)
 const BarcodeScanner = dynamic(() => import('@/components/scanner/BarcodeScanner'), { ssr: false });
 const ExpirationScanner = dynamic(() => import('@/components/scanner/ExpirationScanner'), { ssr: false });
 
-type ScanPhase = 'barcode' | 'expiration' | 'amount';
+type ScanPhase = 'barcode' | 'details' | 'expiration' | 'amount';
 
 const PHASE_LABEL: Record<ScanPhase, string> = {
   barcode: 'Scan barcode',
+  details: 'Confirm item',
   expiration: 'Scan expiration date',
   amount: 'Enter amount',
 };
@@ -21,22 +22,28 @@ export default function ScanPage() {
   const router = useRouter();
 
   const [phase, setPhase] = useState<ScanPhase>('barcode');
-  const [ingredient, setIngredient] = useState<Ingredient | null>(null);
+  // The item being built up across phases. The barcode is recorded on the
+  // inventory item itself so future scans can suggest it when planning recipes.
+  const [barcode, setBarcode] = useState('');
+  const [name, setName] = useState('');
+  const [measure, setMeasure] = useState<Measure | null>(null);
   const [expiration, setExpiration] = useState('');
   const [manualExpiration, setManualExpiration] = useState('');
   const [amount, setAmount] = useState('');
-  const [modal, setModal] = useState<{ suggestedName: string; matches: Ingredient[] } | null>(null);
+  const [looking, setLooking] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [successFlash, setSuccessFlash] = useState(false);
 
-  // Called by BarcodeScanner when a barcode is read
-  const handleBarcodeDetected = useCallback(async (barcode: string) => {
-    const product = await lookupBarcode(barcode);
-    const suggestedName = product?.productName?.trim() || barcode;
-    const res = await fetch(`/api/ingredients/search?q=${encodeURIComponent(suggestedName)}`);
-    const matches: Ingredient[] = res.ok ? await res.json() : [];
-    setModal({ suggestedName, matches });
+  // Called by BarcodeScanner when a barcode is read: look up a suggested name
+  // from OpenFoodFacts and move to the confirm step.
+  const handleBarcodeDetected = useCallback(async (scanned: string) => {
+    setLooking(true);
+    const product = await lookupBarcode(scanned);
+    setBarcode(scanned);
+    setName(product?.productName?.trim() || '');
+    setLooking(false);
+    setPhase('details');
   }, []);
 
   // Called by ExpirationScanner when a date is confirmed
@@ -46,16 +53,20 @@ export default function ScanPage() {
     setPhase('amount');
   }, []);
 
-  function handleIngredientSelect(selected: Ingredient) {
-    setModal(null);
-    setIngredient(selected);
+  function handleConfirmDetails() {
+    if (!name.trim() || !measure) return;
     setExpiration('');
     setManualExpiration('');
     setPhase('expiration');
   }
 
-  function handleModalClose() {
-    setModal(null);
+  function resetForNextScan() {
+    setBarcode('');
+    setName('');
+    setMeasure(null);
+    setExpiration('');
+    setManualExpiration('');
+    setAmount('');
     setPhase('barcode');
   }
 
@@ -66,18 +77,21 @@ export default function ScanPage() {
   }
 
   async function handleSave() {
-    if (!ingredient || !expiration || !amount) return;
+    if (!name.trim() || !measure || !expiration || !amount) return;
     setSaving(true);
     setSaveError(null);
     try {
+      const body: CreateInventoryItem = {
+        name: name.trim(),
+        measureId: measure.measureId,
+        amount: parseFloat(amount),
+        expiration,
+        ...(barcode ? { barcode } : {}),
+      };
       const res = await fetch('/api/inventory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ingredientUuid: ingredient.uuid,
-          amount: parseFloat(amount),
-          expiration,
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         setSaveError('Failed to save. Please try again.');
@@ -86,11 +100,7 @@ export default function ScanPage() {
       // Flash success then reset for next scan
       setSuccessFlash(true);
       setTimeout(() => setSuccessFlash(false), 2000);
-      setIngredient(null);
-      setExpiration('');
-      setManualExpiration('');
-      setAmount('');
-      setPhase('barcode');
+      resetForNextScan();
     } catch {
       setSaveError('Unexpected error.');
     } finally {
@@ -115,13 +125,13 @@ export default function ScanPage() {
           </div>
 
           {phase === 'barcode' && (
-            <BarcodeScanner active={!modal} onDetected={handleBarcodeDetected} />
+            <BarcodeScanner active={!looking} onDetected={handleBarcodeDetected} />
           )}
           {phase === 'expiration' && (
             <ExpirationScanner active onDetected={handleExpirationDetected} />
           )}
-          {phase === 'amount' && (
-            // Camera off during amount entry — show a dark placeholder
+          {(phase === 'details' || phase === 'amount') && (
+            // Camera off during data entry — show a dark placeholder
             <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-zinc-600 text-sm">
               Camera paused
             </div>
@@ -134,15 +144,53 @@ export default function ScanPage() {
           )}
         </div>
 
+        {/* Confirm details panel */}
+        {phase === 'details' && (
+          <div className="bg-zinc-900 px-6 py-5 flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="scan-name" className="text-xs text-zinc-400">Name</label>
+              <input
+                id="scan-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Item name"
+                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-600 rounded-lg text-white focus:outline-none focus:border-sky-400"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-zinc-400">Measure</label>
+              <MeasureCombobox value={measure} onChange={setMeasure} />
+            </div>
+            {barcode && <p className="text-xs text-zinc-500">Barcode: {barcode}</p>}
+            <div className="flex gap-3 flex-wrap">
+              <button
+                type="button"
+                onClick={handleConfirmDetails}
+                disabled={!name.trim() || !measure}
+                className="px-6 py-2 bg-sky-500 text-black font-semibold rounded-lg disabled:opacity-40"
+              >
+                Continue →
+              </button>
+              <button
+                type="button"
+                onClick={resetForNextScan}
+                className="px-4 py-2 bg-zinc-700 text-white rounded-lg hover:bg-zinc-600 text-sm"
+              >
+                ← Rescan barcode
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Amount panel */}
-        {phase === 'amount' && ingredient && (
+        {phase === 'amount' && (
           <div className="bg-zinc-900 px-6 py-5 flex flex-col gap-3">
             <p className="text-sm">
-              <strong>{ingredient.name}</strong>
+              <strong>{name}</strong>
               <span className="text-zinc-400"> · {expiration}</span>
             </p>
             <label htmlFor="scan-amount" className="text-xs text-zinc-400">
-              Amount ({ingredient.measure.plural})
+              Amount ({measure?.plural})
             </label>
             <input
               id="scan-amount"
@@ -152,7 +200,7 @@ export default function ScanPage() {
               autoFocus
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder={`Amount in ${ingredient.measure.plural}`}
+              placeholder={`Amount in ${measure?.plural ?? 'units'}`}
               className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-600 rounded-lg text-white text-lg focus:outline-none focus:border-sky-400"
             />
             {saveError && <p className="text-red-400 text-xs">{saveError}</p>}
@@ -209,15 +257,6 @@ export default function ScanPage() {
           </button>
         </div>
       </div>
-
-      {modal && (
-        <IngredientModal
-          suggestedName={modal.suggestedName}
-          matches={modal.matches}
-          onSelect={handleIngredientSelect}
-          onClose={handleModalClose}
-        />
-      )}
     </>
   );
 }

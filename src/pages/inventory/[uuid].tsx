@@ -56,6 +56,9 @@ export default function InventoryItemPage({ uuid }: Props) {
           Expires: {item.expiration}
           {expired && ' — expired'}
         </p>
+        {item.barcode && (
+          <p className="text-sm text-[#666]">Barcode: {item.barcode}</p>
+        )}
       </section>
     </>
   );

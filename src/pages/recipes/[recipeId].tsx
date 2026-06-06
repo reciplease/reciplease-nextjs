@@ -52,8 +52,8 @@ export default function Recipe({ recipeShortId }: Props) {
         <p className="my-4">{recipe.description}</p>
         <h4 className="mt-12">Ingredients</h4>
         <ul className="ms-16 list-disc">
-          {recipe.ingredients.map((ingredient) => (
-            <li key={ingredient.ingredientId} className="my-4">
+          {recipe.ingredients.map((ingredient, index) => (
+            <li key={index} className="my-4">
               {displayIngredient(ingredient)}
             </li>
           ))}

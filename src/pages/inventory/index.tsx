@@ -37,9 +37,6 @@ export default function InventoryList() {
       <section className="grid gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <h3 className="text-xl font-semibold mr-auto">Inventory</h3>
-          <Link href="/ingredients/create">
-            <button>Add ingredient</button>
-          </Link>
           <Link href="/inventory/create">
             <button>Add to inventory</button>
           </Link>

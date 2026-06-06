@@ -1,10 +1,5 @@
 import { test, expect } from '@playwright/test';
 
-const mockIngredients = [
-  { uuid: 'ing-1', name: 'Milk', measure: { measureId: 'ML', singular: 'millilitre', plural: 'millilitres' } },
-  { uuid: 'ing-2', name: 'Bread', measure: { measureId: 'ITEMS', singular: 'item', plural: 'items' } },
-];
-
 const mockMeasures = [
   { measureId: 'ML', singular: 'millilitre', plural: 'millilitres' },
   { measureId: 'ITEMS', singular: 'item', plural: 'items' },
@@ -13,11 +8,11 @@ const mockMeasures = [
 const mockInventoryItems = [
   {
     uuid: 'item-1',
-    ingredientUuid: 'ing-1',
     name: 'Milk',
     measure: { measureId: 'ML', singular: 'millilitre', plural: 'millilitres' },
     amount: 500,
     expiration: '2099-12-31',
+    barcode: '5012345678900',
   },
 ];
 
@@ -31,8 +26,6 @@ test.describe('Inventory (auth disabled)', () => {
         route.continue();
       }
     });
-    await page.route('/api/ingredients', (route) => route.fulfill({ json: mockIngredients }));
-    await page.route('/api/ingredients/search**', (route) => route.fulfill({ json: mockIngredients }));
     await page.route('/api/measures', (route) => {
       if (route.request().method() === 'GET') {
         route.fulfill({ json: mockMeasures });
@@ -60,9 +53,11 @@ test.describe('Inventory (auth disabled)', () => {
     await page.goto('/inventory');
     await page.getByRole('link', { name: /add to inventory/i }).click();
     await expect(page).toHaveURL('/inventory/create');
-    await expect(page.getByLabel('Ingredient')).toBeVisible();
+    await expect(page.getByLabel('Name')).toBeVisible();
+    await expect(page.getByLabel('Measure')).toBeVisible();
     await expect(page.getByLabel('Amount')).toBeVisible();
     await expect(page.getByLabel('Expiration date')).toBeVisible();
+    await expect(page.getByLabel(/Barcode/)).toBeVisible();
   });
 
   test('create form submits and redirects to inventory', async ({ page }) => {
@@ -76,7 +71,8 @@ test.describe('Inventory (auth disabled)', () => {
     });
 
     await page.goto('/inventory/create');
-    await page.getByLabel('Ingredient').selectOption({ label: 'Milk' });
+    await page.getByLabel('Name').fill('Milk');
+    await page.getByLabel('Measure').selectOption({ label: 'millilitres' });
     await page.getByLabel('Amount').fill('500');
     await page.getByLabel('Expiration date').fill('2099-12-31');
     await page.getByRole('button', { name: /add to inventory/i }).click();
@@ -94,7 +90,7 @@ test.describe('Inventory (auth disabled)', () => {
     });
 
     await page.goto('/inventory/create');
-    await page.getByLabel('Ingredient').selectOption({ label: 'Milk' });
+    await page.getByLabel('Name').fill('Milk');
     await page.getByLabel('Amount').fill('500');
     await page.getByLabel('Expiration date').fill('2099-12-31');
     await page.getByRole('button', { name: /add to inventory/i }).click();

@@ -7,37 +7,37 @@ type Recipe = {
   steps: string[];
 };
 
+// A recipe ingredient is a self-contained spec: it is not linked to any inventory
+// item. Inventory is only paired with a recipe ingredient when a recipe is planned.
 type RecipeIngredient = {
-  ingredientId: IngredientId;
   name: string;
   measure: Measure;
   amount: number;
 };
 
-type Ingredient = {
-  uuid: IngredientId;
-  name: string;
-  measure: Measure;
-};
-
-type CreateIngredient = {
+type CreateRecipeIngredient = {
   name: string;
   measureId: MeasureId;
+  amount: number;
 };
 
+// A physical pantry item. Carries its own name/measure plus an optional barcode
+// (recorded when scanned) used to suggest items when planning a recipe again.
 type InventoryItem = {
   uuid: InventoryItemId;
-  ingredientUuid: IngredientId;
   name: string;
   measure: Measure;
   amount: number;
   expiration: string;
+  barcode?: string;
 };
 
 type CreateInventoryItem = {
-  ingredientUuid: IngredientId;
+  name: string;
+  measureId: MeasureId;
   amount: number;
   expiration: string;
+  barcode?: string;
 };
 
 type Measure = {

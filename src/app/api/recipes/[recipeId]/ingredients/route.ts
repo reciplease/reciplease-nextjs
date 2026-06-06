@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { backendFetch } from '@/lib/backend';
 
 type AddIngredient = {
-  ingredientId: string;
+  name: string;
+  measure: string;
   amount: number;
 };
 

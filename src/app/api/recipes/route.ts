@@ -12,7 +12,6 @@ type BackendRecipe = {
 };
 
 type BackendIngredient = {
-  ingredientId: string;
   name: string;
   measure: string;
   amount: number;
@@ -26,7 +25,6 @@ function toRecipe(b: BackendRecipe, measures: Measure[]): Recipe {
     description: b.description ?? null,
     steps: b.steps ?? [],
     ingredients: (b.ingredients ?? []).map((i) => ({
-      ingredientId: i.ingredientId,
       name: i.name,
       measure: toMeasure(i.measure, measures),
       amount: i.amount,
