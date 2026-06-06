@@ -39,11 +39,11 @@ jest.mock('next/dynamic', () => (fn: () => Promise<{ default: unknown }>) => {
 
 jest.mock('next/router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('@/components/Metadata', () => () => null);
-jest.mock('@/lib/openfoodfacts', () => ({ lookupBarcode: jest.fn() }));
+jest.mock('@/lib/openfoodfacts', () => ({ lookupProduct: jest.fn() }));
 jest.mock('swr');
 
 const useSWR = require('swr').default;
-const { lookupBarcode } = require('@/lib/openfoodfacts');
+const { lookupProduct } = require('@/lib/openfoodfacts');
 
 global.fetch = jest.fn();
 
@@ -53,7 +53,10 @@ const mockMeasures: Measure[] = [
 
 function setup() {
   useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
-  (lookupBarcode as jest.Mock).mockResolvedValue({ productName: 'Oat Milk', brands: 'Oatly' });
+  (lookupProduct as jest.Mock).mockResolvedValue({
+    nameCandidates: ['Oat Milk', 'Oatly Oat Milk'],
+    measureId: null,
+  });
   return render(<ScanPage />);
 }
 
@@ -74,7 +77,7 @@ function pickMeasure() {
 describe('ScanPage', () => {
   beforeEach(() => {
     (fetch as jest.Mock).mockReset();
-    (lookupBarcode as jest.Mock).mockReset();
+    (lookupProduct as jest.Mock).mockReset();
     useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
   });
 
@@ -82,6 +85,19 @@ describe('ScanPage', () => {
     setup();
     expect(screen.getByText('Scan barcode')).toBeInTheDocument();
     expect(screen.getByTestId('barcode-scanner')).toBeInTheDocument();
+  });
+
+  it('looks up a manually entered barcode through the same flow', async () => {
+    setup();
+    fireEvent.change(screen.getByLabelText('Or enter a barcode manually'), {
+      target: { value: '5012345678900' },
+    });
+    fireEvent.click(screen.getByText('Look up'));
+
+    await waitFor(() => screen.getByText('Confirm item'));
+    expect(lookupProduct).toHaveBeenCalledWith('5012345678900');
+    expect(screen.getByLabelText('Name')).toHaveValue('Oat Milk');
+    expect(screen.getByText(/Barcode: 5012345678900/)).toBeInTheDocument();
   });
 
   it('navigates back to inventory', () => {
@@ -103,11 +119,34 @@ describe('ScanPage', () => {
 
     it('leaves the name blank when Open Food Facts returns nothing', async () => {
       useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
-      (lookupBarcode as jest.Mock).mockResolvedValue(null);
+      (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: [], measureId: null });
       render(<ScanPage />);
       await scanToDetails();
 
       expect(screen.getByLabelText('Name')).toHaveValue('');
+    });
+
+    it('suggests a measure parsed from the product quantity', async () => {
+      useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
+      (lookupProduct as jest.Mock).mockResolvedValue({
+        nameCandidates: ['Flour'],
+        measureId: 'GRAMS',
+      });
+      render(<ScanPage />);
+      await scanToDetails();
+
+      // The combobox shows the suggested measure, and Continue is enabled.
+      expect(screen.getByText('gram / grams')).toBeInTheDocument();
+      expect(screen.getByText('Continue →')).not.toBeDisabled();
+    });
+
+    it('lets the user pick a different name from the Open Food Facts details', async () => {
+      setup();
+      await scanToDetails();
+
+      // The brand-prefixed candidate is offered alongside the plain product name.
+      fireEvent.click(screen.getByRole('button', { name: 'Oatly Oat Milk' }));
+      expect(screen.getByLabelText('Name')).toHaveValue('Oatly Oat Milk');
     });
 
     it('Continue is disabled until a measure is chosen', async () => {

@@ -1,5 +1,5 @@
-import Image from 'next/image';
 import Link from 'next/link';
+import Logo from '@/components/Logo';
 import { useRouter } from 'next/router';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useEffect, useState } from 'react';
@@ -129,16 +129,9 @@ export default function Header() {
     <header className="flex flex-wrap items-center justify-start mt-4 mb-8">
       <h1 className="flex-none">
         <Link href={'/'} aria-label="Reciplease home">
-          {/* SVG so it stays crisp at any size; `unoptimized` serves it
-              directly (Next's image optimizer rejects SVGs by default). */}
-          <Image
-            src="/reciplease-book.svg"
-            alt="Reciplease"
-            width={44}
-            height={44}
-            priority
-            unoptimized
-          />
+          {/* Inlined SVG so the cover can adopt the section accent colour
+              (green on the inventory pages); see Logo.tsx. */}
+          <Logo size={44} />
         </Link>
       </h1>
 

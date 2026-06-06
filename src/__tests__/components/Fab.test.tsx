@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import RecipeFab from '@/components/RecipeFab';
+import InventoryFab from '@/components/InventoryFab';
 
 jest.mock('next/link', () => ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
   <a href={href} {...rest}>{children}</a>
@@ -10,7 +11,7 @@ jest.mock('next/router', () => ({ useRouter: jest.fn() }));
 const useSession = require('next-auth/react').useSession as jest.Mock;
 const useRouter = require('next/router').useRouter as jest.Mock;
 
-describe('RecipeFab', () => {
+describe('section FABs', () => {
   const originalAuthDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED;
 
   beforeEach(() => {
@@ -22,12 +23,22 @@ describe('RecipeFab', () => {
     process.env.NEXT_PUBLIC_AUTH_DISABLED = originalAuthDisabled;
   });
 
-  it('renders the + link to the builder when authenticated', () => {
+  it('RecipeFab links to the builder when authenticated', () => {
     useSession.mockReturnValue({ status: 'authenticated' });
     render(<RecipeFab />);
     expect(screen.getByRole('link', { name: 'New recipe' })).toHaveAttribute(
       'href',
       '/recipes/new',
+    );
+  });
+
+  it('InventoryFab links to the scanner flow when authenticated', () => {
+    useSession.mockReturnValue({ status: 'authenticated' });
+    useRouter.mockReturnValue({ pathname: '/inventory' });
+    render(<InventoryFab />);
+    expect(screen.getByRole('link', { name: 'Scan item' })).toHaveAttribute(
+      'href',
+      '/inventory/scan',
     );
   });
 
@@ -37,10 +48,17 @@ describe('RecipeFab', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('hides itself on the builder page even when authenticated', () => {
+  it('RecipeFab hides itself on the builder page', () => {
     useSession.mockReturnValue({ status: 'authenticated' });
     useRouter.mockReturnValue({ pathname: '/recipes/new' });
     const { container } = render(<RecipeFab />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('InventoryFab hides itself on the scanner page', () => {
+    useSession.mockReturnValue({ status: 'authenticated' });
+    useRouter.mockReturnValue({ pathname: '/inventory/scan' });
+    const { container } = render(<InventoryFab />);
     expect(container).toBeEmptyDOMElement();
   });
 
