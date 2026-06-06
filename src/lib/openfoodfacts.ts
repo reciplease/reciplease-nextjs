@@ -75,16 +75,16 @@ function candidatesFromProduct(p: OFFProductFields): string[] {
     .filter((c, i, all) => all.indexOf(c) === i);
 }
 
-// OpenFoodFacts quantity units → app measureId. Centilitres/decilitres have no
-// dedicated measure, so they fall back to the nearest available volume unit.
+// OpenFoodFacts quantity units → app measureId (the measure's short name).
+// Decilitres have no dedicated measure, so they fall back to millilitres.
 const UNIT_TO_MEASURE_ID: Record<string, MeasureId> = {
-  mg: 'GRAMS',
-  g: 'GRAMS',
-  kg: 'KILOGRAMS',
-  ml: 'MILLILITRES',
-  cl: 'MILLILITRES',
-  dl: 'MILLILITRES',
-  l: 'LITRES',
+  mg: 'g',
+  g: 'g',
+  kg: 'kg',
+  ml: 'ml',
+  cl: 'cl',
+  dl: 'ml',
+  l: 'l',
 };
 
 /**

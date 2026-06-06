@@ -9,8 +9,8 @@ const useSWR = require('swr').default;
 global.fetch = jest.fn();
 
 const mockMeasures: Measure[] = [
-  { measureId: 'MILLILITRES', singular: 'millilitre', plural: 'millilitres' },
-  { measureId: 'ITEMS', singular: 'item', plural: 'items' },
+  { measureId: 'MILLILITRES', singular: 'millilitre', plural: 'millilitres', short: 'ml' },
+  { measureId: 'ITEMS', singular: 'item', plural: 'items', short: 'item' },
 ];
 
 describe('CreateInventoryItem form', () => {

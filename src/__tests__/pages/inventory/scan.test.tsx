@@ -48,7 +48,7 @@ const { lookupProduct } = require('@/lib/openfoodfacts');
 global.fetch = jest.fn();
 
 const mockMeasures: Measure[] = [
-  { measureId: 'GRAMS', singular: 'gram', plural: 'grams' },
+  { measureId: 'g', singular: 'gram', plural: 'grams', short: 'g' },
 ];
 
 function setup() {
@@ -130,7 +130,7 @@ describe('ScanPage', () => {
       useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
       (lookupProduct as jest.Mock).mockResolvedValue({
         nameCandidates: ['Flour'],
-        measureId: 'GRAMS',
+        measureId: 'g',
       });
       render(<ScanPage />);
       await scanToDetails();
@@ -188,7 +188,7 @@ describe('ScanPage', () => {
             method: 'POST',
             body: JSON.stringify({
               name: 'Oat Milk',
-              measureId: 'GRAMS',
+              measureId: 'g',
               amount: 250,
               expiration: '2027-06-01',
               barcode: '1234567890123',

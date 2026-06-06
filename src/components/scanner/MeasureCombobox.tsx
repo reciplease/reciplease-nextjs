@@ -8,23 +8,18 @@ type Props = {
   onChange: (measure: Measure) => void;
 };
 
-type CreateState = { singular: string; plural: string };
-
+// Picker over the static measure catalog (served from a backend enum). Measures
+// are fixed reference data, so there's no "create" path — just search and select.
 export default function MeasureCombobox({ value, onChange }: Props) {
-  const { data: measures = [], mutate } = useSWR<Measure[]>('/api/measures', fetcher);
+  const { data: measures = [] } = useSWR<Measure[]>('/api/measures', fetcher);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [createForm, setCreateForm] = useState<CreateState>({ singular: '', plural: '' });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
-        setCreating(false);
       }
     }
     document.addEventListener('mousedown', onMouseDown);
@@ -32,44 +27,21 @@ export default function MeasureCombobox({ value, onChange }: Props) {
   }, []);
 
   const filtered = measures.filter((m) =>
-    `${m.singular} ${m.plural}`.toLowerCase().includes(query.toLowerCase()),
+    `${m.singular} ${m.plural} ${m.short}`.toLowerCase().includes(query.toLowerCase()),
   );
 
   function selectMeasure(m: Measure) {
     onChange(m);
     setQuery('');
     setOpen(false);
-    setCreating(false);
-  }
-
-  async function saveNewMeasure() {
-    if (!createForm.singular.trim() || !createForm.plural.trim()) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/measures', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(createForm),
-      });
-      if (!res.ok) { setError('Failed to create measure'); return; }
-      const created: Measure = await res.json();
-      await mutate();
-      selectMeasure(created);
-      setCreateForm({ singular: '', plural: '' });
-    } catch {
-      setError('Unexpected error');
-    } finally {
-      setSaving(false);
-    }
   }
 
   return (
     <div ref={containerRef} className="relative w-full">
       <button
         type="button"
-        onClick={() => { setOpen((o) => !o); setCreating(false); }}
-        className="w-full flex justify-between items-center px-3 py-2 bg-zinc-800 border border-zinc-600 rounded-md text-white text-sm hover:border-highlight focus:outline-none focus:border-highlight"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex justify-between items-center px-3 py-2 bg-zinc-800 border border-zinc-600 rounded-md text-white text-sm hover:border-sky-400 focus:outline-none focus:border-sky-400"
       >
         <span>{value ? `${value.singular} / ${value.plural}` : 'Select measure…'}</span>
         <span className="text-zinc-400 text-xs">▾</span>
@@ -93,56 +65,15 @@ export default function MeasureCombobox({ value, onChange }: Props) {
                   onClick={() => selectMeasure(m)}
                   className="w-full text-left px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-700 hover:text-white"
                 >
-                  {m.singular} / {m.plural}
+                  {m.singular} / {m.plural}{' '}
+                  <span className="text-zinc-500">({m.short})</span>
                 </button>
               </li>
             ))}
-          </ul>
-
-          <div className="border-t border-zinc-700 p-2">
-            {!creating ? (
-              <button
-                type="button"
-                onClick={() => setCreating(true)}
-                className="w-full text-left px-1 py-1 text-sm text-highlight hover:text-highlight/80"
-              >
-                + Create new measure
-              </button>
-            ) : (
-              <div className="flex flex-col gap-2 pt-1">
-                <input
-                  placeholder="Singular (e.g. gram)"
-                  value={createForm.singular}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, singular: e.target.value }))}
-                  className="px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded text-white text-sm focus:outline-none focus:border-highlight"
-                />
-                <input
-                  placeholder="Plural (e.g. grams)"
-                  value={createForm.plural}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, plural: e.target.value }))}
-                  className="px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded text-white text-sm focus:outline-none focus:border-highlight"
-                />
-                {error && <p className="text-red-400 text-xs">{error}</p>}
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={saveNewMeasure}
-                    disabled={saving}
-                    className="flex-1 py-1.5 bg-highlight text-white text-sm font-semibold rounded disabled:opacity-40"
-                  >
-                    {saving ? 'Saving…' : 'Save measure'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCreating(false)}
-                    className="flex-1 py-1.5 bg-zinc-700 text-white text-sm rounded hover:bg-zinc-600"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
+            {filtered.length === 0 && (
+              <li className="px-3 py-2 text-sm text-zinc-500">No measures found</li>
             )}
-          </div>
+          </ul>
         </div>
       )}
     </div>

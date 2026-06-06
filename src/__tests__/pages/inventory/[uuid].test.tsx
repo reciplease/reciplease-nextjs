@@ -12,7 +12,7 @@ const useSWR = require('swr').default;
 const item: InventoryItem = {
   uuid: 'uuid-1',
   name: 'Milk',
-  measure: { measureId: 'MILLILITRES', singular: 'millilitre', plural: 'millilitres' },
+  measure: { measureId: 'ml', singular: 'millilitre', plural: 'millilitres', short: 'ml' },
   amount: 500,
   expiration: '2099-12-31',
 };

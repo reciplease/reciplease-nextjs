@@ -9,8 +9,8 @@ const useSWR = require('swr').default as jest.Mock;
 const useRouter = require('next/router').useRouter as jest.Mock;
 global.fetch = jest.fn();
 
-const grams: Measure = { measureId: 'GRAMS', singular: 'gram', plural: 'grams' };
-const items: Measure = { measureId: 'ITEMS', singular: 'item', plural: 'items' };
+const grams: Measure = { measureId: 'GRAMS', singular: 'gram', plural: 'grams', short: 'g' };
+const items: Measure = { measureId: 'ITEMS', singular: 'item', plural: 'items', short: 'item' };
 
 describe('NewRecipe builder', () => {
   const push = jest.fn();

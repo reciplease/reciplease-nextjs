@@ -40,13 +40,11 @@ type CreateInventoryItem = {
   barcode?: string;
 };
 
+// Static reference data served from the backend (a Java enum). The short name
+// doubles as the measureId (e.g. "g", "kg", "cl").
 type Measure = {
   measureId: MeasureId;
   singular: string;
   plural: string;
-};
-
-type CreateMeasure = {
-  singular: string;
-  plural: string;
+  short: string;
 };

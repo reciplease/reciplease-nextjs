@@ -12,8 +12,8 @@ const mockedBackendFetch = backendFetch as jest.MockedFunction<
 >;
 
 const MEASURES: Measure[] = [
-  { measureId: 'GRAMS', singular: 'gram', plural: 'grams' },
-  { measureId: 'ITEMS', singular: 'item', plural: 'items' },
+  { measureId: 'GRAMS', singular: 'gram', plural: 'grams', short: 'g' },
+  { measureId: 'ITEMS', singular: 'item', plural: 'items', short: 'item' },
 ];
 
 function jsonResponse(body: unknown, ok = true, status = 200): Response {

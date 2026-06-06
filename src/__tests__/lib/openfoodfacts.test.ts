@@ -30,7 +30,7 @@ describe('lookupProduct', () => {
         'Oat M.',
         'Plant-based milks',
       ],
-      measureId: 'LITRES',
+      measureId: 'l',
     });
   });
 
@@ -66,19 +66,19 @@ describe('lookupProduct', () => {
 
 describe('measureIdFromQuantity', () => {
   it.each([
-    ['500 g', 'GRAMS'],
-    ['1.5 kg', 'KILOGRAMS'],
-    ['250 mg', 'GRAMS'],
-    ['1 L', 'LITRES'],
-    ['330 ml', 'MILLILITRES'],
-    ['33 cl', 'MILLILITRES'],
-    ['5 dl', 'MILLILITRES'],
+    ['500 g', 'g'],
+    ['1.5 kg', 'kg'],
+    ['250 mg', 'g'],
+    ['1 L', 'l'],
+    ['330 ml', 'ml'],
+    ['33 cl', 'cl'],
+    ['5 dl', 'ml'],
   ])('maps %s to %s', (quantity, expected) => {
     expect(measureIdFromQuantity(quantity)).toBe(expected);
   });
 
   it('uses the last unit when several are present (e.g. multipacks)', () => {
-    expect(measureIdFromQuantity('6 x 33 cl')).toBe('MILLILITRES');
+    expect(measureIdFromQuantity('6 x 33 cl')).toBe('cl');
   });
 
   it('returns null for missing or unrecognised units', () => {

@@ -9,8 +9,8 @@ jest.mock('@/components/Metadata', () => () => null);
 
 const useSWR = require('swr').default;
 
-const grams: Measure = { measureId: 'GRAMS', singular: 'gram', plural: 'grams' };
-const items: Measure = { measureId: 'ITEMS', singular: 'item', plural: 'items' };
+const grams: Measure = { measureId: 'GRAMS', singular: 'gram', plural: 'grams', short: 'g' };
+const items: Measure = { measureId: 'ITEMS', singular: 'item', plural: 'items', short: 'item' };
 
 const mockItems: InventoryItem[] = [
   {
