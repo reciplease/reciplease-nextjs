@@ -114,8 +114,8 @@ export default function ExpirationScanner({ active, onDetected }: Props) {
       <video ref={videoRef} className="w-full h-full object-cover block" autoPlay playsInline muted />
       <canvas ref={canvasRef} className="hidden" />
       {/* Scan strip overlay */}
-      <div className="absolute top-[37.5%] left-0 right-0 h-[25%] border-t-2 border-b-2 border-sky-400/70 flex items-end pb-1.5 px-3 pointer-events-none">
-        <span className="text-sky-400 text-xs bg-black/45 px-2 py-0.5 rounded">
+      <div className="absolute top-[37.5%] left-0 right-0 h-[25%] border-t-2 border-b-2 border-highlight/70 flex items-end pb-1.5 px-3 pointer-events-none">
+        <span className="text-highlight text-xs bg-black/45 px-2 py-0.5 rounded">
           {candidate ? `Detected: ${candidate}` : 'Looking for date…'}
         </span>
       </div>

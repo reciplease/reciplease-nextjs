@@ -69,7 +69,7 @@ export default function MeasureCombobox({ value, onChange }: Props) {
       <button
         type="button"
         onClick={() => { setOpen((o) => !o); setCreating(false); }}
-        className="w-full flex justify-between items-center px-3 py-2 bg-zinc-800 border border-zinc-600 rounded-md text-white text-sm hover:border-sky-400 focus:outline-none focus:border-sky-400"
+        className="w-full flex justify-between items-center px-3 py-2 bg-zinc-800 border border-zinc-600 rounded-md text-white text-sm hover:border-highlight focus:outline-none focus:border-highlight"
       >
         <span>{value ? `${value.singular} / ${value.plural}` : 'Select measure…'}</span>
         <span className="text-zinc-400 text-xs">▾</span>
@@ -104,7 +104,7 @@ export default function MeasureCombobox({ value, onChange }: Props) {
               <button
                 type="button"
                 onClick={() => setCreating(true)}
-                className="w-full text-left px-1 py-1 text-sm text-sky-400 hover:text-sky-300"
+                className="w-full text-left px-1 py-1 text-sm text-highlight hover:text-highlight/80"
               >
                 + Create new measure
               </button>
@@ -114,13 +114,13 @@ export default function MeasureCombobox({ value, onChange }: Props) {
                   placeholder="Singular (e.g. gram)"
                   value={createForm.singular}
                   onChange={(e) => setCreateForm((f) => ({ ...f, singular: e.target.value }))}
-                  className="px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded text-white text-sm focus:outline-none focus:border-sky-400"
+                  className="px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded text-white text-sm focus:outline-none focus:border-highlight"
                 />
                 <input
                   placeholder="Plural (e.g. grams)"
                   value={createForm.plural}
                   onChange={(e) => setCreateForm((f) => ({ ...f, plural: e.target.value }))}
-                  className="px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded text-white text-sm focus:outline-none focus:border-sky-400"
+                  className="px-2 py-1.5 bg-zinc-950 border border-zinc-600 rounded text-white text-sm focus:outline-none focus:border-highlight"
                 />
                 {error && <p className="text-red-400 text-xs">{error}</p>}
                 <div className="flex gap-2">
@@ -128,7 +128,7 @@ export default function MeasureCombobox({ value, onChange }: Props) {
                     type="button"
                     onClick={saveNewMeasure}
                     disabled={saving}
-                    className="flex-1 py-1.5 bg-sky-500 text-black text-sm font-semibold rounded disabled:opacity-40"
+                    className="flex-1 py-1.5 bg-highlight text-white text-sm font-semibold rounded disabled:opacity-40"
                   >
                     {saving ? 'Saving…' : 'Save measure'}
                   </button>
