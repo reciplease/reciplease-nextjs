@@ -6,7 +6,6 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Layout from '@/components/Layout';
 import AccessGate from '@/components/AccessGate';
-import { SettingsProvider } from '@/lib/settings';
 
 // Local-only profile: NEXT_PUBLIC_FAKE_AUTH=true injects a signed-in session
 // (user@reciplease.org) so the authenticated UI is reachable without Google.
@@ -14,15 +13,15 @@ import { SettingsProvider } from '@/lib/settings';
 const FAKE_AUTH = process.env.NEXT_PUBLIC_FAKE_AUTH === 'true';
 const fakeSession: Session | undefined = FAKE_AUTH
   ? {
-      user: { name: 'Local User', email: 'user@reciplease.org' },
-      expires: '2999-12-31T23:59:59.999Z',
-    }
+    user: { name: 'Local User', email: 'user@reciplease.org' },
+    expires: '2999-12-31T23:59:59.999Z',
+  }
   : undefined;
 
 export default function App({
-  Component,
-  pageProps,
-}: AppProps<{ session?: Session }>) {
+                              Component,
+                              pageProps,
+                            }: AppProps<{ session?: Session }>) {
   const router = useRouter();
   // The login page renders standalone (no chrome, no AccessGate).
   // login and the scanner are full-screen standalone pages (no header/layout chrome)
@@ -43,23 +42,21 @@ export default function App({
       refetchOnWindowFocus={!FAKE_AUTH}
     >
       <Head>
-        <meta name='viewport' content='width=device-width, initial-scale=1' />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
-      <SettingsProvider>
-        {standalone ? (
+      {standalone ? (
+        <Component {...pageProps} />
+      ) : publicPage ? (
+        <Layout>
           <Component {...pageProps} />
-        ) : publicPage ? (
-          <Layout>
+        </Layout>
+      ) : (
+        <Layout>
+          <AccessGate>
             <Component {...pageProps} />
-          </Layout>
-        ) : (
-          <Layout>
-            <AccessGate>
-              <Component {...pageProps} />
-            </AccessGate>
-          </Layout>
-        )}
-      </SettingsProvider>
+          </AccessGate>
+        </Layout>
+      )}
     </SessionProvider>
   );
 }
