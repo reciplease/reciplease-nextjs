@@ -1,38 +1,37 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from 'react';
+import { useSyncExternalStore } from 'react';
 
-// User-facing UI preferences, stored locally in the browser (no server round
-// trip). `system` defers to the OS / browser (the prefers-* media queries);
-// the explicit values let the user override that automatic behaviour.
-//
-// The app is dark-only — there is no light or automatic theme — so the only
-// preference exposed here is the reduce-motion setting.
 export type MotionSetting = 'system' | 'full' | 'reduced';
 
 export interface Settings {
   motion: MotionSetting;
 }
 
-export const DEFAULT_SETTINGS: Settings = {
-  motion: 'system',
+const DEFAULT_SETTINGS: Settings = {
+  motion: 'system'
 };
 
-// localStorage persists the override across browser sessions on this device.
-// Versioned key so the shape can change without reading stale data.
 const STORAGE_KEY = 'reciplease.settings.v1';
+
+// Keep track of the last parsed object to preserve its reference identity
+let memoizedSettings: Settings = DEFAULT_SETTINGS;
+let lastRawString: string | null = null;
 
 function readStored(): Settings {
   if (typeof window === 'undefined') return DEFAULT_SETTINGS;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_SETTINGS;
+
+    // If the raw string in localStorage hasn't changed, return the EXACT same object reference
+    if (raw === lastRawString) {
+      return memoizedSettings;
+    }
+
     const parsed = JSON.parse(raw) as Partial<Settings>;
-    return { ...DEFAULT_SETTINGS, ...parsed };
+
+    lastRawString = raw;
+    memoizedSettings = { ...DEFAULT_SETTINGS, ...parsed };
+    return memoizedSettings;
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -45,10 +44,10 @@ function prefersReducedMotion(): boolean {
   );
 }
 
-// Reflect the resolved settings onto <html> as classes. The CSS in main.scss
-// keys off these classes. The theme is always dark; only the reduce-motion
-// preference resolves a `system` value against the live media query.
-function applySettings(settings: Settings) {
+const listeners = new Set<() => void>();
+
+// 1. Keep this strictly for DOM side-effects. Do not trigger listeners here.
+function applyDOMClasses(settings: Settings) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
 
@@ -60,64 +59,49 @@ function applySettings(settings: Settings) {
   root.classList.toggle('reduce-motion', reduced);
 }
 
-interface SettingsContextValue {
-  settings: Settings;
-  setMotion: (motion: MotionSetting) => void;
+// 2. Create a clean broadcast mechanism
+function updateSettings(settings: Settings) {
+  if (typeof window === 'undefined') return;
+
+  // Write to localStorage
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+
+  // Apply the DOM changes
+  applyDOMClasses(settings);
+
+  // Notify all active React hooks to pull the fresh data
+  listeners.forEach((l) => l());
 }
 
-const SettingsContext = createContext<SettingsContextValue | null>(null);
+const subscribe = (listener: () => void): (() => void) => {
+  listeners.add(listener);
 
-export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-
-  // Hydrate from storage on mount (kept out of useState's initialiser so SSR
-  // and the first client render agree, avoiding a hydration mismatch).
-  useEffect(() => {
-    // Intentional: read persisted settings after mount so SSR and the first
-    // client render agree (the two-pass render avoids a hydration mismatch).
-    // TODO: migrate to useSyncExternalStore to read localStorage in a way the
-    // rule accepts, instead of disabling it here.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSettings(readStored());
-  }, []);
-
-  // Persist + apply whenever settings change.
-  useEffect(() => {
-    applySettings(settings);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    } catch {
-      // Storage may be unavailable (private mode) — the in-memory state still
-      // drives the UI for this session.
+  // This handles changes coming from OTHER tabs/windows
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === STORAGE_KEY) {
+      // Apply classes when another tab changes things
+      applyDOMClasses(readStored());
+      listener();
     }
-  }, [settings]);
-
-  // Re-apply when the OS reduce-motion preference changes while `system` is active.
-  useEffect(() => {
-    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const onChange = () => applySettings(settings);
-    motion.addEventListener('change', onChange);
-    return () => {
-      motion.removeEventListener('change', onChange);
-    };
-  }, [settings]);
-
-  const value: SettingsContextValue = {
-    settings,
-    setMotion: (motion) => setSettings((s) => ({ ...s, motion })),
   };
 
-  return (
-    <SettingsContext.Provider value={value}>
-      {children}
-    </SettingsContext.Provider>
-  );
-}
+  window.addEventListener('storage', onStorage);
 
-export function useSettings(): SettingsContextValue {
-  const ctx = useContext(SettingsContext);
-  if (!ctx) {
-    throw new Error('useSettings must be used within a SettingsProvider');
-  }
-  return ctx;
+  return () => {
+    listeners.delete(listener);
+    window.removeEventListener('storage', onStorage);
+  };
+};
+
+export function useSettings() {
+  const settings = useSyncExternalStore(
+    subscribe,
+    readStored,
+    () => DEFAULT_SETTINGS
+  );
+
+  return {
+    settings,
+    setMotion: (motion: MotionSetting) => updateSettings({ motion })
+  };
 }

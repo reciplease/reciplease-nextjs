@@ -4,13 +4,13 @@ import { useSettings, type MotionSetting } from '@/lib/settings';
 // A labelled segmented radio group. Generic over the option value so both the
 // theme and motion controls can share it.
 function OptionGroup<T extends string>({
-  legend,
-  hint,
-  name,
-  value,
-  options,
-  onChange,
-}: {
+                                         legend,
+                                         hint,
+                                         name,
+                                         value,
+                                         options,
+                                         onChange
+                                       }: {
   legend: string;
   hint: string;
   name: string;
@@ -54,7 +54,7 @@ function OptionGroup<T extends string>({
 const motionOptions: { value: MotionSetting; label: string }[] = [
   { value: 'system', label: 'Automatic' },
   { value: 'full', label: 'Full' },
-  { value: 'reduced', label: 'Reduced' },
+  { value: 'reduced', label: 'Reduced' }
 ];
 
 export default function SettingsPage() {

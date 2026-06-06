@@ -1,6 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import SettingsPage from '@/pages/settings';
-import { SettingsProvider } from '@/lib/settings';
 
 jest.mock('@/components/Metadata', () => () => null);
 
@@ -8,9 +7,7 @@ const STORAGE_KEY = 'reciplease.settings.v1';
 
 function renderPage() {
   return render(
-    <SettingsProvider>
       <SettingsPage />
-    </SettingsProvider>,
   );
 }
 
