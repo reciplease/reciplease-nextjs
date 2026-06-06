@@ -15,6 +15,7 @@ export default function Logo({ size = 44 }: { size?: number }) {
       {/* Book cover — the accent colour. */}
       <path
         fill="var(--color-highlight)"
+        style={{ transition: "fill 0.3s ease" }}
         d="m96.002 10v420.436h319.997 22.111c9.84 0 17.891-8.05 17.891-17.891v-384.654c0-9.84-8.05-17.891-17.891-17.891z"
       />
       <path
