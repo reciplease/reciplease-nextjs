@@ -13,6 +13,15 @@
   --color-secondary: #383e56; // navy — the book outline (also manifest theme_color)
   // A lighter tint of the secondary, handy for muted surfaces/borders.
   --color-secondary-muted: #6b7393;
+  --color-inventory-highlight: #2f6f4c; // darker green — the inventory section accent
+}
+
+// The inventory section recolours its accent to green. Applying this class on a
+// wrapper overrides --color-highlight for everything beneath it (nav underline,
+// FAB, focus rings, bg-highlight/border-highlight utilities, …). Used by the
+// Layout for in-chrome inventory pages and by the standalone full-screen scanner.
+.inventory-theme {
+  --color-highlight: var(--color-inventory-highlight);
 }
 
 // Keep the reset in @layer base so Tailwind's utilities (a later layer) can

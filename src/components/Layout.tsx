@@ -7,12 +7,10 @@ import styles from '@/components/Layout.module.scss';
 
 const font = Inter({ subsets: ['latin'] });
 
-// The inventory section recolours its accent to a darker green. Overriding the
-// --color-highlight variable on the page wrapper cascades to everything that
-// reads it: the nav's active underline, the FAB, focus rings, etc. (Tailwind 4
-// utilities like bg-highlight resolve the variable at use, so they pick it up.)
-const INVENTORY_HIGHLIGHT = '#2f6f4c';
-
+// The inventory section recolours its accent to a darker green via the shared
+// .inventory-theme class (see main.scss), which overrides --color-highlight for
+// everything beneath it: the nav's active underline, the FAB, focus rings, and
+// Tailwind utilities like bg-highlight that resolve the variable at use.
 export default function Layout({ children }: { children: JSX.Element }) {
   const { pathname } = useRouter();
   const onInventory = pathname.startsWith('/inventory');
@@ -21,12 +19,7 @@ export default function Layout({ children }: { children: JSX.Element }) {
     // The whole page is one content grid: the header breaks out to full width
     // while page content (main) sits in the centred reading column by default.
     <div
-      className={`${font.className} content-grid`}
-      style={
-        onInventory
-          ? ({ '--color-highlight': INVENTORY_HIGHLIGHT } as React.CSSProperties)
-          : undefined
-      }
+      className={`${font.className} content-grid${onInventory ? ' inventory-theme' : ''}`}
     >
       <Header />
       <main className={styles.main}>{children}</main>
