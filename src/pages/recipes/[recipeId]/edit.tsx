@@ -1,0 +1,112 @@
+import Metadata from '@/components/Metadata';
+import RecipeForm, { RecipeFormValues } from '@/components/RecipeForm';
+import { GetServerSidePropsContext } from 'next';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
+import useSWR from 'swr';
+import { full } from '@/lib/recipe-id';
+
+const fetcher = (url: string): Promise<Recipe> =>
+  fetch(url).then((res) => res.json());
+
+interface Props {
+  recipeShortId: RecipeShortId;
+}
+
+export default function EditRecipe({ recipeShortId }: Props) {
+  const router = useRouter();
+  const recipeId = full(recipeShortId);
+  const {
+    data: recipe,
+    error,
+    isLoading,
+  } = useSWR(`/api/recipes/${recipeId}`, fetcher);
+
+  async function handleSubmit(values: RecipeFormValues) {
+    const res = await fetch(`/api/recipes/${recipeId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: values.name,
+        description: values.description,
+        steps: values.steps,
+        ingredients: values.ingredients.map((ingredient) => ({
+          name: ingredient.name,
+          measure: ingredient.measureId,
+          amount: ingredient.amount,
+        })),
+      }),
+    });
+    if (!res.ok) {
+      return 'Failed to save changes. Please try again.';
+    }
+
+    router.push(`/recipes/${recipeShortId}`);
+  }
+
+  if (isLoading) {
+    return (
+      <>
+        <Metadata title="Loading Recipe" description="Loading recipe..." />
+
+        <section>
+          <p>Loading...</p>
+        </section>
+      </>
+    );
+  }
+
+  if (error || !recipe) {
+    return (
+      <>
+        <Metadata title="No Recipe Found" description="No recipe found" />
+
+        <section>
+          <p>No recipe found</p>
+        </section>
+      </>
+    );
+  }
+
+  if (!recipe.editable) {
+    return (
+      <>
+        <Metadata title="Not Authorized" description="You cannot edit this recipe" />
+
+        <section>
+          <p>You do not have permission to edit this recipe.</p>
+          <Link href={`/recipes/${recipeShortId}`}>Back to recipe</Link>
+        </section>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Metadata title={`Edit ${recipe.name}`} description="Edit recipe" />
+
+      <section>
+        <RecipeForm
+          submitLabel="Save changes"
+          onSubmit={handleSubmit}
+          initial={{
+            name: recipe.name,
+            description: recipe.description,
+            steps: recipe.steps,
+            ingredients: recipe.ingredients.map((ingredient) => ({
+              name: ingredient.name,
+              measureId: ingredient.measure.measureId,
+              amount: ingredient.amount,
+            })),
+          }}
+        />
+      </section>
+    </>
+  );
+}
+
+export function getServerSideProps(context: GetServerSidePropsContext) {
+  return {
+    props: { recipeShortId: context.params?.recipeId },
+  };
+}

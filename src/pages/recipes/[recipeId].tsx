@@ -1,7 +1,9 @@
 import Metadata from '@/components/Metadata';
 import { GetServerSidePropsContext } from 'next';
+import Link from 'next/link';
 import useSWR from 'swr';
 import { full } from '@/lib/recipe-id';
+import { formatTimestamp } from '@/lib/formatDate';
 
 const fetcher = (url: string): Promise<Recipe> =>
   fetch(url).then((res) => res.json());
@@ -48,7 +50,19 @@ export default function Recipe({ recipeShortId }: Props) {
       <Metadata title={`${recipe.name}`} description={'View recipe'} />
 
       <section>
-        <h3>{recipe.name}</h3>
+        <div className="flex items-start justify-between gap-4">
+          <h3>{recipe.name}</h3>
+          {recipe.editable && (
+            <Link href={`/recipes/${recipeShortId}/edit`} className="text-sm whitespace-nowrap">
+              Edit
+            </Link>
+          )}
+        </div>
+        {recipe.updatedAt && (
+          <p className="text-sm text-[#666]">
+            Last updated: {formatTimestamp(recipe.updatedAt)}
+          </p>
+        )}
         <p className="my-4">{recipe.description}</p>
         <h4 className="mt-12">Ingredients</h4>
         <ul className="ms-16 list-disc">

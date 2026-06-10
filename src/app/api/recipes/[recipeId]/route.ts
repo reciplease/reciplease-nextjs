@@ -1,20 +1,7 @@
 import { NextResponse } from 'next/server';
 import { backendFetch } from '@/lib/backend';
-import { fetchMeasures, toMeasure } from '@/lib/measures';
-
-type BackendRecipe = {
-  recipeId: string;
-  name: string;
-  description: string | null;
-  steps: string[] | null;
-  ingredients: BackendIngredient[];
-};
-
-type BackendIngredient = {
-  name: string;
-  measure: string;
-  amount: number;
-};
+import { fetchMeasures } from '@/lib/measures';
+import { BackendRecipe, toRecipe } from '@/lib/recipes';
 
 export async function GET(
   _request: Request,
@@ -30,17 +17,31 @@ export async function GET(
   }
   const b: BackendRecipe = await response.json();
   const measures = await fetchMeasures();
-  const recipe: Recipe = {
-    recipeId: b.recipeId,
-    recipeShortId: '',
-    name: b.name,
-    description: b.description ?? null,
-    steps: b.steps ?? [],
-    ingredients: (b.ingredients ?? []).map((i) => ({
-      name: i.name,
-      measure: toMeasure(i.measure, measures),
-      amount: i.amount,
-    })),
-  };
-  return NextResponse.json(recipe);
+  return NextResponse.json(toRecipe(b, measures));
+}
+
+type UpdateRecipe = {
+  name: string;
+  description: string | null;
+  steps: string[];
+  ingredients: { name: string; measure: string; amount: number }[];
+};
+
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ recipeId: string }> },
+) {
+  const { recipeId } = await params;
+  const body = (await request.json()) as UpdateRecipe;
+  const response = await backendFetch(`/api/recipes/${recipeId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recipeId, ...body }),
+  });
+  if (!response.ok) {
+    return new NextResponse(null, { status: response.status });
+  }
+  const b: BackendRecipe = await response.json();
+  const measures = await fetchMeasures();
+  return NextResponse.json(toRecipe(b, measures));
 }

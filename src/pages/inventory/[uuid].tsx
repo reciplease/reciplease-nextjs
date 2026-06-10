@@ -2,6 +2,7 @@ import useSWR from 'swr';
 import { GetServerSidePropsContext } from 'next';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
+import { formatTimestamp } from '@/lib/formatDate';
 
 const fetcher = (url: string): Promise<InventoryItem> =>
   fetch(url).then((res) => {
@@ -58,6 +59,11 @@ export default function InventoryItemPage({ uuid }: Props) {
         </p>
         {item.barcode && (
           <p className="text-sm text-[#666]">Barcode: {item.barcode}</p>
+        )}
+        {item.updatedAt && (
+          <p className="text-sm text-[#666]">
+            Last updated: {formatTimestamp(item.updatedAt)}
+          </p>
         )}
       </section>
     </>

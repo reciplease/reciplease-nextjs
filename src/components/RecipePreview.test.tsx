@@ -12,6 +12,7 @@ const recipe: Recipe = {
   description: 'A staple and classic',
   ingredients: [],
   steps: [],
+  editable: false,
 };
 
 describe('RecipePreview', () => {

@@ -1,36 +1,7 @@
 import { NextResponse } from 'next/server';
 import { backendFetch } from '@/lib/backend';
-import { fetchMeasures, toMeasure } from '@/lib/measures';
-import { shorten } from '@/lib/recipe-id';
-
-type BackendRecipe = {
-  recipeId: string;
-  name: string;
-  description: string | null;
-  steps: string[] | null;
-  ingredients: BackendIngredient[];
-};
-
-type BackendIngredient = {
-  name: string;
-  measure: string;
-  amount: number;
-};
-
-function toRecipe(b: BackendRecipe, measures: Measure[]): Recipe {
-  return {
-    recipeId: b.recipeId,
-    recipeShortId: shorten(b.recipeId),
-    name: b.name,
-    description: b.description ?? null,
-    steps: b.steps ?? [],
-    ingredients: (b.ingredients ?? []).map((i) => ({
-      name: i.name,
-      measure: toMeasure(i.measure, measures),
-      amount: i.amount,
-    })),
-  };
-}
+import { fetchMeasures } from '@/lib/measures';
+import { BackendRecipe, toRecipe } from '@/lib/recipes';
 
 export async function GET() {
   const response = await backendFetch('/api/recipes');

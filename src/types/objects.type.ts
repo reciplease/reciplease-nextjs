@@ -5,6 +5,8 @@ type Recipe = {
   description: string | null;
   ingredients: RecipeIngredient[];
   steps: string[];
+  updatedAt?: string;
+  editable: boolean;
 };
 
 // A recipe ingredient is a self-contained spec: it is not linked to any inventory
@@ -30,6 +32,7 @@ type InventoryItem = {
   amount: number;
   expiration: string;
   barcode?: string;
+  updatedAt?: string;
 };
 
 type CreateInventoryItem = {
