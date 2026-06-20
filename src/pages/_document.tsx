@@ -15,6 +15,13 @@ export default function Document() {
       <body>
         <Main />
         <NextScript />
+        {/* Registering a service worker is required for Chrome to consider the */}
+        {/* app installable (Add to Home Screen on Android). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js')); }`,
+          }}
+        />
       </body>
     </Html>
   );
