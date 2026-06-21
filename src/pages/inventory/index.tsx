@@ -31,6 +31,12 @@ export default function InventoryList() {
     );
   }
 
+  // The pantry is a quick-glance overview — expired stock and the amount/expiry
+  // detail live on the "Expiring soon" view instead.
+  const pantryItems = items
+    .filter((item) => !isExpired(item.expiration))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
   return (
     <>
       <Metadata title="Inventory" description="Your ingredient inventory" />
@@ -41,32 +47,26 @@ export default function InventoryList() {
           <Link href="/inventory/create" className="text-sm underline">Add to inventory</Link>
         </div>
 
-        {items.length === 0 ? (
+        {pantryItems.length === 0 ? (
           <p>No items in inventory</p>
         ) : (
-          <ul className="list-none p-0 grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4 my-8">
-            {items.map((item) => (
+          <ul className="list-none p-0 grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-4 my-8">
+            {pantryItems.map((item) => (
               <li key={item.uuid}>
-                <Link href={`/inventory/${item.uuid}`}>
-                  <article className={`p-4 border border-[#ccc] rounded cursor-pointer${isExpired(item.expiration) ? ' opacity-60' : ''}`}>
-                    {item.image && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={toDataUrl(item.image)}
-                        alt=""
-                        className="w-full aspect-square object-cover rounded mb-2"
-                      />
-                    )}
-                    <h4 className="font-medium">{item.name}</h4>
-                    <p>
-                      {item.amount}{' '}
-                      {item.amount === 1 ? item.measure.singular : item.measure.plural}
-                    </p>
-                    <p className="text-sm text-[#666]">
-                      Expires: {item.expiration}
-                      {isExpired(item.expiration) && ' (expired)'}
-                    </p>
-                  </article>
+                <Link href={`/inventory/${item.uuid}`} className="grid gap-2">
+                  {item.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={toDataUrl(item.image)}
+                      alt={item.name}
+                      className="w-full aspect-square object-cover rounded border border-[#ccc]"
+                    />
+                  ) : (
+                    <div className="w-full aspect-square rounded border border-[#ccc] bg-[#f4f4f4] flex items-center justify-center text-3xl">
+                      🥫
+                    </div>
+                  )}
+                  <h4 className="font-medium text-center">{item.name}</h4>
                 </Link>
               </li>
             ))}

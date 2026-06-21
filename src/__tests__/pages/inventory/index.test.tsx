@@ -2,8 +2,8 @@ import { render, screen } from '@testing-library/react';
 import InventoryList from '@/pages/inventory';
 
 jest.mock('swr');
-jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; href: string }) => (
-  <a href={href}>{children}</a>
+jest.mock('next/link', () => ({ children, href, className }: { children: React.ReactNode; href: string; className?: string }) => (
+  <a href={href} className={className}>{children}</a>
 ));
 jest.mock('@/components/Metadata', () => () => null);
 
@@ -22,6 +22,14 @@ const mockItems: InventoryItem[] = [
   },
   {
     uuid: 'uuid-2',
+    name: 'Avocado',
+    measure: items,
+    amount: 3,
+    expiration: '2099-06-30',
+    image: 'ZmFrZS1pbWFnZQ==',
+  },
+  {
+    uuid: 'uuid-3',
     name: 'Flour',
     measure: grams,
     amount: 500,
@@ -42,28 +50,40 @@ describe('InventoryList', () => {
     expect(screen.getByText('Could not load inventory')).toBeInTheDocument();
   });
 
-  it('renders inventory items', () => {
+  it('renders unexpired items sorted alphabetically by name', () => {
     useSWR.mockReturnValue({ isLoading: false, data: mockItems, error: undefined });
     render(<InventoryList />);
-    expect(screen.getByText('Bread')).toBeInTheDocument();
-    expect(screen.getByText('Flour')).toBeInTheDocument();
+    const names = screen.getAllByRole('heading', { level: 4 }).map((el) => el.textContent);
+    expect(names).toEqual(['Avocado', 'Bread']);
   });
 
-  it('shows plural measure for amount > 1', () => {
+  it('hides expired items', () => {
     useSWR.mockReturnValue({ isLoading: false, data: mockItems, error: undefined });
     render(<InventoryList />);
-    expect(screen.getByText('2 items')).toBeInTheDocument();
-    expect(screen.getByText('500 grams')).toBeInTheDocument();
+    expect(screen.queryByText('Flour')).not.toBeInTheDocument();
   });
 
-  it('marks expired items', () => {
+  it('renders a photo thumbnail when the item has an image', () => {
     useSWR.mockReturnValue({ isLoading: false, data: mockItems, error: undefined });
     render(<InventoryList />);
-    expect(screen.getByText(/expired/)).toBeInTheDocument();
+    expect(screen.getByRole('img')).toBeInTheDocument();
+  });
+
+  it('shows a placeholder tile when the item has no image', () => {
+    useSWR.mockReturnValue({ isLoading: false, data: [mockItems[0]], error: undefined });
+    render(<InventoryList />);
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.getByText('🥫')).toBeInTheDocument();
   });
 
   it('shows empty state message when no items', () => {
     useSWR.mockReturnValue({ isLoading: false, data: [], error: undefined });
+    render(<InventoryList />);
+    expect(screen.getByText('No items in inventory')).toBeInTheDocument();
+  });
+
+  it('shows empty state message when all items are expired', () => {
+    useSWR.mockReturnValue({ isLoading: false, data: [mockItems[2]], error: undefined });
     render(<InventoryList />);
     expect(screen.getByText('No items in inventory')).toBeInTheDocument();
   });
