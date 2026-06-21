@@ -49,32 +49,43 @@ export default function InventoryItemPage({ uuid }: Props) {
 
       <section className="grid gap-3">
         <Link href="/inventory" className="text-sm">← Back to inventory</Link>
-        {item.image && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={toDataUrl(item.image)}
-            alt=""
-            className="w-32 h-32 object-cover rounded-lg border border-[#ccc]"
-          />
-        )}
-        <h3 className="text-xl font-semibold">{item.name}</h3>
-        <p>
-          Amount: {item.amount}{' '}
-          {item.amount === 1 ? item.measure.singular : item.measure.plural}
-        </p>
-        <p className={expired ? 'opacity-60' : ''}>
-          Expires: {item.expiration}
-          {expired && ' — expired'}
-        </p>
-        {item.barcode && (
-          <p className="text-sm text-[#666]">Barcode: {item.barcode}</p>
-        )}
-        {item.updatedAt && (
-          <p className="text-sm text-[#666]">
-            Last updated: {formatTimestamp(item.updatedAt)}
-          </p>
-        )}
-        <Link href={`/inventory/${uuid}/edit`} className="text-sm underline">Edit</Link>
+        {/* Image sits beside the details rather than above them, so the
+            (otherwise empty) space to its right gets used. */}
+        <div className="flex flex-wrap gap-4">
+          {item.image && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={toDataUrl(item.image)}
+              alt=""
+              className="w-32 h-32 shrink-0 object-cover rounded-lg border border-[#ccc]"
+            />
+          )}
+          <div className="grid gap-3">
+            <h3 className="text-xl font-semibold">{item.name}</h3>
+            <p>
+              Amount: {item.amount}{' '}
+              {item.amount === 1 ? item.measure.singular : item.measure.plural}
+            </p>
+            <p className={expired ? 'opacity-60' : ''}>
+              Expires: {item.expiration}
+              {expired && ' — expired'}
+            </p>
+            {item.barcode && (
+              <p className="text-sm text-[#666]">Barcode: {item.barcode}</p>
+            )}
+            {item.updatedAt && (
+              <p className="text-sm text-[#666]">
+                Last updated: {formatTimestamp(item.updatedAt)}
+              </p>
+            )}
+            <Link
+              href={`/inventory/${uuid}/edit`}
+              className="w-fit rounded border-2 border-secondary px-2 py-1 text-sm"
+            >
+              Edit
+            </Link>
+          </div>
+        </div>
       </section>
     </>
   );
