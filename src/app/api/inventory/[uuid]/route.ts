@@ -69,3 +69,12 @@ export async function PUT(
   const b: BackendInventoryItem = await response.json();
   return NextResponse.json(await toInventoryItem(b));
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ uuid: string }> },
+) {
+  const { uuid } = await params;
+  const response = await backendFetch(`/api/inventory/${uuid}`, { method: 'DELETE' });
+  return new NextResponse(null, { status: response.status });
+}

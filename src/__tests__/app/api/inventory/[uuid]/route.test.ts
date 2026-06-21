@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { GET } from '@/app/api/inventory/[uuid]/route';
+import { GET, DELETE } from '@/app/api/inventory/[uuid]/route';
 
 jest.mock('@/lib/backend', () => ({ backendFetch: jest.fn() }));
 
@@ -85,5 +85,26 @@ describe('GET /api/inventory/[uuid]', () => {
     const response = await GET(new Request('http://localhost'), { params: Promise.resolve({ uuid: 'item-1' }) });
 
     expect(response.status).toBe(500);
+  });
+});
+
+describe('DELETE /api/inventory/[uuid]', () => {
+  afterEach(() => (backendFetch as jest.Mock).mockReset());
+
+  it('forwards the delete to the backend and proxies a 204', async () => {
+    (backendFetch as jest.Mock).mockResolvedValue({ ok: true, status: 204 });
+
+    const response = await DELETE(new Request('http://localhost'), { params: Promise.resolve({ uuid: 'item-1' }) });
+
+    expect(backendFetch).toHaveBeenCalledWith('/api/inventory/item-1', { method: 'DELETE' });
+    expect(response.status).toBe(204);
+  });
+
+  it('proxies a 404 when the item does not belong to the house', async () => {
+    (backendFetch as jest.Mock).mockResolvedValue({ ok: false, status: 404 });
+
+    const response = await DELETE(new Request('http://localhost'), { params: Promise.resolve({ uuid: 'item-1' }) });
+
+    expect(response.status).toBe(404);
   });
 });

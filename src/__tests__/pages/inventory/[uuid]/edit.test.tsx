@@ -101,4 +101,53 @@ describe('EditInventoryItem page', () => {
       expect(screen.getByRole('alert')).toHaveTextContent('Failed to save changes. Please try again.');
     });
   });
+
+  describe('delete', () => {
+    let confirmSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      confirmSpy = jest.spyOn(window, 'confirm');
+    });
+
+    afterEach(() => {
+      confirmSpy.mockRestore();
+    });
+
+    it('does nothing if the confirmation is declined', () => {
+      confirmSpy.mockReturnValue(false);
+      mockItemSWR({ isLoading: false, data: item, error: undefined });
+
+      render(<EditInventoryItem uuid={uuid} />);
+      fireEvent.click(screen.getByRole('button', { name: /delete item/i }));
+
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('deletes the item and redirects to the inventory list when confirmed', async () => {
+      confirmSpy.mockReturnValue(true);
+      mockItemSWR({ isLoading: false, data: item, error: undefined });
+      (fetch as jest.Mock).mockResolvedValue({ ok: true });
+
+      render(<EditInventoryItem uuid={uuid} />);
+      fireEvent.click(screen.getByRole('button', { name: /delete item/i }));
+
+      await waitFor(() => {
+        expect(fetch).toHaveBeenCalledWith(`/api/inventory/${uuid}`, { method: 'DELETE' });
+        expect(push).toHaveBeenCalledWith('/inventory');
+      });
+    });
+
+    it('shows an error message when the delete fails', async () => {
+      confirmSpy.mockReturnValue(true);
+      mockItemSWR({ isLoading: false, data: item, error: undefined });
+      (fetch as jest.Mock).mockResolvedValue({ ok: false });
+
+      render(<EditInventoryItem uuid={uuid} />);
+      fireEvent.click(screen.getByRole('button', { name: /delete item/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent('Failed to delete item. Please try again.');
+      });
+    });
+  });
 });

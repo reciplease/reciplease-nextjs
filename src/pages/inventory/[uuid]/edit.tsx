@@ -65,6 +65,7 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
   const [image, setImage] = useState<string | null>(item.image ?? null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   async function handlePhotoSelected(file: File) {
     try {
@@ -75,6 +76,24 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
   }
 
   const effectiveMeasureId = measureId || measures?.[0]?.measureId || '';
+
+  async function handleDelete() {
+    if (!window.confirm(`Delete ${item.name}? This can't be undone.`)) return;
+    setError(null);
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/inventory/${uuid}`, { method: 'DELETE' });
+      if (!res.ok) {
+        setError('Failed to delete item. Please try again.');
+        return;
+      }
+      router.push('/inventory');
+    } catch {
+      setError('An unexpected error occurred.');
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -204,6 +223,15 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
             {submitting ? 'Saving...' : 'Save changes'}
           </button>
         </form>
+
+        <button
+          type="button"
+          disabled={deleting}
+          onClick={handleDelete}
+          className="mt-4 w-fit rounded border-2 border-red-600 px-2 py-1 text-sm text-red-600 hover:bg-red-600 hover:text-white disabled:opacity-50"
+        >
+          {deleting ? 'Deleting…' : 'Delete item'}
+        </button>
       </section>
     </>
   );
