@@ -20,7 +20,7 @@ function RoleSelect({
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value as Role)}
-      className="rounded border-2 border-secondary bg-transparent px-2 py-1 text-sm"
+      className="h-9 rounded border-2 border-secondary bg-transparent px-2 text-sm"
     >
       <option value="OWNER">Owner</option>
       <option value="READ_ONLY">Read only</option>
@@ -147,7 +147,12 @@ export default function HouseSettingsPage() {
           </p>
           <div className="flex items-center gap-3">
             <RoleSelect value={newInviteRole} onChange={setNewInviteRole} disabled={generating} />
-            <button type="button" className="cursor-pointer" disabled={generating} onClick={generateInvite}>
+            <button
+              type="button"
+              className="flex h-9 items-center cursor-pointer px-3 py-0"
+              disabled={generating}
+              onClick={generateInvite}
+            >
               {generating ? 'Generating…' : 'Generate invite'}
             </button>
             {copiedInviteId && <span className="text-sm text-highlight">Link copied!</span>}
