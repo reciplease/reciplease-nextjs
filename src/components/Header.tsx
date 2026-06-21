@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Logo from '@/components/Logo';
 import HouseSwitcher from '@/components/HouseSwitcher';
+import { useActiveHouse } from '@/lib/houses';
 import { useRouter } from 'next/router';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useEffect, useState } from 'react';
@@ -56,6 +57,7 @@ function GoogleSignInButton({ onClick }: { onClick: () => void }) {
 export default function Header() {
   const { data: session, status } = useSession();
   const authenticated = status === 'authenticated';
+  const activeHouse = useActiveHouse();
   const router = useRouter();
   const { pathname } = router;
 
@@ -110,6 +112,33 @@ export default function Header() {
     </Link>
   );
 
+  // Only an OWNER of the active house can manage members/invites there.
+  const houseSettingsLink = activeHouse?.role === 'OWNER' ? (
+    <Link
+      href={'/settings/house'}
+      aria-label="House settings"
+      className={`transition-colors duration-100 hover:text-secondary${
+        isActive('/settings/house') ? ' text-secondary' : ''
+      }`}
+    >
+      {/* House icon */}
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M3 11.5 12 4l9 7.5" />
+        <path d="M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10" />
+      </svg>
+    </Link>
+  ) : null;
+
   const authControls = authenticated ? (
     <>
       <HouseSwitcher />
@@ -154,6 +183,7 @@ export default function Header() {
       )}
 
       <div className="ml-auto mr-8 flex items-center gap-3">
+        {houseSettingsLink}
         {settingsLink}
 
         {/* Desktop account controls. */}
