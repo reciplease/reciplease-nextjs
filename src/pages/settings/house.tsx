@@ -1,4 +1,5 @@
 import Metadata from '@/components/Metadata';
+import HouseSwitcher from '@/components/HouseSwitcher';
 import { useActiveHouse, useHouseMembers, usePendingInvites } from '@/lib/houses';
 import { useState } from 'react';
 
@@ -96,6 +97,9 @@ export default function HouseSettingsPage() {
         <Metadata title="House settings" description="Manage house members and invites" />
         <section>
           <h3 className="mb-6 text-2xl font-semibold">House settings</h3>
+          <div className="mb-8">
+            <HouseSwitcher />
+          </div>
           <p className="text-sm opacity-70">
             Only owners of {activeHouse.name} can manage members and invites.
           </p>
@@ -109,6 +113,10 @@ export default function HouseSettingsPage() {
       <Metadata title="House settings" description="Manage house members and invites" />
       <section>
         <h3 className="mb-6 text-2xl font-semibold">House settings</h3>
+
+        <div className="mb-8">
+          <HouseSwitcher />
+        </div>
 
         {error && (
           <p role="alert" className="mb-4 text-red-600">
@@ -154,11 +162,22 @@ export default function HouseSettingsPage() {
           <ul className="mt-3 flex flex-col gap-2">
             {invites?.map((invite) => (
               <li key={invite.id} className="flex items-center justify-between gap-3">
-                <span>
+                {/* min-w-0 lets this column shrink below its content size, which is
+                    required for the code's `truncate` ellipsis to actually kick in
+                    inside a flex row. */}
+                <span className="min-w-0">
                   {invite.role === 'OWNER' ? 'Owner' : 'Read only'} invite, created{' '}
                   {new Date(invite.createdAt).toLocaleDateString()}
+                  <br />
+                  <code className="block truncate text-sm opacity-70" title={invite.code}>
+                    {invite.code}
+                  </code>
                 </span>
-                <button type="button" className="cursor-pointer" onClick={() => deleteInvite(invite.id)}>
+                <button
+                  type="button"
+                  className="shrink-0 cursor-pointer"
+                  onClick={() => deleteInvite(invite.id)}
+                >
                   Delete
                 </button>
               </li>

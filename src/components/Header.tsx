@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import Logo from '@/components/Logo';
-import HouseSwitcher from '@/components/HouseSwitcher';
 import { useActiveHouse } from '@/lib/houses';
 import { useRouter } from 'next/router';
 import { useSession, signIn, signOut } from 'next-auth/react';
@@ -112,8 +111,10 @@ export default function Header() {
     </Link>
   );
 
-  // Only an OWNER of the active house can manage members/invites there.
-  const houseSettingsLink = activeHouse?.role === 'OWNER' ? (
+  // Visible to any member of a house — the house switcher now lives on this page
+  // too, and read-only members still need a way to switch houses, even though
+  // member/invite management there is owner-only.
+  const houseSettingsLink = activeHouse ? (
     <Link
       href={'/settings/house'}
       aria-label="House settings"
@@ -141,7 +142,6 @@ export default function Header() {
 
   const authControls = authenticated ? (
     <>
-      <HouseSwitcher />
       {session.user?.email && (
         <span className="text-[0.85rem] opacity-70">{session.user.email}</span>
       )}

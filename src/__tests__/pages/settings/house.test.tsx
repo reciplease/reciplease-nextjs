@@ -3,6 +3,7 @@ import HouseSettingsPage from '@/pages/settings/house';
 
 jest.mock('@/lib/houses');
 jest.mock('@/components/Metadata', () => () => null);
+jest.mock('@/components/HouseSwitcher', () => () => <div data-testid="house-switcher" />);
 
 const { useActiveHouse, useHouseMembers, usePendingInvites } = require('@/lib/houses');
 
@@ -16,6 +17,16 @@ afterEach(() => {
 });
 
 describe('HouseSettingsPage', () => {
+  it('shows the house switcher first, even for read-only members', () => {
+    useActiveHouse.mockReturnValue({ id: 'house-1', name: 'Test House', role: 'READ_ONLY' });
+    useHouseMembers.mockReturnValue({ data: undefined, mutate: jest.fn() });
+    usePendingInvites.mockReturnValue({ data: undefined, mutate: jest.fn() });
+
+    render(<HouseSettingsPage />);
+
+    expect(screen.getByTestId('house-switcher')).toBeInTheDocument();
+  });
+
   it('shows an owners-only message for read-only members', () => {
     useActiveHouse.mockReturnValue({ id: 'house-1', name: 'Test House', role: 'READ_ONLY' });
     useHouseMembers.mockReturnValue({ data: undefined, mutate: jest.fn() });
@@ -50,6 +61,12 @@ describe('HouseSettingsPage', () => {
 
       expect(screen.getByText('owner@example.com')).toBeInTheDocument();
       expect(screen.getByText('member@example.com')).toBeInTheDocument();
+    });
+
+    it('shows the invite code for each pending invite', () => {
+      render(<HouseSettingsPage />);
+
+      expect(screen.getByText('abc123')).toBeInTheDocument();
     });
 
     it('updates a member role and revalidates the member list', async () => {
