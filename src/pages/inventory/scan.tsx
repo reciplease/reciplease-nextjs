@@ -12,14 +12,13 @@ const measuresFetcher = (url: string): Promise<Measure[]> =>
 
 // Load scanner adapters client-side only (they use browser APIs)
 const BarcodeScanner = dynamic(() => import('@/components/scanner/BarcodeScanner'), { ssr: false });
-const ExpirationScanner = dynamic(() => import('@/components/scanner/ExpirationScanner'), { ssr: false });
 
 type ScanPhase = 'barcode' | 'details' | 'expiration' | 'amount';
 
 const PHASE_LABEL: Record<ScanPhase, string> = {
   barcode: 'Scan barcode',
   details: 'Confirm item',
-  expiration: 'Scan expiration date',
+  expiration: 'Enter expiration date',
   amount: 'Enter amount',
 };
 
@@ -41,7 +40,6 @@ export default function ScanPage() {
   const [name, setName] = useState('');
   const [measure, setMeasure] = useState<Measure | null>(null);
   const [expiration, setExpiration] = useState('');
-  const [manualExpiration, setManualExpiration] = useState('');
   const [amount, setAmount] = useState('');
   // Where the suggested name came from, so we can hint at it on the confirm step.
   const [nameSource, setNameSource] = useState<'inventory' | 'openfoodfacts' | null>(null);
@@ -113,17 +111,9 @@ export default function ScanPage() {
     setPhase('details');
   }, [measures]);
 
-  // Called by ExpirationScanner when a date is confirmed
-  const handleExpirationDetected = useCallback((isoDate: string) => {
-    setExpiration(isoDate);
-    setManualExpiration(isoDate);
-    setPhase('amount');
-  }, []);
-
   function handleConfirmDetails() {
     if (!name.trim() || !measure) return;
     setExpiration('');
-    setManualExpiration('');
     setPhase('expiration');
   }
 
@@ -132,7 +122,6 @@ export default function ScanPage() {
     setName('');
     setMeasure(null);
     setExpiration('');
-    setManualExpiration('');
     setAmount('');
     setNameSource(null);
     setCandidates([]);
@@ -149,9 +138,8 @@ export default function ScanPage() {
     }
   }
 
-  function handleUseManualDate() {
-    if (!manualExpiration) return;
-    setExpiration(manualExpiration);
+  function handleUseExpirationDate() {
+    if (!expiration) return;
     setPhase('amount');
   }
 
@@ -215,11 +203,10 @@ export default function ScanPage() {
           {phase === 'barcode' && (
             <BarcodeScanner active={!looking} onDetected={handleBarcodeDetected} />
           )}
-          {phase === 'expiration' && (
-            <ExpirationScanner active onDetected={handleExpirationDetected} />
-          )}
-          {(phase === 'details' || phase === 'amount') && (
-            // Camera off during data entry — show a dark placeholder
+          {(phase === 'details' || phase === 'expiration' || phase === 'amount') && (
+            // Camera off during data entry — show a dark placeholder. Expiration
+            // date is typed in below; scanning it never worked reliably enough
+            // (small print, varied date formats, glare) to be worth keeping.
             <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-zinc-600 text-sm">
               Camera paused
             </div>
@@ -403,29 +390,32 @@ export default function ScanPage() {
                 onClick={() => { setPhase('expiration'); setExpiration(''); }}
                 className="px-4 py-2 bg-zinc-700 text-white rounded-lg hover:bg-zinc-600 text-sm"
               >
-                ← Rescan date
+                ← Edit date
               </button>
             </div>
           </div>
         )}
 
-        {/* Manual expiration override */}
+        {/* Expiration date entry */}
         {phase === 'expiration' && (
           <div className="bg-zinc-900 px-6 py-4 flex flex-col gap-2">
-            <p className="text-xs text-zinc-400">Or enter date manually:</p>
+            <label htmlFor="scan-expiration" className="text-xs text-zinc-400">
+              Expiration date
+            </label>
             <input
+              id="scan-expiration"
               type="date"
-              value={manualExpiration}
-              onChange={(e) => setManualExpiration(e.target.value)}
+              value={expiration}
+              onChange={(e) => setExpiration(e.target.value)}
               className="w-full px-3 py-2 bg-zinc-800 border border-zinc-600 rounded-lg text-white focus:outline-none focus:border-highlight"
             />
-            {manualExpiration && (
+            {expiration && (
               <button
                 type="button"
-                onClick={handleUseManualDate}
+                onClick={handleUseExpirationDate}
                 className="self-start px-5 py-2 bg-highlight text-white font-semibold rounded-lg text-sm"
               >
-                Use this date →
+                Continue →
               </button>
             )}
           </div>

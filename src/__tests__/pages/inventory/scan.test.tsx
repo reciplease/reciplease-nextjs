@@ -19,16 +19,6 @@ jest.mock('@/components/scanner/BarcodeScanner', () =>
   },
 );
 
-jest.mock('@/components/scanner/ExpirationScanner', () =>
-  function MockExpirationScanner({ onDetected }: { onDetected: (d: string) => void }) {
-    return (
-      <button data-testid="expiration-scanner" onClick={() => onDetected('2027-06-01')}>
-        Simulate expiration scan
-      </button>
-    );
-  },
-);
-
 jest.mock('next/dynamic', () => (fn: () => Promise<{ default: unknown }>) => {
   let Component: React.ComponentType<any> | null = null;
   fn().then((mod) => { Component = (mod as any).default ?? mod; });
@@ -290,13 +280,29 @@ describe('ScanPage', () => {
   });
 
   describe('details → expiration → amount → save', () => {
+    function enterExpirationDate(date: string) {
+      const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+      fireEvent.change(dateInput, { target: { value: date } });
+      fireEvent.click(screen.getByText('Continue →'));
+    }
+
     async function advanceToAmount() {
       setup();
       await scanToDetails();
       pickMeasure();
       fireEvent.click(screen.getByText('Continue →'));
-      fireEvent.click(screen.getByTestId('expiration-scanner'));
+      enterExpirationDate('2027-06-01');
     }
+
+    it('asks for the expiration date as manual entry, not a camera scan', async () => {
+      setup();
+      await scanToDetails();
+      pickMeasure();
+      fireEvent.click(screen.getByText('Continue →'));
+
+      expect(screen.getByText('Enter expiration date')).toBeInTheDocument();
+      expect(screen.getByLabelText('Expiration date')).toBeInTheDocument();
+    });
 
     it('reaches the amount phase showing name, expiration and measure hint', async () => {
       await advanceToAmount();
@@ -355,13 +361,13 @@ describe('ScanPage', () => {
       });
     });
 
-    it('returns to the expiration phase when rescan date is clicked', async () => {
+    it('returns to the expiration phase when edit date is clicked', async () => {
       await advanceToAmount();
 
-      fireEvent.click(screen.getByText('← Rescan date'));
+      fireEvent.click(screen.getByText('← Edit date'));
 
-      expect(screen.getByText('Scan expiration date')).toBeInTheDocument();
-      expect(screen.getByTestId('expiration-scanner')).toBeInTheDocument();
+      expect(screen.getByText('Enter expiration date')).toBeInTheDocument();
+      expect(screen.getByLabelText('Expiration date')).toBeInTheDocument();
     });
 
     it('hides the success flash 2 seconds after a successful save', async () => {
@@ -387,21 +393,6 @@ describe('ScanPage', () => {
       } finally {
         jest.useRealTimers();
       }
-    });
-  });
-
-  describe('manual expiration entry', () => {
-    it('allows entering the expiration date manually', async () => {
-      setup();
-      await scanToDetails();
-      pickMeasure();
-      fireEvent.click(screen.getByText('Continue →'));
-
-      const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
-      fireEvent.change(dateInput, { target: { value: '2027-03-15' } });
-      fireEvent.click(screen.getByText('Use this date →'));
-
-      await waitFor(() => screen.getByText(/2027-03-15/));
     });
   });
 });
