@@ -37,4 +37,17 @@ describe('Layout', () => {
     expect(screen.getByText('InventoryFab')).toBeInTheDocument();
     expect(screen.queryByText('RecipeFab')).not.toBeInTheDocument();
   });
+
+  it('applies the planner theme (dark blue) on planner pages', () => {
+    useRouter.mockReturnValue({ pathname: '/planner' });
+
+    const { container } = render(
+      <Layout>
+        <p>Page content</p>
+      </Layout>,
+    );
+
+    expect(container.firstChild).toHaveClass('planner-theme');
+    expect(container.firstChild).not.toHaveClass('inventory-theme');
+  });
 });
