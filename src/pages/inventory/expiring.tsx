@@ -6,8 +6,65 @@ import { toDataUrl } from '@/lib/imageCapture';
 const fetcher = (url: string): Promise<InventoryItem[]> =>
   fetch(url).then((res) => res.json());
 
-function isExpired(expiration: string): boolean {
-  return new Date(expiration) < new Date();
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// Whole calendar days between today and the expiration date — negative once
+// it's passed. `expiration` is built from its Y/M/D parts (not `new
+// Date(expiration)`, which treats a date-only string as UTC midnight and can
+// land on the wrong local calendar day) so this matches "today" in whatever
+// timezone the browser is in, not UTC.
+function daysUntil(expiration: string): number {
+  const [year, month, day] = expiration.split('-').map(Number);
+  const expiresAt = new Date(year, month - 1, day);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((expiresAt.getTime() - today.getTime()) / MS_PER_DAY);
+}
+
+function formatDaysLeft(daysLeft: number): string {
+  if (daysLeft > 1) return `${daysLeft} days left`;
+  if (daysLeft === 1) return '1 day left';
+  if (daysLeft === 0) return 'Expires today';
+  if (daysLeft === -1) return 'Expired yesterday';
+  return `Expired ${Math.abs(daysLeft)} days ago`;
+}
+
+type ItemWithDaysLeft = InventoryItem & { daysLeft: number };
+
+function ExpirationSection({ title, items }: { title: string; items: ItemWithDaysLeft[] }) {
+  return (
+    <div>
+      <h4 className={`text-lg font-medium${items.length === 0 ? ' opacity-40' : ''}`}>
+        {title}
+      </h4>
+      {items.length > 0 && (
+        <ul className="list-none p-0 grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4 my-4">
+          {items.map((item) => (
+            <li key={item.uuid}>
+              <Link href={`/inventory/${item.uuid}`}>
+                <article className={`p-4 border border-[#ccc] rounded cursor-pointer${item.daysLeft < 0 ? ' opacity-60' : ''}`}>
+                  {item.image && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={toDataUrl(item.image)}
+                      alt={item.name}
+                      className="w-full aspect-square object-cover rounded mb-2"
+                    />
+                  )}
+                  <h5 className="font-medium">{item.name}</h5>
+                  <p>
+                    {item.amount}{' '}
+                    {item.amount === 1 ? item.measure.singular : item.measure.plural}
+                  </p>
+                  <p className="text-sm text-[#666]">{formatDaysLeft(item.daysLeft)}</p>
+                </article>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 export default function ExpiringInventory() {
@@ -31,9 +88,14 @@ export default function ExpiringInventory() {
     );
   }
 
-  const sortedItems = [...items].sort(
-    (a, b) => new Date(a.expiration).getTime() - new Date(b.expiration).getTime(),
-  );
+  const withDaysLeft = items
+    .map((item) => ({ ...item, daysLeft: daysUntil(item.expiration) }))
+    .sort((a, b) => a.daysLeft - b.daysLeft);
+
+  // Already-expired items are folded into "next week" (more urgent than
+  // anything still ahead, not a third bucket the user has to check too).
+  const nextWeek = withDaysLeft.filter((item) => item.daysLeft <= 7);
+  const nextMonth = withDaysLeft.filter((item) => item.daysLeft > 7 && item.daysLeft <= 30);
 
   return (
     <>
@@ -45,36 +107,13 @@ export default function ExpiringInventory() {
           <Link href="/inventory" className="text-sm underline">← Pantry</Link>
         </div>
 
-        {sortedItems.length === 0 ? (
+        {withDaysLeft.length === 0 ? (
           <p>No items in inventory</p>
         ) : (
-          <ul className="list-none p-0 grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4 my-8">
-            {sortedItems.map((item) => (
-              <li key={item.uuid}>
-                <Link href={`/inventory/${item.uuid}`}>
-                  <article className={`p-4 border border-[#ccc] rounded cursor-pointer${isExpired(item.expiration) ? ' opacity-60' : ''}`}>
-                    {item.image && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={toDataUrl(item.image)}
-                        alt={item.name}
-                        className="w-full aspect-square object-cover rounded mb-2"
-                      />
-                    )}
-                    <h4 className="font-medium">{item.name}</h4>
-                    <p>
-                      {item.amount}{' '}
-                      {item.amount === 1 ? item.measure.singular : item.measure.plural}
-                    </p>
-                    <p className="text-sm text-[#666]">
-                      Expires: {item.expiration}
-                      {isExpired(item.expiration) && ' (expired)'}
-                    </p>
-                  </article>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ExpirationSection title="In the next week" items={nextWeek} />
+            <ExpirationSection title="In the next month" items={nextMonth} />
+          </>
         )}
       </section>
     </>
