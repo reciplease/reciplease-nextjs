@@ -87,4 +87,10 @@ describe('InventoryList', () => {
     render(<InventoryList />);
     expect(screen.getByText('No items in inventory')).toBeInTheDocument();
   });
+
+  it('links to the expiring-soon view', () => {
+    useSWR.mockReturnValue({ isLoading: false, data: mockItems, error: undefined });
+    render(<InventoryList />);
+    expect(screen.getByRole('link', { name: /expiring soon/i })).toHaveAttribute('href', '/inventory/expiring');
+  });
 });
