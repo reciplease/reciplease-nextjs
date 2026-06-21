@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
+import { compressToBase64, toDataUrl } from '@/lib/imageCapture';
 
 const fetcher = (url: string): Promise<Measure[]> =>
   fetch(url).then((res) => res.json());
@@ -15,8 +16,17 @@ export default function CreateInventoryItem() {
   const [amount, setAmount] = useState('');
   const [expiration, setExpiration] = useState('');
   const [barcode, setBarcode] = useState('');
+  const [image, setImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  async function handlePhotoSelected(file: File) {
+    try {
+      setImage(await compressToBase64(file));
+    } catch {
+      // Ignore — the item can still be added without a photo.
+    }
+  }
 
   // Default to the first measure when none is explicitly chosen.
   const effectiveMeasureId = measureId || measures?.[0]?.measureId || '';
@@ -32,6 +42,7 @@ export default function CreateInventoryItem() {
         amount: parseFloat(amount),
         expiration,
         ...(barcode.trim() ? { barcode: barcode.trim() } : {}),
+        ...(image ? { image } : {}),
       };
       const res = await fetch('/api/inventory', {
         method: 'POST',
@@ -121,6 +132,26 @@ export default function CreateInventoryItem() {
             placeholder="e.g. 5012345678900"
             className="p-2 text-base"
           />
+
+          <label htmlFor="photo">Photo (optional)</label>
+          <div className="flex items-center gap-4">
+            {image && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={toDataUrl(image)} alt="" className="w-16 h-16 object-cover rounded" />
+            )}
+            <input
+              id="photo"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handlePhotoSelected(file);
+                e.target.value = '';
+              }}
+              className="text-base"
+            />
+          </div>
 
           {error && <p role="alert">{error}</p>}
 

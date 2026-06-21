@@ -1,6 +1,7 @@
 import useSWR from 'swr';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
+import { toDataUrl } from '@/lib/imageCapture';
 
 const fetcher = (url: string): Promise<InventoryItem[]> =>
   fetch(url).then((res) => res.json());
@@ -47,6 +48,14 @@ export default function InventoryList() {
               <li key={item.uuid}>
                 <Link href={`/inventory/${item.uuid}`}>
                   <article className={`p-4 border border-[#ccc] rounded cursor-pointer${isExpired(item.expiration) ? ' opacity-60' : ''}`}>
+                    {item.image && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={toDataUrl(item.image)}
+                        alt=""
+                        className="w-full aspect-square object-cover rounded mb-2"
+                      />
+                    )}
                     <h4 className="font-medium">{item.name}</h4>
                     <p>
                       {item.amount}{' '}

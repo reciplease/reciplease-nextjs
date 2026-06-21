@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
 import MeasureCombobox from '@/components/scanner/MeasureCombobox';
 import { lookupProduct } from '@/lib/openfoodfacts';
+import { compressToBase64, toDataUrl } from '@/lib/imageCapture';
 
 const measuresFetcher = (url: string): Promise<Measure[]> =>
   fetch(url).then((r) => r.json());
@@ -21,6 +22,12 @@ const PHASE_LABEL: Record<ScanPhase, string> = {
   expiration: 'Scan expiration date',
   amount: 'Enter amount',
 };
+
+async function fetchAsImage(url: string): Promise<Blob> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Failed to fetch image');
+  return res.blob();
+}
 
 export default function ScanPage() {
   const router = useRouter();
@@ -40,6 +47,9 @@ export default function ScanPage() {
   const [nameSource, setNameSource] = useState<'inventory' | 'openfoodfacts' | null>(null);
   // Name candidates from OpenFoodFacts, so the user can pick one.
   const [candidates, setCandidates] = useState<string[]>([]);
+  // Raw base64 JPEG (no `data:` prefix) — from an OpenFoodFacts photo or a
+  // manually taken one. Best-effort: absent if neither is available.
+  const [image, setImage] = useState<string | null>(null);
   // Manual barcode entry (when there's no camera, or you only have the number).
   const [manualBarcode, setManualBarcode] = useState('');
   const [looking, setLooking] = useState(false);
@@ -75,7 +85,7 @@ export default function ScanPage() {
     }
 
     if (!suggestedName) {
-      const { nameCandidates, measureId } = await lookupProduct(scanned);
+      const { nameCandidates, measureId, imageUrl } = await lookupProduct(scanned);
       setCandidates(nameCandidates);
       if (nameCandidates.length > 0) {
         suggestedName = nameCandidates[0];
@@ -85,6 +95,14 @@ export default function ScanPage() {
       if (measureId) {
         suggestedMeasure =
           measures.find((m) => m.measureId === measureId) ?? suggestedMeasure;
+      }
+      // Fetch and compress the product photo in the background — best-effort,
+      // so a slow/failed/CORS-blocked fetch never blocks the scan flow.
+      if (imageUrl) {
+        fetchAsImage(imageUrl)
+          .then((blob) => compressToBase64(blob))
+          .then(setImage)
+          .catch(() => {});
       }
     }
 
@@ -118,8 +136,17 @@ export default function ScanPage() {
     setAmount('');
     setNameSource(null);
     setCandidates([]);
+    setImage(null);
     setManualBarcode('');
     setPhase('barcode');
+  }
+
+  async function handlePhotoSelected(file: File) {
+    try {
+      setImage(await compressToBase64(file));
+    } catch {
+      // Ignore — the user can just try again or leave the item without a photo.
+    }
   }
 
   function handleUseManualDate() {
@@ -146,6 +173,7 @@ export default function ScanPage() {
         amount: parseFloat(amount),
         expiration,
         ...(barcode ? { barcode } : {}),
+        ...(image ? { image } : {}),
       };
       const res = await fetch('/api/inventory', {
         method: 'POST',
@@ -285,6 +313,34 @@ export default function ScanPage() {
                 </div>
               </div>
             )}
+
+            {/* Photo preview — from OpenFoodFacts if found, or taken manually. */}
+            <div className="flex items-center gap-4">
+              {image && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={toDataUrl(image)}
+                  alt=""
+                  className="w-20 h-20 object-cover rounded-lg border border-zinc-700"
+                />
+              )}
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-zinc-400">
+                  {image ? 'Take your own photo' : 'Take a photo (optional)'}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handlePhotoSelected(file);
+                    e.target.value = '';
+                  }}
+                  className="text-sm text-zinc-300"
+                />
+              </label>
+            </div>
 
             <div className="flex flex-col gap-2">
               <label className="text-xs text-zinc-400">Measure</label>

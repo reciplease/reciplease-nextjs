@@ -32,6 +32,8 @@ type InventoryItem = {
   amount: number;
   expiration: string;
   barcode?: string;
+  // Raw base64 JPEG bytes (no `data:` prefix) — prepend one to render.
+  image?: string;
   updatedAt?: string;
 };
 
@@ -41,6 +43,7 @@ type CreateInventoryItem = {
   amount: number;
   expiration: string;
   barcode?: string;
+  image?: string;
 };
 
 // Static reference data served from the backend (a Java enum). The short name

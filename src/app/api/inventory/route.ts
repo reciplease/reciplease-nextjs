@@ -9,6 +9,7 @@ type BackendInventoryItem = {
   amount: number;
   expiration: string;
   barcode?: string | null;
+  image?: string | null;
 };
 
 function toInventoryItem(
@@ -22,6 +23,7 @@ function toInventoryItem(
     amount: b.amount,
     expiration: b.expiration,
     ...(b.barcode ? { barcode: b.barcode } : {}),
+    ...(b.image ? { image: b.image } : {}),
   };
 }
 
@@ -47,6 +49,7 @@ export async function POST(request: Request) {
       amount: body.amount,
       expiration: body.expiration,
       ...(body.barcode ? { barcode: body.barcode } : {}),
+      ...(body.image ? { image: body.image } : {}),
     }),
   });
   if (!response.ok) {

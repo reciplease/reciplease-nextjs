@@ -31,7 +31,27 @@ describe('lookupProduct', () => {
         'Plant-based milks',
       ],
       measureId: 'l',
+      imageUrl: null,
     });
+  });
+
+  it('prefers the small front image over the generic image', async () => {
+    mockProduct({
+      product_name: 'Oat Milk',
+      image_front_small_url: 'https://images.example/front-small.jpg',
+      image_url: 'https://images.example/full.jpg',
+    });
+    expect((await lookupProduct('1')).imageUrl).toBe('https://images.example/front-small.jpg');
+  });
+
+  it('falls back to the generic image when no front image is available', async () => {
+    mockProduct({ product_name: 'Oat Milk', image_url: 'https://images.example/full.jpg' });
+    expect((await lookupProduct('1')).imageUrl).toBe('https://images.example/full.jpg');
+  });
+
+  it('returns a null imageUrl when neither image field is available', async () => {
+    mockProduct({ product_name: 'Oat Milk' });
+    expect((await lookupProduct('1')).imageUrl).toBeNull();
   });
 
   it('does not include the quantity in name candidates', async () => {
@@ -45,22 +65,27 @@ describe('lookupProduct', () => {
     expect((await lookupProduct('1')).nameCandidates).toEqual(['Salt']);
   });
 
+  it('handles products with no name, brand or category fields', async () => {
+    mockProduct({ generic_name: 'Generic Stuff' });
+    expect((await lookupProduct('1')).nameCandidates).toEqual(['Generic Stuff']);
+  });
+
   it('returns empty results when product not found (status 0)', async () => {
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({ status: 0 }),
     });
-    expect(await lookupProduct('0')).toEqual({ nameCandidates: [], measureId: null });
+    expect(await lookupProduct('0')).toEqual({ nameCandidates: [], measureId: null, imageUrl: null });
   });
 
   it('returns empty results on HTTP error', async () => {
     (fetch as jest.Mock).mockResolvedValue({ ok: false });
-    expect(await lookupProduct('bad')).toEqual({ nameCandidates: [], measureId: null });
+    expect(await lookupProduct('bad')).toEqual({ nameCandidates: [], measureId: null, imageUrl: null });
   });
 
   it('returns empty results on network failure', async () => {
     (fetch as jest.Mock).mockRejectedValue(new Error('timeout'));
-    expect(await lookupProduct('bad')).toEqual({ nameCandidates: [], measureId: null });
+    expect(await lookupProduct('bad')).toEqual({ nameCandidates: [], measureId: null, imageUrl: null });
   });
 });
 

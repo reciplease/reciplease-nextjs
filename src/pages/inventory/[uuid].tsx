@@ -3,6 +3,7 @@ import { GetServerSidePropsContext } from 'next';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
 import { formatTimestamp } from '@/lib/formatDate';
+import { toDataUrl } from '@/lib/imageCapture';
 
 const fetcher = (url: string): Promise<InventoryItem> =>
   fetch(url).then((res) => {
@@ -48,6 +49,14 @@ export default function InventoryItemPage({ uuid }: Props) {
 
       <section className="grid gap-3">
         <Link href="/inventory" className="text-sm">← Back to inventory</Link>
+        {item.image && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={toDataUrl(item.image)}
+            alt=""
+            className="w-32 h-32 object-cover rounded-lg border border-[#ccc]"
+          />
+        )}
         <h3 className="text-xl font-semibold">{item.name}</h3>
         <p>
           Amount: {item.amount}{' '}

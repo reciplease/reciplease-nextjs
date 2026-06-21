@@ -9,6 +9,7 @@ type BackendInventoryItem = {
   amount: number;
   expiration: string;
   barcode?: string | null;
+  image?: string | null;
   updatedAt?: string;
 };
 
@@ -32,6 +33,7 @@ export async function GET(
     amount: b.amount,
     expiration: b.expiration,
     ...(b.barcode ? { barcode: b.barcode } : {}),
+    ...(b.image ? { image: b.image } : {}),
     ...(b.updatedAt ? { updatedAt: b.updatedAt } : {}),
   } satisfies InventoryItem);
 }
