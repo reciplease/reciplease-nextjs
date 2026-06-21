@@ -62,7 +62,10 @@ export default function Recipe({ recipeShortId }: Props) {
         <div className="flex items-start justify-between gap-4">
           <h3>{recipe.name}</h3>
           {editable && (
-            <Link href={`/recipes/${recipeShortId}/edit`} className="text-sm whitespace-nowrap">
+            <Link
+              href={`/recipes/${recipeShortId}/edit`}
+              className="w-fit shrink-0 rounded border-2 border-secondary px-2 py-1 text-sm whitespace-nowrap"
+            >
               Edit
             </Link>
           )}
