@@ -20,10 +20,11 @@ function RoleSelect({
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value as Role)}
-      className="h-9 rounded border-2 border-secondary bg-transparent px-2 text-sm"
+      className="h-9 rounded border-2 border-secondary bg-black px-2 text-sm text-white"
     >
-      <option value="OWNER">Owner</option>
-      <option value="READ_ONLY">Read only</option>
+      {/* See HouseSwitcher for why each <option> needs its own dark colours. */}
+      <option value="OWNER" className="bg-black text-white">Owner</option>
+      <option value="READ_ONLY" className="bg-black text-white">Read only</option>
     </select>
   );
 }

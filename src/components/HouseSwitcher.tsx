@@ -32,10 +32,14 @@ export default function HouseSwitcher() {
       aria-label="Active house"
       value={current}
       onChange={(e) => selectHouse(e.target.value)}
-      className="rounded border-2 border-secondary bg-transparent px-2 py-1 text-sm"
+      className="rounded border-2 border-secondary bg-black px-2 py-1 text-sm text-white"
     >
       {houses.map((house) => (
-        <option key={house.id} value={house.id}>
+        // An explicit background/text colour on each <option>, not just the
+        // <select>, is what gets the dropdown's open-list popup (which some
+        // browsers otherwise render with their light-theme default, ignoring
+        // the dark page around it) to actually match the dark theme.
+        <option key={house.id} value={house.id} className="bg-black text-white">
           {house.name}
         </option>
       ))}
