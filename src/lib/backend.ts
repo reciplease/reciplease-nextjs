@@ -1,7 +1,8 @@
 import { cookies } from 'next/headers';
 import { decode } from 'next-auth/jwt';
+import { BACKEND_URL } from '@/lib/backend-url';
 
-export const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:8080';
+export { BACKEND_URL };
 
 // Mirrors org.reciplease.configuration.HouseAccess.HOUSE_HEADER on the backend.
 export const HOUSE_HEADER = 'X-RCPLS-House-Id';

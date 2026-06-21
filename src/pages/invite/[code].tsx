@@ -1,5 +1,5 @@
 import Metadata from '@/components/Metadata';
-import { BACKEND_URL } from '@/lib/backend';
+import { BACKEND_URL } from '@/lib/backend-url';
 import { GetServerSidePropsContext } from 'next';
 import { useRouter } from 'next/router';
 import { useSession, signIn } from 'next-auth/react';

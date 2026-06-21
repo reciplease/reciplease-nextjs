@@ -5,7 +5,7 @@ import { GetServerSidePropsContext } from 'next';
 jest.mock('swr');
 jest.mock('next-auth/react');
 jest.mock('next/router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
-jest.mock('@/lib/backend', () => ({ BACKEND_URL: 'http://localhost:8080' }));
+jest.mock('@/lib/backend-url', () => ({ BACKEND_URL: 'http://localhost:8080' }));
 jest.mock('@/components/Metadata', () => ({ title, description }: { title: string; description: string }) => (
   <>
     <title>{title}</title>
