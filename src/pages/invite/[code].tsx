@@ -1,4 +1,5 @@
 import Metadata from '@/components/Metadata';
+import { BACKEND_URL } from '@/lib/backend';
 import { GetServerSidePropsContext } from 'next';
 import { useRouter } from 'next/router';
 import { useSession, signIn } from 'next-auth/react';
@@ -12,16 +13,17 @@ const fetcher = (url: string): Promise<InvitePreview | null> =>
 
 interface Props {
   code: string;
+  initialPreview: InvitePreview | null;
 }
 
-export default function InvitePage({ code }: Props) {
+export default function InvitePage({ code, initialPreview }: Props) {
   const router = useRouter();
   const { status } = useSession();
   const {
     data: preview,
     error,
     isLoading,
-  } = useSWR(`/api/invites/${code}`, fetcher);
+  } = useSWR(`/api/invites/${code}`, fetcher, { fallbackData: initialPreview ?? undefined });
 
   const [accepting, setAccepting] = useState(false);
   const [acceptError, setAcceptError] = useState<string | null>(null);
@@ -83,7 +85,10 @@ export default function InvitePage({ code }: Props) {
 
   return (
     <>
-      <Metadata title="You're invited" description={`Join ${preview.houseName} on Reciplease`} />
+      <Metadata
+        title={`You're invited to ${preview.houseName}`}
+        description={`Join ${preview.houseName} on Reciplease to share recipes, plan meals, and manage pantry inventory together.`}
+      />
       <section>
         <h3 className="mb-4 text-2xl font-semibold">You&apos;re invited to {preview.houseName}</h3>
 
@@ -114,8 +119,21 @@ export default function InvitePage({ code }: Props) {
   );
 }
 
-export function getServerSideProps(context: GetServerSidePropsContext) {
+// Fetched server-side (rather than left to the client-only SWR call below) so the
+// initial HTML already has the real house name and a friendly description — link
+// preview bots (WhatsApp, Slack, iMessage, ...) don't run JS, so without this they'd
+// only ever see the transient "Loading invite..." metadata.
+export async function getServerSideProps(context: GetServerSidePropsContext) {
+  const code = context.params?.code as string;
+  let initialPreview: InvitePreview | null = null;
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/invites/${code}`);
+    initialPreview = res.ok ? await res.json() : null;
+  } catch {
+    initialPreview = null;
+  }
+
   return {
-    props: { code: context.params?.code },
+    props: { code, initialPreview },
   };
 }
