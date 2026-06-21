@@ -10,8 +10,8 @@ jobs:
     name: Lint, types & unit tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: yarn
@@ -19,7 +19,7 @@ jobs:
       # unchanged yarn.lock skips reinstalling dependencies entirely.
       - name: Cache node_modules
         id: node-modules-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: node_modules
           key: ${{ runner.os }}-node24-modules-${{ hashFiles('**/yarn.lock') }}
@@ -35,14 +35,14 @@ jobs:
     name: End-to-end tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: yarn
       - name: Cache node_modules
         id: node-modules-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: node_modules
           key: ${{ runner.os }}-node24-modules-${{ hashFiles('**/yarn.lock') }}
@@ -54,7 +54,7 @@ jobs:
       # playwright.config.ts boots `npm run dev` with the env it needs
       # (auth disabled, BACKEND_URL pointing at the production API).
       - run: yarn test:e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
