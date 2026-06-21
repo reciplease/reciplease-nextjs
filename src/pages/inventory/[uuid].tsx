@@ -2,7 +2,7 @@ import useSWR from 'swr';
 import { GetServerSidePropsContext } from 'next';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
-import { formatTimestamp } from '@/lib/formatDate';
+import { formatDate, formatTimestamp } from '@/lib/formatDate';
 import { toDataUrl } from '@/lib/imageCapture';
 
 const fetcher = (url: string): Promise<InventoryItem> =>
@@ -80,7 +80,7 @@ export default function InventoryItemPage({ uuid }: Props) {
             {item.amount === 1 ? item.measure.singular : item.measure.plural}
           </p>
           <p className={expired ? 'opacity-60' : ''}>
-            Expires: {item.expiration}
+            Expires: {formatDate(item.expiration)}
             {expired && ' — expired'}
           </p>
           {item.barcode && (

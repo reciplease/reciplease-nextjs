@@ -6,6 +6,7 @@ import Metadata from '@/components/Metadata';
 import MeasureCombobox from '@/components/scanner/MeasureCombobox';
 import { lookupProduct } from '@/lib/openfoodfacts';
 import { compressToBase64, toDataUrl } from '@/lib/imageCapture';
+import { formatDate } from '@/lib/formatDate';
 
 const measuresFetcher = (url: string): Promise<Measure[]> =>
   fetch(url).then((r) => r.json());
@@ -359,7 +360,7 @@ export default function ScanPage() {
           <div className="bg-zinc-900 px-6 py-5 flex flex-col gap-3">
             <p className="text-sm">
               <strong>{name}</strong>
-              <span className="text-zinc-400"> · {expiration}</span>
+              <span className="text-zinc-400"> · {formatDate(expiration)}</span>
             </p>
             <label htmlFor="scan-amount" className="text-xs text-zinc-400">
               Amount ({measure?.plural})

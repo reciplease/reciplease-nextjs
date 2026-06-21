@@ -47,6 +47,13 @@ describe('InventoryItemPage', () => {
     expect(screen.getByText(/1 millilitre/)).toBeInTheDocument();
   });
 
+  it('shows the expiration date localized, not as a raw ISO string', () => {
+    useSWR.mockReturnValue({ isLoading: false, data: item, error: undefined });
+    render(<InventoryItemPage uuid="uuid-1" />);
+    expect(screen.queryByText(/2099-12-31/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Dec.*2099|2099.*Dec/)).toBeInTheDocument();
+  });
+
   it('flags an expired item', () => {
     useSWR.mockReturnValue({
       isLoading: false,

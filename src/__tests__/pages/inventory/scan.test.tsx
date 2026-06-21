@@ -307,7 +307,8 @@ describe('ScanPage', () => {
     it('reaches the amount phase showing name, expiration and measure hint', async () => {
       await advanceToAmount();
       expect(screen.getByText('Oat Milk')).toBeInTheDocument();
-      expect(screen.getByText(/2027-06-01/)).toBeInTheDocument();
+      // Localized via formatDate (toLocaleDateString), not the raw ISO string.
+      expect(screen.getByText(/Jun.*2027|2027.*Jun/)).toBeInTheDocument();
       expect(screen.getByLabelText(/Amount \(grams\)/)).toBeInTheDocument();
     });
 
