@@ -17,6 +17,7 @@ type CreateRecipe = {
   name: string;
   description: string | null;
   steps: string[];
+  isPublic: boolean;
 };
 
 export async function POST(request: Request) {

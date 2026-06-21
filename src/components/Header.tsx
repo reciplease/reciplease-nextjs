@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Logo from '@/components/Logo';
+import HouseSwitcher from '@/components/HouseSwitcher';
 import { useRouter } from 'next/router';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useEffect, useState } from 'react';
@@ -111,6 +112,7 @@ export default function Header() {
 
   const authControls = authenticated ? (
     <>
+      <HouseSwitcher />
       {session.user?.email && (
         <span className="text-[0.85rem] opacity-70">{session.user.email}</span>
       )}

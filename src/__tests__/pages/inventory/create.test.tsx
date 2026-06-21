@@ -24,6 +24,12 @@ describe('CreateInventoryItem form', () => {
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
+  it('renders an empty measure dropdown when no measures are available', () => {
+    useSWR.mockReturnValue({ isLoading: false, data: undefined });
+    render(<CreateInventoryItem />);
+    expect(screen.getByLabelText('Measure')).toBeEmptyDOMElement();
+  });
+
   it('renders name, measure, amount, expiration and barcode inputs', () => {
     useSWR.mockReturnValue({ isLoading: false, data: mockMeasures });
     render(<CreateInventoryItem />);
@@ -94,6 +100,21 @@ describe('CreateInventoryItem form', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+  });
+
+  it('shows error message on network failure', async () => {
+    (fetch as jest.Mock).mockRejectedValue(new Error('network down'));
+    useSWR.mockReturnValue({ isLoading: false, data: mockMeasures });
+
+    render(<CreateInventoryItem />);
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Milk' } });
+    fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '500' } });
+    fireEvent.change(screen.getByLabelText('Expiration date'), { target: { value: '2099-12-31' } });
+    fireEvent.submit(screen.getByRole('button', { name: /add to inventory/i }).closest('form')!);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('An unexpected error occurred.');
     });
   });
 });

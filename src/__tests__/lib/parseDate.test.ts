@@ -36,4 +36,8 @@ describe('parseDate', () => {
   it('is case-insensitive for month names', () => {
     expect(parseDate('best before JAN 2027')).toBe('2027-01-01');
   });
+
+  it('returns null when a matched date is not valid', () => {
+    expect(parseDate('32/13/2026')).toBeNull();
+  });
 });

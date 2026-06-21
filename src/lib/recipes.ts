@@ -9,18 +9,21 @@ export type BackendIngredient = {
 
 export type BackendRecipe = {
   recipeId: string;
+  houseId: string | null;
+  isPublic: boolean;
   name: string;
   description: string | null;
   steps: string[] | null;
   ingredients: BackendIngredient[];
   updatedAt?: string;
-  editable?: boolean;
 };
 
 export function toRecipe(b: BackendRecipe, measures: Measure[]): Recipe {
   return {
     recipeId: b.recipeId,
     recipeShortId: shorten(b.recipeId),
+    houseId: b.houseId ?? null,
+    isPublic: b.isPublic ?? false,
     name: b.name,
     description: b.description ?? null,
     steps: b.steps ?? [],
@@ -30,6 +33,5 @@ export function toRecipe(b: BackendRecipe, measures: Measure[]): Recipe {
       amount: i.amount,
     })),
     updatedAt: b.updatedAt,
-    editable: b.editable ?? false,
   };
 }

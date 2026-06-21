@@ -97,8 +97,6 @@ export default function ExpirationScanner({ active, onDetected }: Props) {
           // ignore OCR errors
         }
       }, 1500);
-
-      return () => stream.getTracks().forEach((t) => t.stop());
     }
 
     init();

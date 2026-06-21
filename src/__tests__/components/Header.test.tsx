@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import Header from '@/components/Header';
 
 jest.mock('next/image', () => ({
@@ -16,6 +16,8 @@ jest.mock('next/router', () => ({ useRouter: jest.fn() }));
 
 const useSession = require('next-auth/react').useSession as jest.Mock;
 const useRouter = require('next/router').useRouter as jest.Mock;
+const signIn = require('next-auth/react').signIn as jest.Mock;
+const signOut = require('next-auth/react').signOut as jest.Mock;
 
 describe('Header', () => {
   const originalAuthDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED;
@@ -26,6 +28,8 @@ describe('Header', () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_AUTH_DISABLED = 'false';
     useRouter.mockReturnValue({ pathname: '/recipes', events });
+    events.on.mockClear();
+    events.off.mockClear();
   });
 
   afterEach(() => {
@@ -69,12 +73,37 @@ describe('Header', () => {
     expect(screen.getByRole('link', { name: 'Recipes' })).not.toHaveAttribute('aria-current');
   });
 
+  it('marks the settings link active on the settings page', () => {
+    process.env.NEXT_PUBLIC_AUTH_DISABLED = 'true';
+    useSession.mockReturnValue({ data: null, status: 'unauthenticated' });
+    useRouter.mockReturnValue({ pathname: '/settings', events });
+    render(<Header />);
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveClass('text-secondary');
+  });
+
   it('keeps a recipe sub-route active on the Recipes tab', () => {
     process.env.NEXT_PUBLIC_AUTH_DISABLED = 'true';
     useSession.mockReturnValue({ data: null, status: 'unauthenticated' });
     useRouter.mockReturnValue({ pathname: '/recipes/[recipeId]', events });
     render(<Header />);
     expect(screen.getByRole('link', { name: 'Recipes' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('signs out and redirects home when "Sign out" is clicked', () => {
+    useSession.mockReturnValue({
+      data: { user: { email: 'cook@example.com' } },
+      status: 'authenticated',
+    });
+    render(<Header />);
+    fireEvent.click(screen.getByRole('button', { name: /sign out/i }));
+    expect(signOut).toHaveBeenCalledWith({ callbackUrl: '/' });
+  });
+
+  it('starts the Google sign-in flow when "Sign in with Google" is clicked', () => {
+    useSession.mockReturnValue({ data: null, status: 'unauthenticated' });
+    render(<Header />);
+    fireEvent.click(screen.getByRole('button', { name: /sign in with google/i }));
+    expect(signIn).toHaveBeenCalledWith('google');
   });
 
   it('toggles the mobile menu when the hamburger is clicked', () => {
@@ -94,5 +123,24 @@ describe('Header', () => {
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getAllByRole('link', { name: 'Recipes' })).toHaveLength(1);
+  });
+
+  it('closes the mobile menu on route change', () => {
+    useSession.mockReturnValue({
+      data: { user: { email: 'cook@example.com' } },
+      status: 'authenticated',
+    });
+    render(<Header />);
+    const toggle = screen.getByRole('button', { name: 'Menu' });
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    const onRouteChangeStart = events.on.mock.calls.find(
+      ([event]) => event === 'routeChangeStart',
+    )![1];
+    act(() => onRouteChangeStart());
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 });

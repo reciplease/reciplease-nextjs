@@ -23,6 +23,7 @@ export type RecipeFormValues = {
   description: string | null;
   steps: string[];
   ingredients: RecipeFormIngredient[];
+  isPublic: boolean;
 };
 
 export type RecipeFormInitial = {
@@ -30,6 +31,7 @@ export type RecipeFormInitial = {
   description: string | null;
   steps: string[];
   ingredients: RecipeFormIngredient[];
+  isPublic: boolean;
 };
 
 /**
@@ -136,6 +138,8 @@ export default function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
 
   const [name, setName] = useState(initial?.name ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
+  // Private by default for new recipes.
+  const [isPublic, setIsPublic] = useState(initial?.isPublic ?? false);
 
   // Both lists keep a single trailing empty entry; filling it spawns the next.
   const [steps, setSteps] = useState<string[]>(
@@ -174,13 +178,7 @@ export default function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
   }
 
   function removeRow(key: number) {
-    setRows((prev) => {
-      const updated = prev.filter((r) => r.key !== key);
-      if (updated.length === 0 || updated[updated.length - 1].name.trim()) {
-        updated.push({ key: nextKey.current++, name: '', measureId: '', amount: '' });
-      }
-      return updated;
-    });
+    setRows((prev) => prev.filter((r) => r.key !== key));
   }
 
   function updateStep(index: number, value: string) {
@@ -195,10 +193,7 @@ export default function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
   }
 
   function removeStep(index: number) {
-    setSteps((prev) => {
-      const updated = prev.filter((_, i) => i !== index);
-      return updated.length ? updated : [''];
-    });
+    setSteps((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -225,6 +220,7 @@ export default function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
         description: description.trim() || null,
         steps: cleanedSteps,
         ingredients,
+        isPublic,
       });
 
       if (errorMessage) {
@@ -261,6 +257,15 @@ export default function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
           rows={2}
           className="p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
         />
+
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={isPublic}
+            onChange={(e) => setIsPublic(e.target.checked)}
+          />
+          Public (visible to everyone, not just your house)
+        </label>
       </div>
 
       {/* Ingredients */}

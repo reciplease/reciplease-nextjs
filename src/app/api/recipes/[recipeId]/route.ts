@@ -24,6 +24,7 @@ type UpdateRecipe = {
   name: string;
   description: string | null;
   steps: string[];
+  isPublic: boolean;
   ingredients: { name: string; measure: string; amount: number }[];
 };
 

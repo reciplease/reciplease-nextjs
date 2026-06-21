@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import ScanPage from '@/pages/inventory/scan';
 
 // ── Mock scanner adapters ────────────────────────────────────────────────────
@@ -108,6 +108,45 @@ describe('ScanPage', () => {
     expect(push).toHaveBeenCalledWith('/inventory');
   });
 
+  it('shows no measure options while measures have not loaded', async () => {
+    useSWR.mockReturnValue({ data: undefined, mutate: jest.fn() });
+    (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: ['Oat Milk'], measureId: null });
+    render(<ScanPage />);
+    await scanToDetails();
+
+    fireEvent.click(screen.getByText('Select measure…'));
+    expect(screen.getByText('No measures found')).toBeInTheDocument();
+  });
+
+  it('looks up the barcode when Enter is pressed in the manual field', async () => {
+    setup();
+    const input = screen.getByLabelText('Or enter a barcode manually');
+    fireEvent.change(input, { target: { value: '5012345678900' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => screen.getByText('Confirm item'));
+    expect(lookupProduct).toHaveBeenCalledWith('5012345678900');
+  });
+
+  it('does not look up the barcode for other key presses', () => {
+    setup();
+    const input = screen.getByLabelText('Or enter a barcode manually');
+    fireEvent.change(input, { target: { value: '5012345678900' } });
+    fireEvent.keyDown(input, { key: 'a' });
+
+    expect(lookupProduct).not.toHaveBeenCalled();
+    expect(screen.getByText('Scan barcode')).toBeInTheDocument();
+  });
+
+  it('pressing Enter with an empty manual barcode does nothing', () => {
+    setup();
+    const input = screen.getByLabelText('Or enter a barcode manually');
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(lookupProduct).not.toHaveBeenCalled();
+    expect(screen.getByText('Scan barcode')).toBeInTheDocument();
+  });
+
   describe('after barcode scan', () => {
     it('prefills the name from Open Food Facts and records the barcode', async () => {
       setup();
@@ -138,6 +177,98 @@ describe('ScanPage', () => {
       // The combobox shows the suggested measure, and Continue is enabled.
       expect(screen.getByText('gram / grams')).toBeInTheDocument();
       expect(screen.getByText('Continue →')).not.toBeDisabled();
+    });
+
+    it('suggests the name and measure from a previously inventoried item with the same barcode', async () => {
+      useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
+      (fetch as jest.Mock).mockImplementation((url: string, opts?: { method?: string }) => {
+        if (url === '/api/inventory' && !opts) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => [
+              {
+                uuid: 'u1',
+                name: 'Whole Milk',
+                measure: mockMeasures[0],
+                amount: 1,
+                expiration: '2027-01-01',
+                barcode: '1234567890123',
+              },
+            ],
+          });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      });
+      render(<ScanPage />);
+      await scanToDetails();
+
+      expect(screen.getByLabelText('Name')).toHaveValue('Whole Milk');
+      expect(
+        screen.getByText('Suggested from a previous inventory item with this barcode.'),
+      ).toBeInTheDocument();
+      expect(screen.getByText('gram / grams')).toBeInTheDocument();
+      expect(lookupProduct).not.toHaveBeenCalled();
+    });
+
+    it('falls back to Open Food Facts when no inventory item matches the barcode', async () => {
+      useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
+      (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: ['Oat Milk', 'Oatly Oat Milk'], measureId: null });
+      (fetch as jest.Mock).mockImplementation((url: string, opts?: { method?: string }) => {
+        if (url === '/api/inventory' && !opts) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => [
+              {
+                uuid: 'u1',
+                name: 'Whole Milk',
+                measure: mockMeasures[0],
+                amount: 1,
+                expiration: '2027-01-01',
+                barcode: 'a-different-barcode',
+              },
+            ],
+          });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      });
+      render(<ScanPage />);
+      await scanToDetails();
+
+      expect(lookupProduct).toHaveBeenCalledWith('1234567890123');
+      expect(screen.getByLabelText('Name')).toHaveValue('Oat Milk');
+    });
+
+    it('falls back to Open Food Facts when the inventory lookup responds with an error', async () => {
+      useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
+      (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: ['Oat Milk', 'Oatly Oat Milk'], measureId: null });
+      (fetch as jest.Mock).mockImplementation((url: string, opts?: { method?: string }) => {
+        if (url === '/api/inventory' && !opts) {
+          return Promise.resolve({ ok: false });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      });
+      render(<ScanPage />);
+      await scanToDetails();
+
+      expect(lookupProduct).toHaveBeenCalledWith('1234567890123');
+      expect(screen.getByLabelText('Name')).toHaveValue('Oat Milk');
+    });
+
+    it('does not suggest a measure when Open Food Facts returns one we do not stock', async () => {
+      useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
+      (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: ['Flour'], measureId: 'kg' });
+      render(<ScanPage />);
+      await scanToDetails();
+
+      expect(screen.getByText('Select measure…')).toBeInTheDocument();
+    });
+
+    it('allows editing the suggested name directly', async () => {
+      setup();
+      await scanToDetails();
+
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My Custom Name' } });
+      expect(screen.getByLabelText('Name')).toHaveValue('My Custom Name');
     });
 
     it('lets the user pick a different name from the Open Food Facts details', async () => {
@@ -210,6 +341,67 @@ describe('ScanPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Failed to save. Please try again.')).toBeInTheDocument();
       });
+    });
+
+    it('shows an unexpected error message when save throws', async () => {
+      await advanceToAmount();
+      (fetch as jest.Mock).mockRejectedValueOnce(new Error('network down'));
+
+      fireEvent.change(screen.getByLabelText(/Amount/), { target: { value: '250' } });
+      fireEvent.click(screen.getByText('Save'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Unexpected error.')).toBeInTheDocument();
+      });
+    });
+
+    it('returns to the expiration phase when rescan date is clicked', async () => {
+      await advanceToAmount();
+
+      fireEvent.click(screen.getByText('← Rescan date'));
+
+      expect(screen.getByText('Scan expiration date')).toBeInTheDocument();
+      expect(screen.getByTestId('expiration-scanner')).toBeInTheDocument();
+    });
+
+    it('hides the success flash 2 seconds after a successful save', async () => {
+      await advanceToAmount();
+      (fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+
+      jest.useFakeTimers();
+      try {
+        fireEvent.change(screen.getByLabelText(/Amount/), { target: { value: '250' } });
+        fireEvent.click(screen.getByText('Save'));
+
+        await act(async () => {
+          await Promise.resolve();
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+
+        expect(screen.getByText('✓ Saved!')).toBeInTheDocument();
+
+        act(() => jest.advanceTimersByTime(2000));
+
+        expect(screen.queryByText('✓ Saved!')).not.toBeInTheDocument();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+  });
+
+  describe('manual expiration entry', () => {
+    it('allows entering the expiration date manually', async () => {
+      setup();
+      await scanToDetails();
+      pickMeasure();
+      fireEvent.click(screen.getByText('Continue →'));
+
+      const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+      fireEvent.change(dateInput, { target: { value: '2027-03-15' } });
+      fireEvent.click(screen.getByText('Use this date →'));
+
+      await waitFor(() => screen.getByText(/2027-03-15/));
     });
   });
 });

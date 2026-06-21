@@ -28,9 +28,12 @@ export default function middleware(req: NextRequest, event: Parameters<typeof au
 
 export const config = {
   // Recipes pages are publicly readable — exclude them from the auth gate.
+  // Invite pages handle their own auth (preview before sign-in, accept after)
+  // — gating them here would redirect straight to /login before the invite
+  // preview (house name) ever renders.
   // / is excluded so Next.js can handle the redirect to /recipes before auth.
   // `.*\..*` excludes any path with a file extension (e.g. /reciplease-book.svg,
   // /logo192.png, /manifest.json) so public static assets — like the header
   // logo — load for signed-out visitors instead of being redirected to /login.
-  matcher: ['/((?!$|api|recipes|_next/static|_next/image|favicon.ico|.*\\..*).*)'],
+  matcher: ['/((?!$|api|recipes|invite|_next/static|_next/image|favicon.ico|.*\\..*).*)'],
 };

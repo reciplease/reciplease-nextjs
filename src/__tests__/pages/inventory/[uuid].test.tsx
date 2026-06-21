@@ -46,4 +46,14 @@ describe('InventoryItemPage', () => {
     render(<InventoryItemPage uuid="uuid-1" />);
     expect(screen.getByText(/1 millilitre/)).toBeInTheDocument();
   });
+
+  it('flags an expired item', () => {
+    useSWR.mockReturnValue({
+      isLoading: false,
+      data: { ...item, expiration: '2000-01-01' },
+      error: undefined,
+    });
+    render(<InventoryItemPage uuid="uuid-1" />);
+    expect(screen.getByText(/— expired/)).toBeInTheDocument();
+  });
 });

@@ -32,6 +32,12 @@ describe('NewRecipe builder', () => {
     expect(screen.queryByLabelText('Step 2')).not.toBeInTheDocument();
   });
 
+  it('updates the description field as the user types', () => {
+    render(<NewRecipe />);
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A tasty dish' } });
+    expect(screen.getByLabelText('Description')).toHaveValue('A tasty dish');
+  });
+
   it('spawns a new empty ingredient row once one is named', () => {
     render(<NewRecipe />);
     fireEvent.change(screen.getByLabelText('Ingredient 1'), { target: { value: 'Onion' } });
@@ -43,6 +49,32 @@ describe('NewRecipe builder', () => {
     render(<NewRecipe />);
     fireEvent.change(screen.getByLabelText('Step 1'), { target: { value: 'Chop' } });
     expect(screen.getByLabelText('Step 2')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Step 3')).not.toBeInTheDocument();
+  });
+
+  it('does not spawn an extra row when typing only whitespace into the last ingredient', () => {
+    render(<NewRecipe />);
+    fireEvent.change(screen.getByLabelText('Ingredient 1'), { target: { value: '  ' } });
+    expect(screen.queryByLabelText('Ingredient 2')).not.toBeInTheDocument();
+  });
+
+  it('does not spawn an extra row when re-naming a non-trailing ingredient', () => {
+    render(<NewRecipe />);
+    fireEvent.change(screen.getByLabelText('Ingredient 1'), { target: { value: 'Onion' } });
+    fireEvent.change(screen.getByLabelText('Ingredient 1'), { target: { value: 'Garlic' } });
+    expect(screen.getByLabelText('Ingredient 1')).toHaveValue('Garlic');
+    expect(screen.getByLabelText('Ingredient 2')).toHaveValue('');
+    expect(screen.queryByLabelText('Ingredient 3')).not.toBeInTheDocument();
+  });
+
+  it('does not spawn an extra step when re-typing a non-trailing step or clearing the trailing one', () => {
+    render(<NewRecipe />);
+    fireEvent.change(screen.getByLabelText('Step 1'), { target: { value: 'Chop' } });
+    fireEvent.change(screen.getByLabelText('Step 1'), { target: { value: 'Dice' } });
+    expect(screen.getByLabelText('Step 1')).toHaveValue('Dice');
+    expect(screen.queryByLabelText('Step 3')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Step 2'), { target: { value: ' ' } });
     expect(screen.queryByLabelText('Step 3')).not.toBeInTheDocument();
   });
 
@@ -71,7 +103,7 @@ describe('NewRecipe builder', () => {
         '/api/recipes',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ name: 'Tacos', description: null, steps: ['Brown the beef'] }),
+          body: JSON.stringify({ name: 'Tacos', description: null, steps: ['Brown the beef'], isPublic: false }),
         }),
       );
       expect(fetch).toHaveBeenCalledWith(
@@ -82,6 +114,65 @@ describe('NewRecipe builder', () => {
         }),
       );
       expect(push).toHaveBeenCalledWith('/recipes/short-id');
+    });
+  });
+
+  it('defaults the ingredient measure to the first available measure when none is selected', async () => {
+    (fetch as jest.Mock).mockImplementation((url: string, opts: { method: string }) => {
+      if (url === '/api/recipes' && opts.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ recipeId: 'full-id', recipeShortId: 'short-id' }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    render(<NewRecipe />);
+    fireEvent.change(screen.getByLabelText('Recipe title'), { target: { value: 'Tacos' } });
+    fireEvent.change(screen.getByLabelText('Ingredient 1'), { target: { value: 'Beef' } });
+    fireEvent.change(screen.getByLabelText('Amount 1'), { target: { value: '500' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save recipe' }));
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/recipes/full-id/ingredients',
+        expect.objectContaining({
+          method: 'PUT',
+          body: JSON.stringify({ name: 'Beef', measure: 'GRAMS', amount: 500 }),
+        }),
+      );
+    });
+  });
+
+  it('defaults the ingredient measure to an empty string when no measures are available', async () => {
+    useSWR.mockReturnValue({ data: undefined });
+    (fetch as jest.Mock).mockImplementation((url: string, opts: { method: string }) => {
+      if (url === '/api/recipes' && opts.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ recipeId: 'full-id', recipeShortId: 'short-id' }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    render(<NewRecipe />);
+    fireEvent.change(screen.getByLabelText('Recipe title'), { target: { value: 'Tacos' } });
+    fireEvent.change(screen.getByLabelText('Ingredient 1'), { target: { value: 'Beef' } });
+    fireEvent.change(screen.getByLabelText('Amount 1'), { target: { value: '500' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save recipe' }));
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/recipes/full-id/ingredients',
+        expect.objectContaining({
+          method: 'PUT',
+          body: JSON.stringify({ name: 'Beef', measure: '', amount: 500 }),
+        }),
+      );
     });
   });
 
@@ -106,5 +197,30 @@ describe('NewRecipe builder', () => {
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent(/Failed to create recipe/);
     });
+  });
+
+  it('surfaces an error when an ingredient cannot be attached', async () => {
+    (fetch as jest.Mock).mockImplementation((url: string, opts: { method: string }) => {
+      if (url === '/api/recipes' && opts.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ recipeId: 'full-id', recipeShortId: 'short-id' }),
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+
+    render(<NewRecipe />);
+    fireEvent.change(screen.getByLabelText('Recipe title'), { target: { value: 'Tacos' } });
+    fireEvent.change(screen.getByLabelText('Ingredient 1'), { target: { value: 'Beef' } });
+    fireEvent.change(screen.getByLabelText('Measure 1'), { target: { value: 'GRAMS' } });
+    fireEvent.change(screen.getByLabelText('Amount 1'), { target: { value: '500' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save recipe' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/some ingredients could not be added/);
+    });
+    expect(push).not.toHaveBeenCalled();
   });
 });

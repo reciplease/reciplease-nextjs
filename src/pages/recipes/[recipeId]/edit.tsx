@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
 import { full } from '@/lib/recipe-id';
+import { useActiveHouse } from '@/lib/houses';
 
 const fetcher = (url: string): Promise<Recipe> =>
   fetch(url).then((res) => res.json());
@@ -21,6 +22,11 @@ export default function EditRecipe({ recipeShortId }: Props) {
     error,
     isLoading,
   } = useSWR(`/api/recipes/${recipeId}`, fetcher);
+  const activeHouse = useActiveHouse();
+  const editable =
+    !!recipe?.houseId &&
+    activeHouse?.role === 'OWNER' &&
+    activeHouse.id === recipe.houseId;
 
   async function handleSubmit(values: RecipeFormValues) {
     const res = await fetch(`/api/recipes/${recipeId}`, {
@@ -30,6 +36,7 @@ export default function EditRecipe({ recipeShortId }: Props) {
         name: values.name,
         description: values.description,
         steps: values.steps,
+        isPublic: values.isPublic,
         ingredients: values.ingredients.map((ingredient) => ({
           name: ingredient.name,
           measure: ingredient.measureId,
@@ -68,7 +75,7 @@ export default function EditRecipe({ recipeShortId }: Props) {
     );
   }
 
-  if (!recipe.editable) {
+  if (!editable) {
     return (
       <>
         <Metadata title="Not Authorized" description="You cannot edit this recipe" />
@@ -93,6 +100,7 @@ export default function EditRecipe({ recipeShortId }: Props) {
             name: recipe.name,
             description: recipe.description,
             steps: recipe.steps,
+            isPublic: recipe.isPublic,
             ingredients: recipe.ingredients.map((ingredient) => ({
               name: ingredient.name,
               measureId: ingredient.measure.measureId,

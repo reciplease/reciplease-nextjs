@@ -35,10 +35,9 @@ test.describe('Inventory (auth disabled)', () => {
     });
   });
 
-  test('inventory page shows items and action buttons', async ({ page }) => {
+  test('inventory page shows items and the scan action', async ({ page }) => {
     await page.goto('/inventory');
     await expect(page.getByText('Milk')).toBeVisible();
-    await expect(page.getByRole('link', { name: /add to inventory/i })).toBeVisible();
     await expect(page.getByRole('link', { name: /scan/i })).toBeVisible();
   });
 
@@ -49,10 +48,8 @@ test.describe('Inventory (auth disabled)', () => {
     await expect(page.getByText('Scan barcode')).toBeVisible();
   });
 
-  test('"add to inventory" opens the create form', async ({ page }) => {
-    await page.goto('/inventory');
-    await page.getByRole('link', { name: /add to inventory/i }).click();
-    await expect(page).toHaveURL('/inventory/create');
+  test('the create form has the expected fields', async ({ page }) => {
+    await page.goto('/inventory/create');
     await expect(page.getByLabel('Name')).toBeVisible();
     await expect(page.getByLabel('Measure')).toBeVisible();
     await expect(page.getByLabel('Amount')).toBeVisible();
@@ -95,7 +92,7 @@ test.describe('Inventory (auth disabled)', () => {
     await page.getByLabel('Expiration date').fill('2099-12-31');
     await page.getByRole('button', { name: /add to inventory/i }).click();
 
-    await expect(page.getByText('Failed to add item. Please try again.')).toBeVisible();
+    await expect(page.getByRole('alert').filter({ hasText: 'Failed to add item' })).toBeVisible();
   });
 
   test('clicking an inventory item opens its detail page', async ({ page }) => {

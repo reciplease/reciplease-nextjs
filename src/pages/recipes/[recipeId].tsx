@@ -4,6 +4,7 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import { full } from '@/lib/recipe-id';
 import { formatTimestamp } from '@/lib/formatDate';
+import { useActiveHouse } from '@/lib/houses';
 
 const fetcher = (url: string): Promise<Recipe> =>
   fetch(url).then((res) => res.json());
@@ -19,6 +20,14 @@ export default function Recipe({ recipeShortId }: Props) {
     error,
     isLoading,
   } = useSWR(`/api/recipes/${recipeId}`, fetcher);
+  const activeHouse = useActiveHouse();
+  // Editable only if the caller owns the house this recipe actually belongs
+  // to — being an OWNER elsewhere doesn't grant edit rights on someone else's
+  // (possibly public) recipe.
+  const editable =
+    !!recipe?.houseId &&
+    activeHouse?.role === 'OWNER' &&
+    activeHouse.id === recipe.houseId;
 
   if (isLoading) {
     return (
@@ -52,7 +61,7 @@ export default function Recipe({ recipeShortId }: Props) {
       <section>
         <div className="flex items-start justify-between gap-4">
           <h3>{recipe.name}</h3>
-          {recipe.editable && (
+          {editable && (
             <Link href={`/recipes/${recipeShortId}/edit`} className="text-sm whitespace-nowrap">
               Edit
             </Link>

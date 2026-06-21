@@ -13,6 +13,7 @@ export default function NewRecipe() {
         name: values.name,
         description: values.description,
         steps: values.steps,
+        isPublic: values.isPublic,
       }),
     });
     if (!createRes.ok) {

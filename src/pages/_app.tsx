@@ -32,7 +32,10 @@ export default function App({
     router.pathname === '/recipes' ||
     router.pathname === '/recipes/[recipeId]' ||
     // Appearance/accessibility prefs are client-only — no sign-in needed.
-    router.pathname === '/settings';
+    router.pathname === '/settings' ||
+    // The invite page handles its own auth: shows a preview + sign-in prompt
+    // before the user is signed in, then accepts once they are.
+    router.pathname === '/invite/[code]';
 
   return (
     <SessionProvider

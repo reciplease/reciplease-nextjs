@@ -57,4 +57,23 @@ describe('MeasureCombobox', () => {
     fireEvent.click(screen.getByText('Select measure…'));
     expect(screen.queryByText('+ Create new measure')).not.toBeInTheDocument();
   });
+
+  it('closes the dropdown when clicking outside', () => {
+    render(<MeasureCombobox value={null} onChange={jest.fn()} />);
+    fireEvent.click(screen.getByText('Select measure…'));
+    expect(screen.getByPlaceholderText('Search measures…')).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.body);
+
+    expect(screen.queryByPlaceholderText('Search measures…')).not.toBeInTheDocument();
+  });
+
+  it('keeps the dropdown open when clicking inside it', () => {
+    render(<MeasureCombobox value={null} onChange={jest.fn()} />);
+    fireEvent.click(screen.getByText('Select measure…'));
+
+    fireEvent.mouseDown(screen.getByPlaceholderText('Search measures…'));
+
+    expect(screen.getByPlaceholderText('Search measures…')).toBeInTheDocument();
+  });
 });

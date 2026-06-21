@@ -8,11 +8,12 @@ jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; h
 const recipe: Recipe = {
   recipeId: 'dbdc02be-a311-4aee-b974-c88d3c61f51b',
   recipeShortId: 'abc123',
+  houseId: null,
+  isPublic: true,
   name: 'Toast',
   description: 'A staple and classic',
   ingredients: [],
   steps: [],
-  editable: false,
 };
 
 describe('RecipePreview', () => {

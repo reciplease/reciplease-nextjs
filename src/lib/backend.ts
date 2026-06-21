@@ -3,6 +3,13 @@ import { decode } from 'next-auth/jwt';
 
 export const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:8080';
 
+// Mirrors org.reciplease.configuration.HouseAccess.HOUSE_HEADER on the backend.
+export const HOUSE_HEADER = 'X-RCPLS-House-Id';
+// The browser-side cookie the house switcher writes; read here so server-side
+// BFF route handlers can forward the active house on every backend call
+// without each route needing to know about it.
+export const HOUSE_COOKIE = 'reciplease-house-id';
+
 type CookieStore = Awaited<ReturnType<typeof cookies>>;
 
 /**
@@ -115,6 +122,12 @@ export async function backendFetch(
   const headers = new Headers(init?.headers);
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
+  }
+  if (!headers.has(HOUSE_HEADER)) {
+    const houseId = (await cookies()).get(HOUSE_COOKIE)?.value;
+    if (houseId) {
+      headers.set(HOUSE_HEADER, houseId);
+    }
   }
   return fetch(`${BACKEND_URL}${path}`, { ...init, headers });
 }

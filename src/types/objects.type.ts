@@ -1,12 +1,13 @@
 type Recipe = {
   recipeId: RecipeId;
   recipeShortId: RecipeShortId;
+  houseId: string | null;
+  isPublic: boolean;
   name: string;
   description: string | null;
   ingredients: RecipeIngredient[];
   steps: string[];
   updatedAt?: string;
-  editable: boolean;
 };
 
 // A recipe ingredient is a self-contained spec: it is not linked to any inventory
