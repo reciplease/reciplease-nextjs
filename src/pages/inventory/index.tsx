@@ -54,7 +54,13 @@ export default function InventoryList() {
           // 110px min comfortably fits ~5 across the page's 80ch reading column
           // (see .content-grid in main.scss) regardless of monitor width —
           // widening that column isn't the fix, these were just too big.
-          <ul className="list-none p-0 grid grid-cols-[repeat(auto-fit,minmax(110px,1fr))] gap-4 my-8">
+          // auto-fill (not auto-fit): auto-fit collapses unused tracks and
+          // hands their share of the row to the populated ones via the `1fr`,
+          // so a short list (e.g. 2 items) stretches each tile to half the
+          // row. auto-fill keeps the unused tracks around as empty space
+          // instead, so tiles stay close to their minmax size regardless of
+          // how many items there are.
+          <ul className="list-none p-0 grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-4 my-8">
             {pantryItems.map((item) => (
               <li key={item.uuid}>
                 <Link href={`/inventory/${item.uuid}`} className="grid gap-2">
