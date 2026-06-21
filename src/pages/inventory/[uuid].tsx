@@ -74,6 +74,7 @@ export default function InventoryItemPage({ uuid }: Props) {
             Last updated: {formatTimestamp(item.updatedAt)}
           </p>
         )}
+        <Link href={`/inventory/${uuid}/edit`} className="text-sm underline">Edit</Link>
       </section>
     </>
   );

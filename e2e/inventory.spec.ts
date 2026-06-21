@@ -95,7 +95,7 @@ test.describe('Inventory (auth disabled)', () => {
     await page.getByLabel('Expiration date').fill('2099-12-31');
     await page.getByRole('button', { name: /add to inventory/i }).click();
 
-    await expect(page.getByRole('alert')).toBeVisible();
+    await expect(page.getByText('Failed to add item. Please try again.')).toBeVisible();
   });
 
   test('clicking an inventory item opens its detail page', async ({ page }) => {
