@@ -17,7 +17,6 @@ jest.mock('next/router', () => ({ useRouter: jest.fn() }));
 const useSession = require('next-auth/react').useSession as jest.Mock;
 const useRouter = require('next/router').useRouter as jest.Mock;
 const signIn = require('next-auth/react').signIn as jest.Mock;
-const signOut = require('next-auth/react').signOut as jest.Mock;
 
 describe('Header', () => {
   const originalAuthDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED;
@@ -36,7 +35,7 @@ describe('Header', () => {
     process.env.NEXT_PUBLIC_AUTH_DISABLED = originalAuthDisabled;
   });
 
-  it('shows the nav and a sign-out button when authenticated', () => {
+  it('shows the nav and the signed-in email when authenticated', () => {
     useSession.mockReturnValue({
       data: { user: { email: 'cook@example.com' } },
       status: 'authenticated',
@@ -45,7 +44,6 @@ describe('Header', () => {
     expect(screen.getByRole('link', { name: 'Recipes' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Inventory' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Planner' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /sign out/i })).toBeInTheDocument();
     expect(screen.getByText('cook@example.com')).toBeInTheDocument();
   });
 
@@ -87,16 +85,6 @@ describe('Header', () => {
     useRouter.mockReturnValue({ pathname: '/recipes/[recipeId]', events });
     render(<Header />);
     expect(screen.getByRole('link', { name: 'Recipes' })).toHaveAttribute('aria-current', 'page');
-  });
-
-  it('signs out and redirects home when "Sign out" is clicked', () => {
-    useSession.mockReturnValue({
-      data: { user: { email: 'cook@example.com' } },
-      status: 'authenticated',
-    });
-    render(<Header />);
-    fireEvent.click(screen.getByRole('button', { name: /sign out/i }));
-    expect(signOut).toHaveBeenCalledWith({ callbackUrl: '/' });
   });
 
   it('starts the Google sign-in flow when "Sign in with Google" is clicked', () => {

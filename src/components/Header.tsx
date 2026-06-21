@@ -2,7 +2,7 @@ import Link from 'next/link';
 import Logo from '@/components/Logo';
 import { useActiveHouse } from '@/lib/houses';
 import { useRouter } from 'next/router';
-import { useSession, signIn, signOut } from 'next-auth/react';
+import { useSession, signIn } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 
 // Hover/active use the secondary brand colour (navy) — the old near-white fill
@@ -140,18 +140,12 @@ export default function Header() {
     </Link>
   ) : null;
 
+  // Sign out lives on /settings/house now, alongside the rest of the account/
+  // house controls — the header just shows who's signed in.
   const authControls = authenticated ? (
-    <>
-      {session.user?.email && (
-        <span className="text-[0.85rem] opacity-70">{session.user.email}</span>
-      )}
-      <button
-        className="cursor-pointer whitespace-nowrap"
-        onClick={() => signOut({ callbackUrl: '/' })}
-      >
-        Sign out
-      </button>
-    </>
+    session.user?.email && (
+      <span className="text-[0.85rem] opacity-70">{session.user.email}</span>
+    )
   ) : (
     <GoogleSignInButton onClick={() => signIn('google')} />
   );

@@ -1,6 +1,7 @@
 import Metadata from '@/components/Metadata';
 import HouseSwitcher from '@/components/HouseSwitcher';
 import { useActiveHouse, useHouseMembers, usePendingInvites } from '@/lib/houses';
+import { signOut } from 'next-auth/react';
 import { useState } from 'react';
 
 type Role = 'OWNER' | 'READ_ONLY';
@@ -15,12 +16,15 @@ function RoleSelect({
   disabled?: boolean;
 }) {
   return (
+    // p-2 matches the 0.5rem padding buttons get for free from the global
+    // `button` base style (main.scss), so this lines up with the buttons next
+    // to it without either needing its own height override.
     <select
       aria-label="Role"
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value as Role)}
-      className="h-9 rounded border-2 border-secondary bg-black px-2 text-sm text-white"
+      className="rounded border-2 border-secondary bg-black p-2 text-sm text-white"
     >
       {/* See HouseSwitcher for why each <option> needs its own dark colours. */}
       <option value="OWNER" className="bg-black text-white">Owner</option>
@@ -101,9 +105,12 @@ export default function HouseSettingsPage() {
           <div className="mb-8">
             <HouseSwitcher />
           </div>
-          <p className="text-sm opacity-70">
+          <p className="mb-8 text-sm opacity-70">
             Only owners of {activeHouse.name} can manage members and invites.
           </p>
+          <button type="button" className="cursor-pointer" onClick={() => signOut({ callbackUrl: '/' })}>
+            Sign out
+          </button>
         </section>
       </>
     );
@@ -148,12 +155,7 @@ export default function HouseSettingsPage() {
           </p>
           <div className="flex items-center gap-3">
             <RoleSelect value={newInviteRole} onChange={setNewInviteRole} disabled={generating} />
-            <button
-              type="button"
-              className="flex h-9 items-center cursor-pointer px-3 py-0"
-              disabled={generating}
-              onClick={generateInvite}
-            >
+            <button type="button" className="cursor-pointer" disabled={generating} onClick={generateInvite}>
               {generating ? 'Generating…' : 'Generate invite'}
             </button>
             {copiedInviteId && <span className="text-sm text-highlight">Link copied!</span>}
@@ -190,6 +192,10 @@ export default function HouseSettingsPage() {
             ))}
           </ul>
         </fieldset>
+
+        <button type="button" className="cursor-pointer" onClick={() => signOut({ callbackUrl: '/' })}>
+          Sign out
+        </button>
       </section>
     </>
   );
