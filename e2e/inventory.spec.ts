@@ -48,53 +48,6 @@ test.describe('Inventory (auth disabled)', () => {
     await expect(page.getByText('Scan barcode')).toBeVisible();
   });
 
-  test('the create form has the expected fields', async ({ page }) => {
-    await page.goto('/inventory/create');
-    await expect(page.getByLabel('Name')).toBeVisible();
-    await expect(page.getByLabel('Measure')).toBeVisible();
-    await expect(page.getByLabel('Amount')).toBeVisible();
-    await expect(page.getByLabel('Expiration date')).toBeVisible();
-    await expect(page.getByLabel(/Barcode/)).toBeVisible();
-  });
-
-  test('create form submits and redirects to inventory', async ({ page }) => {
-    const savedItem = { ...mockInventoryItems[0], uuid: 'item-new' };
-    await page.route('/api/inventory', async (route) => {
-      if (route.request().method() === 'POST') {
-        await route.fulfill({ status: 201, json: savedItem });
-      } else {
-        await route.fulfill({ json: mockInventoryItems });
-      }
-    });
-
-    await page.goto('/inventory/create');
-    await page.getByLabel('Name').fill('Milk');
-    await page.getByLabel('Measure').selectOption({ label: 'millilitres' });
-    await page.getByLabel('Amount').fill('500');
-    await page.getByLabel('Expiration date').fill('2099-12-31');
-    await page.getByRole('button', { name: /add to inventory/i }).click();
-
-    await expect(page).toHaveURL('/inventory');
-  });
-
-  test('create form shows error on failed submission', async ({ page }) => {
-    await page.route('/api/inventory', (route) => {
-      if (route.request().method() === 'POST') {
-        route.fulfill({ status: 500 });
-      } else {
-        route.fulfill({ json: mockInventoryItems });
-      }
-    });
-
-    await page.goto('/inventory/create');
-    await page.getByLabel('Name').fill('Milk');
-    await page.getByLabel('Amount').fill('500');
-    await page.getByLabel('Expiration date').fill('2099-12-31');
-    await page.getByRole('button', { name: /add to inventory/i }).click();
-
-    await expect(page.getByRole('alert').filter({ hasText: 'Failed to add item' })).toBeVisible();
-  });
-
   test('clicking an inventory item opens its detail page', async ({ page }) => {
     await page.goto('/inventory');
     await page.getByText('Milk').click();

@@ -44,10 +44,7 @@ export default function InventoryList() {
       <section className="grid gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <h3 className="text-xl font-semibold mr-auto">Inventory</h3>
-          <Link href="/inventory/expiring" className="text-sm underline">Expiring soon</Link>
-          <Link href="/inventory/create" className="w-fit rounded border-2 border-secondary px-2 py-1 text-sm">
-            Add to inventory
-          </Link>
+          <Link href="/inventory/expiring" className="text-sm underline">Expiring soon →</Link>
         </div>
 
         {pantryItems.length === 0 ? (

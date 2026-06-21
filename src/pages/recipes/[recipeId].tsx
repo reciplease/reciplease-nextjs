@@ -60,7 +60,7 @@ export default function Recipe({ recipeShortId }: Props) {
 
       <section>
         <div className="flex items-start justify-between gap-4">
-          <h3>{recipe.name}</h3>
+          <h2 className="text-2xl font-semibold">{recipe.name}</h2>
           {editable && (
             <Link
               href={`/recipes/${recipeShortId}/edit`}
