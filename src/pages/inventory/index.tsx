@@ -44,14 +44,17 @@ export default function InventoryList() {
       <section className="grid gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <h3 className="text-xl font-semibold mr-auto">Inventory</h3>
-          <Link href="/inventory/expiring" className="text-sm underline">Expiring soon →</Link>
+          <Link href="/inventory/expiring" className="text-sm underline">Expiring soon</Link>
           <Link href="/inventory/create" className="text-sm underline">Add to inventory</Link>
         </div>
 
         {pantryItems.length === 0 ? (
           <p>No items in inventory</p>
         ) : (
-          <ul className="list-none p-0 grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-4 my-8">
+          // 110px min comfortably fits ~5 across the page's 80ch reading column
+          // (see .content-grid in main.scss) regardless of monitor width —
+          // widening that column isn't the fix, these were just too big.
+          <ul className="list-none p-0 grid grid-cols-[repeat(auto-fit,minmax(110px,1fr))] gap-4 my-8">
             {pantryItems.map((item) => (
               <li key={item.uuid}>
                 <Link href={`/inventory/${item.uuid}`} className="grid gap-2">
@@ -63,11 +66,11 @@ export default function InventoryList() {
                       className="w-full aspect-square object-cover rounded border border-[#ccc]"
                     />
                   ) : (
-                    <div className="w-full aspect-square rounded border border-[#ccc] bg-[#f4f4f4] flex items-center justify-center text-3xl">
+                    <div className="w-full aspect-square rounded border border-[#ccc] bg-[#f4f4f4] flex items-center justify-center text-2xl">
                       🥫
                     </div>
                   )}
-                  <h4 className="font-medium text-center">{item.name}</h4>
+                  <h4 className="font-medium text-center text-sm">{item.name}</h4>
                 </Link>
               </li>
             ))}
