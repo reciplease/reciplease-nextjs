@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { BACKEND_URL, idToken } from '@/lib/backend';
+import { BACKEND_URL, accessToken } from '@/lib/backend';
 
 // Reverse-proxy for the backend's Swagger UI / OpenAPI docs, mounted under
-// `/swagger`. The backend locks `/api/**` behind a Google id_token + allowlist
+// `/swagger`. The backend locks `/api/**` behind a Reciplease JWT + allowlist
 // (the `cloud` profile), so "Try it out" can't call it directly. By routing the
 // whole thing through here we reuse Reciplease web's auth flow: the page is
 // behind the NextAuth gate (forcing sign-in), and every proxied request gets
-// the user's id_token attached as a bearer.
+// the user's Reciplease JWT attached as a bearer.
 //
 // We send `X-Forwarded-Prefix: /swagger` so SpringDoc serves its assets under
 // this prefix. It cannot, however, fix the OpenAPI `servers` URL: Cloud Run
@@ -50,7 +50,7 @@ async function proxy(
   headers.delete('connection');
   headers.delete('accept-encoding'); // let undici handle a plain body
 
-  const token = await idToken();
+  const token = await accessToken();
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }

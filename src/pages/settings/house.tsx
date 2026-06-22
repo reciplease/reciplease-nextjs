@@ -137,7 +137,7 @@ export default function HouseSettingsPage() {
           <ul className="mt-3 flex flex-col gap-2">
             {members?.map((member) => (
               <li key={member.userId} className="flex items-center justify-between gap-3">
-                <span>{member.email}</span>
+                <span>{member.handle ?? '(no handle set)'}</span>
                 <RoleSelect
                   value={member.role}
                   disabled={updatingUserId === member.userId}

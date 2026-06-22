@@ -41,54 +41,17 @@ function sessionToken(store: CookieStore): string | undefined {
 }
 
 /**
- * Mints a fresh Google id_token from the stored refresh_token. The BFF reads the
- * session cookie directly (see idToken), which bypasses NextAuth's jwt-callback
- * refresh, so the stored id_token would otherwise go stale after ~1h. Mirrors
- * the refresh in src/lib/auth-options.ts.
+ * Resolves the current user's Reciplease JWT (minted by POST
+ * /api/auth/exchange during sign-in) from the NextAuth session cookie. Uses
+ * `next/headers`, so it works ambiently inside any App Router server code
+ * (route handlers, server components) without threading the request through.
+ *
+ * Unlike the old Google id_token this replaced, the Reciplease JWT's validity
+ * window is controlled by our own backend, not Google — there is no refresh
+ * dance here; if it's expired the backend will simply 401 and the user signs
+ * in again.
  */
-async function refreshIdToken(refreshToken: string): Promise<string | undefined> {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    console.error('[idToken] missing GOOGLE_CLIENT_ID/SECRET in function env');
-    return undefined;
-  }
-  const start = Date.now();
-  try {
-    const response = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-      }),
-      // Never let a stuck egress hang the whole function (was timing out at 30s).
-      signal: AbortSignal.timeout(8000),
-    });
-    console.error(
-      `[idToken] google refresh status=${response.status} in ${Date.now() - start}ms`,
-    );
-    if (!response.ok) return undefined;
-    const refreshed = await response.json();
-    return refreshed.id_token as string | undefined;
-  } catch (e) {
-    console.error(
-      `[idToken] google refresh threw in ${Date.now() - start}ms:`,
-      e instanceof Error ? `${e.name}: ${e.message}` : e,
-    );
-    return undefined;
-  }
-}
-
-/**
- * Resolves the current user's Google id_token from the NextAuth session cookie,
- * refreshing it on demand when the stored one has expired. Uses `next/headers`,
- * so it works ambiently inside any App Router server code (route handlers,
- * server components) without threading the request through.
- */
-export async function idToken(): Promise<string | undefined> {
+export async function accessToken(): Promise<string | undefined> {
   const raw = sessionToken(await cookies());
   const secret = process.env.NEXTAUTH_SECRET;
   if (!raw || !secret) return undefined;
@@ -100,26 +63,14 @@ export async function idToken(): Promise<string | undefined> {
     // Malformed session JWE — treat as not signed in rather than crash.
     return undefined;
   }
-  if (!token?.idToken) return undefined;
-
-  // Reuse the stored id_token while valid (60s margin); otherwise refresh.
-  const fresh =
-    typeof token.expiresAt === 'number' &&
-    Date.now() / 1000 < token.expiresAt - 60;
-  if (fresh) return token.idToken;
-
-  if (token.refreshToken) {
-    const refreshed = await refreshIdToken(token.refreshToken);
-    if (refreshed) return refreshed;
-  }
-  return token.idToken; // best effort; backend will 401 if genuinely expired
+  return token?.reciplaseToken as string | undefined;
 }
 
 export async function backendFetch(
   path: string,
   init?: RequestInit,
 ): Promise<Response> {
-  const token = await idToken();
+  const token = await accessToken();
   const headers = new Headers(init?.headers);
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);

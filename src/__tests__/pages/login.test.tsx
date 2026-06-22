@@ -47,7 +47,7 @@ describe('Login page', () => {
   });
 
   it.each([
-    ['AccessDenied', 'Access was denied. Your Google account may not be permitted.'],
+    ['AccessDenied', 'Access was denied. Your account may not be permitted.'],
     ['Configuration', 'Sign-in is temporarily unavailable. Please try again later.'],
     ['Verification', 'That sign-in link is no longer valid. Please try again.'],
     ['SomeUnknownError', 'Something went wrong while signing in. Please try again.'],
@@ -65,5 +65,23 @@ describe('Login page', () => {
     render(<Login />);
 
     expect(screen.queryByText(/Access was denied/)).not.toBeInTheDocument();
+  });
+
+  it('signs in with GitHub using the default callback url when none is provided', () => {
+    useRouter.mockReturnValue({ query: {} });
+
+    render(<Login />);
+
+    fireEvent.click(screen.getByRole('button', { name: /sign in with github/i }));
+    expect(signIn).toHaveBeenCalledWith('github', { callbackUrl: '/recipes' });
+  });
+
+  it('uses the callbackUrl from the query string for GitHub sign-in too', () => {
+    useRouter.mockReturnValue({ query: { callbackUrl: '/inventory' } });
+
+    render(<Login />);
+
+    fireEvent.click(screen.getByRole('button', { name: /sign in with github/i }));
+    expect(signIn).toHaveBeenCalledWith('github', { callbackUrl: '/inventory' });
   });
 });

@@ -26,7 +26,7 @@ describe('GET /api/auth/[...nextauth]', () => {
       params: Promise.resolve({ nextauth: ['session'] }),
     });
 
-    expect(await response.json()).toMatchObject({ user: { email: 'user@reciplease.org' } });
+    expect(await response.json()).toMatchObject({ user: { handle: 'local-dev-user' } });
     expect(mockHandler).not.toHaveBeenCalled();
   });
 

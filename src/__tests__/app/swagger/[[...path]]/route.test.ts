@@ -2,9 +2,9 @@
 import { NextRequest } from 'next/server';
 import { GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS } from '@/app/swagger/[[...path]]/route';
 
-jest.mock('@/lib/backend', () => ({ BACKEND_URL: 'https://backend.example', idToken: jest.fn() }));
+jest.mock('@/lib/backend', () => ({ BACKEND_URL: 'https://backend.example', accessToken: jest.fn() }));
 
-const { idToken } = require('@/lib/backend');
+const { accessToken } = require('@/lib/backend');
 
 global.fetch = jest.fn();
 
@@ -23,7 +23,7 @@ function mockUpstream(overrides: Record<string, unknown> = {}) {
 describe('swagger proxy', () => {
   afterEach(() => {
     (fetch as jest.Mock).mockReset();
-    (idToken as jest.Mock).mockReset();
+    (accessToken as jest.Mock).mockReset();
   });
 
   it('exposes the same proxy handler for every HTTP method', () => {
@@ -36,7 +36,7 @@ describe('swagger proxy', () => {
   });
 
   it('proxies a GET request, stripping hop-by-hop headers and forwarding the response body', async () => {
-    (idToken as jest.Mock).mockResolvedValue(undefined);
+    (accessToken as jest.Mock).mockResolvedValue(undefined);
     mockUpstream();
 
     const request = new NextRequest('http://localhost/swagger/index.html', {
@@ -61,7 +61,7 @@ describe('swagger proxy', () => {
   });
 
   it('adds an Authorization header when signed in', async () => {
-    (idToken as jest.Mock).mockResolvedValue('tok123');
+    (accessToken as jest.Mock).mockResolvedValue('tok123');
     mockUpstream();
 
     const request = new NextRequest('http://localhost/swagger/index.html');
@@ -72,7 +72,7 @@ describe('swagger proxy', () => {
   });
 
   it('defaults to the backend root when no path segments are provided', async () => {
-    (idToken as jest.Mock).mockResolvedValue(undefined);
+    (accessToken as jest.Mock).mockResolvedValue(undefined);
     mockUpstream();
 
     const request = new NextRequest('http://localhost/swagger');
@@ -83,7 +83,7 @@ describe('swagger proxy', () => {
   });
 
   it('forwards the request body for non-GET/HEAD requests', async () => {
-    (idToken as jest.Mock).mockResolvedValue(undefined);
+    (accessToken as jest.Mock).mockResolvedValue(undefined);
     mockUpstream();
 
     const request = new NextRequest('http://localhost/swagger/api/inventory', {
@@ -98,7 +98,7 @@ describe('swagger proxy', () => {
   });
 
   it("rewrites the OpenAPI spec's servers to the relative prefix", async () => {
-    (idToken as jest.Mock).mockResolvedValue(undefined);
+    (accessToken as jest.Mock).mockResolvedValue(undefined);
     mockUpstream({
       json: async () => ({ openapi: '3.0.1', servers: [{ url: 'https://app.reciplease.org' }] }),
     });
@@ -115,7 +115,7 @@ describe('swagger proxy', () => {
   });
 
   it('does not rewrite the OpenAPI spec when the upstream request fails', async () => {
-    (idToken as jest.Mock).mockResolvedValue(undefined);
+    (accessToken as jest.Mock).mockResolvedValue(undefined);
     mockUpstream({ ok: false, status: 502, statusText: 'Bad Gateway' });
 
     const request = new NextRequest('http://localhost/swagger/openapi');
@@ -126,7 +126,7 @@ describe('swagger proxy', () => {
   });
 
   it('sets a long cache-control header for static assets', async () => {
-    (idToken as jest.Mock).mockResolvedValue(undefined);
+    (accessToken as jest.Mock).mockResolvedValue(undefined);
     mockUpstream();
 
     const request = new NextRequest('http://localhost/swagger/webjars/swagger-ui/swagger-ui.css');

@@ -6,13 +6,15 @@ import { authOptions } from '@/lib/auth-options';
 const handler = NextAuth(authOptions);
 
 // Local-only: NEXT_PUBLIC_FAKE_AUTH=true makes the session endpoint report a
-// signed-in user (user@reciplease.org). next-auth's SessionProvider refetches
-// /api/auth/session on mount, so without this it would overwrite the injected
-// fake session with null. Only the GET /session route is faked; everything else
-// (sign-in/out, callbacks) falls through to the real NextAuth handler.
+// signed-in user with a fake handle/accessToken. next-auth's SessionProvider
+// refetches /api/auth/session on mount, so without this it would overwrite the
+// injected fake session with null. Only the GET /session route is faked;
+// everything else (sign-in/out, callbacks) falls through to the real NextAuth
+// handler.
 const FAKE_AUTH = process.env.NEXT_PUBLIC_FAKE_AUTH === 'true';
 const fakeSession = {
-  user: { name: 'Local User', email: 'user@reciplease.org' },
+  user: { name: 'Local User', handle: 'local-dev-user' },
+  accessToken: 'fake-local-dev-access-token',
   expires: '2999-12-31T23:59:59.999Z',
 };
 

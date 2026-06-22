@@ -1,12 +1,9 @@
 /** @jest-environment node */
-import { authOptions } from '@/lib/auth-options';
+import { authOptions, exchangeIdentity } from '@/lib/auth-options';
 import type { Account, Session } from 'next-auth';
 import type { JWT } from 'next-auth/jwt';
 
 global.fetch = jest.fn();
-
-const FRESH = Math.floor(Date.now() / 1000) + 3600;
-const EXPIRED = Math.floor(Date.now() / 1000) - 100;
 
 const { jwt, session } = authOptions.callbacks!;
 
@@ -28,107 +25,185 @@ describe('authOptions config', () => {
   });
 });
 
+describe('exchangeIdentity', () => {
+  it('sends provider, providerId, and linkToken to the backend and returns the token/userId/handle on success', async () => {
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'rcpls-jwt', userId: 'user-1', handle: 'chef' }),
+    });
+
+    const result = await exchangeIdentity(
+      { provider: 'github', providerAccountId: '12345' },
+      'old-rcpls-jwt',
+    );
+
+    expect(result).toEqual({ ok: true, token: 'rcpls-jwt', userId: 'user-1', handle: 'chef' });
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/auth/exchange'),
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ 'X-Internal-Secret': expect.any(String) }),
+        body: JSON.stringify({
+          provider: 'github',
+          providerId: '12345',
+          linkToken: 'old-rcpls-jwt',
+        }),
+      }),
+    );
+  });
+
+  it('normalises a null handle to null', async () => {
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'rcpls-jwt', userId: 'user-1', handle: null }),
+    });
+
+    const result = await exchangeIdentity(
+      { provider: 'google', providerAccountId: 'sub-1' },
+      undefined,
+    );
+
+    expect(result).toEqual({ ok: true, token: 'rcpls-jwt', userId: 'user-1', handle: null });
+  });
+
+  it('reports an IdentityConflict on a 409 (linking an identity already claimed)', async () => {
+    (fetch as jest.Mock).mockResolvedValue({ ok: false, status: 409 });
+
+    const result = await exchangeIdentity(
+      { provider: 'github', providerAccountId: '12345' },
+      'old-rcpls-jwt',
+    );
+
+    expect(result).toEqual({ ok: false, error: 'IdentityConflict' });
+  });
+
+  it('reports a generic ExchangeError on other non-2xx responses', async () => {
+    (fetch as jest.Mock).mockResolvedValue({ ok: false, status: 500 });
+
+    const result = await exchangeIdentity(
+      { provider: 'google', providerAccountId: 'sub-1' },
+      undefined,
+    );
+
+    expect(result).toEqual({ ok: false, error: 'ExchangeError' });
+  });
+
+  it('reports an ExchangeError when the request throws', async () => {
+    (fetch as jest.Mock).mockRejectedValue(new Error('network down'));
+
+    const result = await exchangeIdentity(
+      { provider: 'google', providerAccountId: 'sub-1' },
+      undefined,
+    );
+
+    expect(result).toEqual({ ok: false, error: 'ExchangeError' });
+  });
+});
+
 describe('jwt callback', () => {
-  it('persists tokens from the account on initial sign-in', async () => {
+  it('exchanges the provider identity and stores the Reciplease JWT/userId/handle on fresh sign-in', async () => {
     const token = {} as JWT;
-    const account = {
-      id_token: 'id-token',
-      refresh_token: 'refresh-token',
-      expires_at: FRESH,
-    } as unknown as Account;
+    const account = { provider: 'google', providerAccountId: 'sub-1' } as unknown as Account;
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'rcpls-jwt', userId: 'user-1', handle: 'chef' }),
+    });
 
     const result = await jwt!({ token, account, user: undefined as never });
 
     expect(result).toMatchObject({
-      idToken: 'id-token',
-      refreshToken: 'refresh-token',
-      expiresAt: FRESH,
+      reciplaseToken: 'rcpls-jwt',
+      userId: 'user-1',
+      handle: 'chef',
+      error: undefined,
     });
   });
 
-  it('reuses the token while it is still fresh', async () => {
-    const token = { idToken: 'tok123', expiresAt: FRESH } as unknown as JWT;
+  it('passes the existing reciplaseToken on the token as linkToken (linking a 2nd provider)', async () => {
+    const token = { reciplaseToken: 'existing-jwt', userId: 'user-1', handle: 'chef' } as JWT;
+    const account = { provider: 'github', providerAccountId: '999' } as unknown as Account;
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'existing-jwt', userId: 'user-1', handle: 'chef' }),
+    });
+
+    await jwt!({ token, account, user: undefined as never });
+
+    const body = JSON.parse((fetch as jest.Mock).mock.calls[0][1].body);
+    expect(body.linkToken).toBe('existing-jwt');
+  });
+
+  it('sets an error on the token when the exchange fails, without crashing', async () => {
+    const token = { reciplaseToken: 'existing-jwt' } as JWT;
+    const account = { provider: 'github', providerAccountId: '999' } as unknown as Account;
+    (fetch as jest.Mock).mockResolvedValue({ ok: false, status: 409 });
+
+    const result = await jwt!({ token, account, user: undefined as never });
+
+    expect(result.error).toBe('IdentityConflict');
+  });
+
+  it('leaves the token untouched when there is no fresh account (subsequent requests)', async () => {
+    const token = { reciplaseToken: 'existing-jwt', handle: 'chef' } as JWT;
 
     const result = await jwt!({ token, account: null, user: undefined as never });
 
     expect(result).toBe(token);
     expect(fetch).not.toHaveBeenCalled();
   });
-
-  it('refreshes the token when expired', async () => {
-    process.env.GOOGLE_CLIENT_ID = 'client-id';
-    process.env.GOOGLE_CLIENT_SECRET = 'client-secret';
-    const token = { idToken: 'old-token', expiresAt: EXPIRED, refreshToken: 'refresh-token' } as unknown as JWT;
-    (fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({ id_token: 'new-token', expires_in: 3600 }),
-    });
-
-    const result = await jwt!({ token, account: null, user: undefined as never });
-
-    expect(result.idToken).toBe('new-token');
-    expect(result.error).toBeUndefined();
-    expect(fetch).toHaveBeenCalledWith(
-      'https://oauth2.googleapis.com/token',
-      expect.objectContaining({ method: 'POST' }),
-    );
-  });
-
-  it('marks the token with a refresh error when the refresh response is not ok', async () => {
-    const token = { idToken: 'old-token', expiresAt: EXPIRED, refreshToken: 'refresh-token' } as unknown as JWT;
-    (fetch as jest.Mock).mockResolvedValue({ ok: false, json: async () => ({ error: 'invalid_grant' }) });
-
-    const result = await jwt!({ token, account: null, user: undefined as never });
-
-    expect(result.error).toBe('RefreshAccessTokenError');
-  });
-
-  it('falls back to defaults when client credentials, refresh token and refreshed fields are missing', async () => {
-    delete process.env.GOOGLE_CLIENT_ID;
-    delete process.env.GOOGLE_CLIENT_SECRET;
-    const token = { idToken: 'old-token', expiresAt: EXPIRED } as unknown as JWT;
-    (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
-
-    const result = await jwt!({ token, account: null, user: undefined as never });
-
-    expect(result.idToken).toBe('old-token');
-    expect(result.error).toBeUndefined();
-    const body = (fetch as jest.Mock).mock.calls[0][1].body as URLSearchParams;
-    expect(body.get('client_id')).toBe('');
-    expect(body.get('client_secret')).toBe('');
-    expect(body.get('refresh_token')).toBe('');
-  });
-
-  it('marks the token with a refresh error when the refresh request throws', async () => {
-    const token = { idToken: 'old-token', expiresAt: EXPIRED, refreshToken: 'refresh-token' } as unknown as JWT;
-    (fetch as jest.Mock).mockRejectedValue(new Error('network down'));
-
-    const result = await jwt!({ token, account: null, user: undefined as never });
-
-    expect(result.error).toBe('RefreshAccessTokenError');
-  });
 });
 
 describe('session callback', () => {
-  it('surfaces a refresh-error flag from the token onto the session', async () => {
-    const token = { error: 'RefreshAccessTokenError' } as unknown as JWT;
+  it('exposes the Reciplease JWT as accessToken and the handle on session.user', async () => {
+    const token = { reciplaseToken: 'rcpls-jwt', handle: 'chef' } as unknown as JWT;
     const sessionInput = { user: { name: 'Alice' }, expires: '2999-12-31T23:59:59.999Z' } as unknown as Parameters<
       NonNullable<typeof session>
     >[0]['session'];
 
-    const result = await session!({ session: sessionInput, token, user: undefined as never, newSession: undefined, trigger: 'update' }) as Session;
+    const result = (await session!({
+      session: sessionInput,
+      token,
+      user: undefined as never,
+      newSession: undefined,
+      trigger: 'update',
+    })) as Session;
 
-    expect(result.error).toBe('RefreshAccessTokenError');
+    expect(result.accessToken).toBe('rcpls-jwt');
+    expect(result.user?.handle).toBe('chef');
+    expect(result.error).toBeUndefined();
   });
 
-  it('leaves error undefined when the token has none', async () => {
-    const token = {} as JWT;
+  it('surfaces an error flag from the token onto the session', async () => {
+    const token = { error: 'IdentityConflict' } as unknown as JWT;
     const sessionInput = { user: { name: 'Alice' }, expires: '2999-12-31T23:59:59.999Z' } as unknown as Parameters<
       NonNullable<typeof session>
     >[0]['session'];
 
-    const result = await session!({ session: sessionInput, token, user: undefined as never, newSession: undefined, trigger: 'update' }) as Session;
+    const result = (await session!({
+      session: sessionInput,
+      token,
+      user: undefined as never,
+      newSession: undefined,
+      trigger: 'update',
+    })) as Session;
 
-    expect(result.error).toBeUndefined();
+    expect(result.error).toBe('IdentityConflict');
+  });
+
+  it('defaults handle to null when the token has none', async () => {
+    const token = { reciplaseToken: 'rcpls-jwt' } as unknown as JWT;
+    const sessionInput = { user: { name: 'Alice' }, expires: '2999-12-31T23:59:59.999Z' } as unknown as Parameters<
+      NonNullable<typeof session>
+    >[0]['session'];
+
+    const result = (await session!({
+      session: sessionInput,
+      token,
+      user: undefined as never,
+      newSession: undefined,
+      trigger: 'update',
+    })) as Session;
+
+    expect(result.user?.handle).toBeNull();
   });
 });

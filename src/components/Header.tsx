@@ -143,8 +143,8 @@ export default function Header() {
   // Sign out lives on /settings/house now, alongside the rest of the account/
   // house controls — the header just shows who's signed in.
   const authControls = authenticated ? (
-    session.user?.email && (
-      <span className="text-[0.85rem] opacity-70">{session.user.email}</span>
+    session.user?.handle && (
+      <span className="text-[0.85rem] opacity-70">{session.user.handle}</span>
     )
   ) : (
     <GoogleSignInButton onClick={() => signIn('google')} />

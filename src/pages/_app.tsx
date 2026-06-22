@@ -14,7 +14,8 @@ import { useViewTransitionRouter } from '@/lib/viewTransitions';
 const FAKE_AUTH = process.env.NEXT_PUBLIC_FAKE_AUTH === 'true';
 const fakeSession: Session | undefined = FAKE_AUTH
   ? {
-    user: { name: 'Local User', email: 'user@reciplease.org' },
+    user: { name: 'Local User', handle: 'local-dev-user' },
+    accessToken: 'fake-local-dev-access-token',
     expires: '2999-12-31T23:59:59.999Z',
   }
   : undefined;
@@ -26,8 +27,14 @@ export default function App({
   const router = useRouter();
   useViewTransitionRouter(router);
   // The login page renders standalone (no chrome, no AccessGate).
-  // login and the scanner are full-screen standalone pages (no header/layout chrome)
-  const standalone = router.pathname === '/login' || router.pathname === '/inventory/scan';
+  // login and the scanner are full-screen standalone pages (no header/layout chrome).
+  // The handle onboarding page must also stay outside AccessGate, since
+  // AccessGate itself redirects here when a signed-in, allowlisted user has no
+  // handle yet — wrapping it in AccessGate would loop.
+  const standalone =
+    router.pathname === '/login' ||
+    router.pathname === '/inventory/scan' ||
+    router.pathname === '/onboarding/handle';
   // Recipes are publicly readable — show them inside the Layout but without
   // the AccessGate sign-in wall.
   const publicPage =

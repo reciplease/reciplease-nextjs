@@ -2,7 +2,7 @@
 jest.mock('next/headers', () => ({ cookies: jest.fn() }));
 jest.mock('next-auth/jwt', () => ({ decode: jest.fn() }));
 
-import { backendFetch, idToken, BACKEND_URL } from '@/lib/backend';
+import { backendFetch, accessToken, BACKEND_URL } from '@/lib/backend';
 
 const { cookies } = require('next/headers');
 const { decode } = require('next-auth/jwt');
@@ -17,8 +17,6 @@ function cookieStore(values: Record<string, string> = {}) {
 }
 
 const ORIGINAL_ENV = process.env;
-const FRESH = Math.floor(Date.now() / 1000) + 3600;
-const EXPIRED = Math.floor(Date.now() / 1000) - 100;
 
 beforeEach(() => {
   process.env = { ...ORIGINAL_ENV, NEXTAUTH_SECRET: 'secret' };
@@ -31,11 +29,11 @@ afterAll(() => {
   process.env = ORIGINAL_ENV;
 });
 
-describe('idToken', () => {
+describe('accessToken', () => {
   it('returns undefined when there is no session cookie', async () => {
     (cookies as jest.Mock).mockResolvedValue(cookieStore());
 
-    expect(await idToken()).toBeUndefined();
+    expect(await accessToken()).toBeUndefined();
     expect(decode).not.toHaveBeenCalled();
   });
 
@@ -43,7 +41,7 @@ describe('idToken', () => {
     delete process.env.NEXTAUTH_SECRET;
     (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
 
-    expect(await idToken()).toBeUndefined();
+    expect(await accessToken()).toBeUndefined();
     expect(decode).not.toHaveBeenCalled();
   });
 
@@ -51,21 +49,21 @@ describe('idToken', () => {
     (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
     (decode as jest.Mock).mockRejectedValue(new Error('bad token'));
 
-    expect(await idToken()).toBeUndefined();
+    expect(await accessToken()).toBeUndefined();
   });
 
-  it('returns undefined when the decoded token has no idToken', async () => {
+  it('returns undefined when the decoded token has no reciplaseToken', async () => {
     (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
     (decode as jest.Mock).mockResolvedValue({});
 
-    expect(await idToken()).toBeUndefined();
+    expect(await accessToken()).toBeUndefined();
   });
 
-  it('returns the stored idToken while it is still fresh', async () => {
+  it('returns the stored reciplaseToken', async () => {
     (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
-    (decode as jest.Mock).mockResolvedValue({ idToken: 'tok123', expiresAt: FRESH });
+    (decode as jest.Mock).mockResolvedValue({ reciplaseToken: 'rcpls-jwt' });
 
-    expect(await idToken()).toBe('tok123');
+    expect(await accessToken()).toBe('rcpls-jwt');
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -73,9 +71,9 @@ describe('idToken', () => {
     (cookies as jest.Mock).mockResolvedValue(
       cookieStore({ 'next-auth.session-token.0': 'part1', 'next-auth.session-token.1': 'part2' }),
     );
-    (decode as jest.Mock).mockResolvedValue({ idToken: 'tok123', expiresAt: FRESH });
+    (decode as jest.Mock).mockResolvedValue({ reciplaseToken: 'rcpls-jwt' });
 
-    expect(await idToken()).toBe('tok123');
+    expect(await accessToken()).toBe('rcpls-jwt');
     expect(decode).toHaveBeenCalledWith({ token: 'part1part2', secret: 'secret' });
   });
 
@@ -83,109 +81,24 @@ describe('idToken', () => {
     (cookies as jest.Mock).mockResolvedValue(
       cookieStore({ '__Secure-next-auth.session-token': 'securetok' }),
     );
-    (decode as jest.Mock).mockResolvedValue({ idToken: 'tok123', expiresAt: FRESH });
+    (decode as jest.Mock).mockResolvedValue({ reciplaseToken: 'rcpls-jwt' });
 
-    expect(await idToken()).toBe('tok123');
+    expect(await accessToken()).toBe('rcpls-jwt');
     expect(decode).toHaveBeenCalledWith({ token: 'securetok', secret: 'secret' });
-  });
-
-  it('refreshes an expired idToken using the stored refresh token', async () => {
-    process.env.GOOGLE_CLIENT_ID = 'client-id';
-    process.env.GOOGLE_CLIENT_SECRET = 'client-secret';
-    (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
-    (decode as jest.Mock).mockResolvedValue({
-      idToken: 'old-token',
-      expiresAt: EXPIRED,
-      refreshToken: 'refresh-token',
-    });
-    (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ id_token: 'new-token' }) });
-
-    expect(await idToken()).toBe('new-token');
-    expect(fetch).toHaveBeenCalledWith(
-      'https://oauth2.googleapis.com/token',
-      expect.objectContaining({ method: 'POST' }),
-    );
-    const body = (fetch as jest.Mock).mock.calls[0][1].body as URLSearchParams;
-    expect(body.get('refresh_token')).toBe('refresh-token');
-    expect(body.get('client_id')).toBe('client-id');
-  });
-
-  it('falls back to the stored idToken when the refresh response is not ok', async () => {
-    process.env.GOOGLE_CLIENT_ID = 'client-id';
-    process.env.GOOGLE_CLIENT_SECRET = 'client-secret';
-    (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
-    (decode as jest.Mock).mockResolvedValue({
-      idToken: 'old-token',
-      expiresAt: EXPIRED,
-      refreshToken: 'refresh-token',
-    });
-    (fetch as jest.Mock).mockResolvedValue({ ok: false });
-
-    expect(await idToken()).toBe('old-token');
-  });
-
-  it('falls back to the stored idToken when the refresh request throws', async () => {
-    process.env.GOOGLE_CLIENT_ID = 'client-id';
-    process.env.GOOGLE_CLIENT_SECRET = 'client-secret';
-    (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
-    (decode as jest.Mock).mockResolvedValue({
-      idToken: 'old-token',
-      expiresAt: EXPIRED,
-      refreshToken: 'refresh-token',
-    });
-    (fetch as jest.Mock).mockRejectedValue(new Error('network down'));
-
-    expect(await idToken()).toBe('old-token');
-  });
-
-  it('falls back to the stored idToken when the refresh request throws a non-Error value', async () => {
-    process.env.GOOGLE_CLIENT_ID = 'client-id';
-    process.env.GOOGLE_CLIENT_SECRET = 'client-secret';
-    (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
-    (decode as jest.Mock).mockResolvedValue({
-      idToken: 'old-token',
-      expiresAt: EXPIRED,
-      refreshToken: 'refresh-token',
-    });
-    (fetch as jest.Mock).mockRejectedValue('boom');
-
-    expect(await idToken()).toBe('old-token');
-  });
-
-  it('falls back to the stored idToken when Google client credentials are not configured', async () => {
-    delete process.env.GOOGLE_CLIENT_ID;
-    delete process.env.GOOGLE_CLIENT_SECRET;
-    (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
-    (decode as jest.Mock).mockResolvedValue({
-      idToken: 'old-token',
-      expiresAt: EXPIRED,
-      refreshToken: 'refresh-token',
-    });
-
-    expect(await idToken()).toBe('old-token');
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it('returns the stored idToken best-effort when expired with no refresh token', async () => {
-    (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
-    (decode as jest.Mock).mockResolvedValue({ idToken: 'old-token', expiresAt: EXPIRED });
-
-    expect(await idToken()).toBe('old-token');
-    expect(fetch).not.toHaveBeenCalled();
   });
 });
 
 describe('backendFetch', () => {
   it('adds an Authorization header when signed in', async () => {
     (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
-    (decode as jest.Mock).mockResolvedValue({ idToken: 'tok123', expiresAt: FRESH });
+    (decode as jest.Mock).mockResolvedValue({ reciplaseToken: 'rcpls-jwt' });
     (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
 
     await backendFetch('/api/measures');
 
     const [url, init] = (fetch as jest.Mock).mock.calls[0];
     expect(url).toBe(`${BACKEND_URL}/api/measures`);
-    expect((init.headers as Headers).get('Authorization')).toBe('Bearer tok123');
+    expect((init.headers as Headers).get('Authorization')).toBe('Bearer rcpls-jwt');
   });
 
   it('omits the Authorization header when not signed in', async () => {
@@ -200,7 +113,7 @@ describe('backendFetch', () => {
 
   it('preserves the method, body and other headers from init', async () => {
     (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
-    (decode as jest.Mock).mockResolvedValue({ idToken: 'tok123', expiresAt: FRESH });
+    (decode as jest.Mock).mockResolvedValue({ reciplaseToken: 'rcpls-jwt' });
     (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
 
     await backendFetch('/api/inventory', {
@@ -213,6 +126,6 @@ describe('backendFetch', () => {
     expect(init.method).toBe('POST');
     expect(init.body).toBe(JSON.stringify({ name: 'Milk' }));
     expect((init.headers as Headers).get('Content-Type')).toBe('application/json');
-    expect((init.headers as Headers).get('Authorization')).toBe('Bearer tok123');
+    expect((init.headers as Headers).get('Authorization')).toBe('Bearer rcpls-jwt');
   });
 });
