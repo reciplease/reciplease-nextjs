@@ -58,8 +58,8 @@ describe('HouseSettingsPage', () => {
       useActiveHouse.mockReturnValue({ id: 'house-1', name: 'Test House', role: 'OWNER' });
       useHouseMembers.mockReturnValue({
         data: [
-          { userId: 'owner-1', email: 'owner@example.com', role: 'OWNER' },
-          { userId: 'member-1', email: 'member@example.com', role: 'READ_ONLY' },
+          { userId: 'owner-1', handle: 'owner-handle', role: 'OWNER' },
+          { userId: 'member-1', handle: null, role: 'READ_ONLY' },
         ],
         mutate: mutateMembers,
       });
@@ -72,8 +72,8 @@ describe('HouseSettingsPage', () => {
     it('lists members with their roles', () => {
       render(<HouseSettingsPage />);
 
-      expect(screen.getByText('owner@example.com')).toBeInTheDocument();
-      expect(screen.getByText('member@example.com')).toBeInTheDocument();
+      expect(screen.getByText('owner-handle')).toBeInTheDocument();
+      expect(screen.getByText('(no handle set)')).toBeInTheDocument();
     });
 
     it('shows the invite code for each pending invite', () => {

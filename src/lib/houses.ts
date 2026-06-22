@@ -2,7 +2,7 @@ import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
 
 export type House = { id: string; name: string; role: 'OWNER' | 'READ_ONLY' };
-export type HouseMember = { userId: string; email: string; role: 'OWNER' | 'READ_ONLY' };
+export type HouseMember = { userId: string; handle: string | null; role: 'OWNER' | 'READ_ONLY' };
 export type PendingInvite = { id: string; code: string; role: 'OWNER' | 'READ_ONLY'; createdAt: string };
 
 export const HOUSE_COOKIE = 'reciplease-house-id';

@@ -74,6 +74,17 @@ describe('_app', () => {
     expect(screen.queryByTestId('access-gate')).not.toBeInTheDocument();
   });
 
+  it('renders standalone on the handle onboarding page (avoids redirect loop with AccessGate)', () => {
+    const { App, useRouterMock } = loadApp();
+    useRouterMock.mockReturnValue({ pathname: '/onboarding/handle' });
+
+    render(<App Component={TestComponent} pageProps={{}} />);
+
+    expect(screen.getByText('Page Content')).toBeInTheDocument();
+    expect(screen.queryByTestId('layout')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('access-gate')).not.toBeInTheDocument();
+  });
+
   it.each(['/recipes', '/recipes/[recipeId]', '/settings'])(
     'renders %s inside Layout without AccessGate',
     (pathname) => {
@@ -108,14 +119,14 @@ describe('_app', () => {
     const provider = screen.getByTestId('session-provider');
     expect(provider).toHaveAttribute('data-refetch', 'false');
     expect(JSON.parse(provider.getAttribute('data-session')!)).toMatchObject({
-      user: { email: 'user@reciplease.org' },
+      user: { handle: 'local-dev-user' },
     });
   });
 
   it('prefers a session passed in pageProps over the fake session', () => {
     const { App, useRouterMock } = loadApp({ NEXT_PUBLIC_FAKE_AUTH: 'true' });
     useRouterMock.mockReturnValue({ pathname: '/inventory' });
-    const session = { user: { email: 'real@example.com' }, expires: '2999-12-31T23:59:59.999Z' };
+    const session = { user: { handle: 'real-handle' }, expires: '2999-12-31T23:59:59.999Z' };
 
     render(<App Component={TestComponent} pageProps={{ session }} />);
 

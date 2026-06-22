@@ -37,14 +37,14 @@ describe('Header', () => {
 
   it('shows the nav and the signed-in email when authenticated', () => {
     useSession.mockReturnValue({
-      data: { user: { email: 'cook@example.com' } },
+      data: { user: { handle: 'cook' } },
       status: 'authenticated',
     });
     render(<Header />);
     expect(screen.getByRole('link', { name: 'Recipes' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Inventory' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Planner' })).toBeInTheDocument();
-    expect(screen.getByText('cook@example.com')).toBeInTheDocument();
+    expect(screen.getByText('cook')).toBeInTheDocument();
   });
 
   it('hides the nav and shows the Google sign-in button when unauthenticated', () => {
@@ -96,7 +96,7 @@ describe('Header', () => {
 
   it('toggles the mobile menu when the hamburger is clicked', () => {
     useSession.mockReturnValue({
-      data: { user: { email: 'cook@example.com' } },
+      data: { user: { handle: 'cook' } },
       status: 'authenticated',
     });
     render(<Header />);
@@ -115,7 +115,7 @@ describe('Header', () => {
 
   it('closes the mobile menu on route change', () => {
     useSession.mockReturnValue({
-      data: { user: { email: 'cook@example.com' } },
+      data: { user: { handle: 'cook' } },
       status: 'authenticated',
     });
     render(<Header />);
