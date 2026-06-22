@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import { full } from '@/lib/recipe-id';
 import { formatTimestamp } from '@/lib/formatDate';
 import { useActiveHouse } from '@/lib/houses';
+import { recipeTitleTransitionName } from '@/lib/viewTransitionNames';
 
 const fetcher = (url: string): Promise<Recipe> =>
   fetch(url).then((res) => res.json());
@@ -60,7 +61,12 @@ export default function Recipe({ recipeShortId }: Props) {
 
       <section>
         <div className="flex items-start justify-between gap-4">
-          <h2 className="text-2xl font-semibold">{recipe.name}</h2>
+          <h2
+            className="text-2xl font-semibold"
+            style={{ viewTransitionName: recipeTitleTransitionName(recipe.recipeId) }}
+          >
+            {recipe.name}
+          </h2>
           {editable && (
             <Link
               href={`/recipes/${recipeShortId}/edit`}
