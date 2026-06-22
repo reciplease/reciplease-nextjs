@@ -138,6 +138,19 @@ html.reduce-motion *::after {
   scroll-behavior: auto !important;
 }
 
+// Default cross-fade for page navigations driven by useViewTransitionRouter
+// (src/lib/viewTransitions.ts). That hook already skips starting a
+// transition under .reduce-motion, but the group override below is kept as a
+// belt-and-suspenders guard for any named (per-element) transitions too.
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.25s;
+}
+
+html.reduce-motion::view-transition-group(*) {
+  animation: none !important;
+}
+
 h1,
 h2,
 h3 {
