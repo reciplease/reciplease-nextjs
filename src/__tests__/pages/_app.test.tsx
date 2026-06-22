@@ -8,6 +8,7 @@ jest.mock('@/components/AccessGate', () => ({ children }: { children: React.Reac
   <div data-testid="access-gate">{children}</div>
 ));
 jest.mock('next/router', () => ({ useRouter: jest.fn() }));
+jest.mock('@/lib/viewTransitions', () => ({ useViewTransitionRouter: jest.fn() }));
 jest.mock('next/head', () => ({ __esModule: true, default: () => null }));
 jest.mock('next-auth/react', () => ({
   SessionProvider: ({

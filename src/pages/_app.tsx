@@ -6,6 +6,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Layout from '@/components/Layout';
 import AccessGate from '@/components/AccessGate';
+import { useViewTransitionRouter } from '@/lib/viewTransitions';
 
 // Local-only profile: NEXT_PUBLIC_FAKE_AUTH=true injects a signed-in session
 // (user@reciplease.org) so the authenticated UI is reachable without Google.
@@ -23,6 +24,7 @@ export default function App({
                               pageProps,
                             }: AppProps<{ session?: Session }>) {
   const router = useRouter();
+  useViewTransitionRouter(router);
   // The login page renders standalone (no chrome, no AccessGate).
   // login and the scanner are full-screen standalone pages (no header/layout chrome)
   const standalone = router.pathname === '/login' || router.pathname === '/inventory/scan';
