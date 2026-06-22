@@ -16,7 +16,6 @@ jest.mock('next/router', () => ({ useRouter: jest.fn() }));
 
 const useSession = require('next-auth/react').useSession as jest.Mock;
 const useRouter = require('next/router').useRouter as jest.Mock;
-const signIn = require('next-auth/react').signIn as jest.Mock;
 
 describe('Header', () => {
   const originalAuthDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED;
@@ -47,11 +46,11 @@ describe('Header', () => {
     expect(screen.getByText('cook')).toBeInTheDocument();
   });
 
-  it('hides the nav and shows the Google sign-in button when unauthenticated', () => {
+  it('hides the nav and shows a sign in link when unauthenticated', () => {
     useSession.mockReturnValue({ data: null, status: 'unauthenticated' });
     render(<Header />);
     expect(screen.queryByRole('link', { name: 'Recipes' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /sign in with google/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /sign in/i })).toHaveAttribute('href', '/login');
   });
 
   it('still shows the nav in local dev when auth is disabled', () => {
@@ -85,13 +84,6 @@ describe('Header', () => {
     useRouter.mockReturnValue({ pathname: '/recipes/[recipeId]', events });
     render(<Header />);
     expect(screen.getByRole('link', { name: 'Recipes' })).toHaveAttribute('aria-current', 'page');
-  });
-
-  it('starts the Google sign-in flow when "Sign in with Google" is clicked', () => {
-    useSession.mockReturnValue({ data: null, status: 'unauthenticated' });
-    render(<Header />);
-    fireEvent.click(screen.getByRole('button', { name: /sign in with google/i }));
-    expect(signIn).toHaveBeenCalledWith('google');
   });
 
   it('toggles the mobile menu when the hamburger is clicked', () => {
