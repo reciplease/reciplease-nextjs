@@ -19,7 +19,7 @@ export default function RecipePreview({ recipe }: Props) {
     <Link
       href={`/recipes/${recipe.recipeShortId}`}
       onClick={() => setNavigating(true)}
-      className="grid h-full max-w-[30ch] gap-2 rounded-lg border-2 border-secondary p-4 transition-colors hover:bg-secondary hover:text-white"
+      className="grid h-full max-w-[30ch] gap-2 rounded-lg border-2 border-secondary p-4 transition-colors transition-transform hover:scale-[1.02] hover:bg-secondary hover:text-white active:scale-[0.98]"
     >
       {/*TODO image?*/}
       <h4

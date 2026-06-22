@@ -42,8 +42,12 @@ export default function Recipes() {
 
       <section className="grid">
         <ul className="my-8 grid list-none grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
-          {recipes.map((recipe) => (
-            <li key={recipe.recipeId}>
+          {recipes.map((recipe, index) => (
+            <li
+              key={recipe.recipeId}
+              className="fade-rise-in"
+              style={{ animationDelay: `${Math.min(index, 10) * 40}ms` }}
+            >
               <RecipePreview recipe={recipe} />
             </li>
           ))}

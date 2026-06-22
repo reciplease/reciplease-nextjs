@@ -151,6 +151,26 @@ html.reduce-motion::view-transition-group(*) {
   animation: none !important;
 }
 
+// Staggered entrance for grid items (e.g. the recipes list). Pair with the
+// `fade-rise-in` utility class plus an inline `animation-delay` derived from
+// the item's index — see src/pages/recipes/index.tsx. The .reduce-motion
+// override above already collapses the duration to ~0, so no separate
+// opt-out is needed here.
+@keyframes fade-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-rise-in {
+  animation: fade-rise-in 0.3s ease-out backwards;
+}
+
 h1,
 h2,
 h3 {
