@@ -196,9 +196,13 @@ export default function ScanPage() {
         {/* Camera view — fills remaining space */}
         <div className="relative flex-1 overflow-hidden bg-zinc-950 min-h-64">
 
-          {/* Phase pill */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/55 rounded-full px-5 py-1.5 pointer-events-none z-10">
-            <span className="text-sm font-semibold whitespace-nowrap">{PHASE_LABEL[phase]}</span>
+          {/* Phase pill — the key on the inner span re-triggers the entrance
+              animation each time the phase changes, instead of swapping the
+              label instantly. */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/55 rounded-full px-5 py-1.5 pointer-events-none z-10 overflow-hidden">
+            <span key={phase} className="fade-rise-in block text-sm font-semibold whitespace-nowrap">
+              {PHASE_LABEL[phase]}
+            </span>
           </div>
 
           {phase === 'barcode' && (
