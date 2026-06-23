@@ -13,10 +13,12 @@ const useRouter = require('next/router').useRouter as jest.Mock;
 // useSWR is called twice (once for /api/access, once for /api/me); route each
 // call to its own canned response by key so tests can control them
 // independently.
-function mockSWRByKey(responses: Record<string, { data: unknown; isLoading: boolean }>) {
+function mockSWRByKey(
+  responses: Record<string, { data?: unknown; isLoading: boolean; error?: unknown; mutate?: jest.Mock }>,
+) {
   useSWR.mockImplementation((key: string | null) => {
-    if (key && responses[key]) return responses[key];
-    return { data: undefined, isLoading: false };
+    if (key && responses[key]) return { mutate: jest.fn(), ...responses[key] };
+    return { data: undefined, isLoading: false, mutate: jest.fn() };
   });
 }
 
@@ -125,6 +127,45 @@ describe('AccessGate', () => {
     );
 
     expect(screen.getByText('Checking access…')).toBeInTheDocument();
+  });
+
+  it('shows a retry message (not an indefinite spinner) when the allowlist probe errors', () => {
+    useSession.mockReturnValue({ data: { user: { handle: 'cook' } }, status: 'authenticated' });
+    const retryProbe = jest.fn();
+    mockSWRByKey({
+      '/api/houses': { data: undefined, isLoading: false, error: new Error('network down'), mutate: retryProbe },
+    });
+
+    render(
+      <AccessGate>
+        <div>App content</div>
+      </AccessGate>,
+    );
+
+    expect(screen.queryByText('Checking access…')).not.toBeInTheDocument();
+    expect(screen.getByText(/Couldn.t reach Reciplease/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(retryProbe).toHaveBeenCalled();
+  });
+
+  it('shows a retry message when /api/me errors after the allowlist probe succeeds', () => {
+    useSession.mockReturnValue({ data: { user: { handle: 'cook' } }, status: 'authenticated' });
+    const retryMe = jest.fn();
+    mockSWRByKey({
+      '/api/houses': { data: { status: 200 }, isLoading: false },
+      '/api/me': { data: undefined, isLoading: false, error: new Error('network down'), mutate: retryMe },
+    });
+
+    render(
+      <AccessGate>
+        <div>App content</div>
+      </AccessGate>,
+    );
+
+    expect(screen.queryByText('Checking access…')).not.toBeInTheDocument();
+    expect(screen.getByText(/Couldn.t reach Reciplease/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(retryMe).toHaveBeenCalled();
   });
 
   it('shows a not-allowed message with the user handle when the allowlist probe returns 403', () => {

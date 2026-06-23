@@ -17,8 +17,11 @@ const probe = async (url: string): Promise<Access> => {
   return { status: res.status };
 };
 
-const meFetcher = (url: string): Promise<Me | null> =>
-  fetch(url).then((res) => (res.ok ? res.json() : null));
+const meFetcher = (url: string): Promise<Me> =>
+  fetch(url).then((res) => {
+    if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
+    return res.json();
+  });
 
 function Centered({ children }: { children: ReactNode }) {
   return <div className={styles.gate}>{children}</div>;
@@ -55,7 +58,12 @@ export default function AccessGate({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession({ required: !authDisabled });
   const router = useRouter();
 
-  const { data, isLoading } = useSWR<Access>(
+  const {
+    data,
+    error: probeError,
+    isLoading,
+    mutate: retryProbe,
+  } = useSWR<Access>(
     !authDisabled && status === 'authenticated' ? '/api/houses' : null,
     probe,
   );
@@ -70,10 +78,12 @@ export default function AccessGate({ children }: { children: ReactNode }) {
   }, [authDisabled, needsReauth, router]);
 
   const allowed = !authDisabled && status === 'authenticated' && data?.status === 200;
-  const { data: me, isLoading: meLoading } = useSWR<Me | null>(
-    allowed ? '/api/me' : null,
-    meFetcher,
-  );
+  const {
+    data: me,
+    error: meError,
+    isLoading: meLoading,
+    mutate: retryMe,
+  } = useSWR<Me>(allowed ? '/api/me' : null, meFetcher);
 
   if (authDisabled) {
     return <>{children}</>;
@@ -85,6 +95,15 @@ export default function AccessGate({ children }: { children: ReactNode }) {
 
   if (needsReauth) {
     return <Centered>Redirecting to sign in…</Centered>;
+  }
+
+  if (probeError) {
+    return (
+      <Centered>
+        <p>Couldn&apos;t reach Reciplease. Check your connection and try again.</p>
+        <button onClick={() => retryProbe()}>Try again</button>
+      </Centered>
+    );
   }
 
   if (isLoading || !data) {
@@ -101,6 +120,15 @@ export default function AccessGate({ children }: { children: ReactNode }) {
             : "This account isn't on the Reciplease allowlist."}
         </p>
         <button onClick={() => signOut()}>Sign out</button>
+      </Centered>
+    );
+  }
+
+  if (meError) {
+    return (
+      <Centered>
+        <p>Couldn&apos;t reach Reciplease. Check your connection and try again.</p>
+        <button onClick={() => retryMe()}>Try again</button>
       </Centered>
     );
   }
