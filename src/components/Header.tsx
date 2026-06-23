@@ -116,7 +116,11 @@ export default function Header() {
   ) : (
     <Link
       href="/login"
-      className="flex h-10 cursor-pointer items-center rounded border border-[#747775] bg-white px-3 text-sm font-medium text-[#1f1f1f] transition-colors hover:bg-[#f7f8f8]"
+      // The global `a { color: inherit }` reset in main.scss is unlayered, so
+      // it beats Tailwind's utility layer — force this one with `!`, otherwise
+      // the text inherits the header's light colour and disappears against
+      // this button's white background.
+      className="flex h-10 cursor-pointer items-center rounded border border-[#747775] bg-white px-3 text-sm font-medium !text-[#1f1f1f] transition-colors hover:bg-[#f7f8f8]"
     >
       Sign in
     </Link>

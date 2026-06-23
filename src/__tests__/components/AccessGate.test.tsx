@@ -6,7 +6,6 @@ jest.mock('swr');
 jest.mock('next/router', () => ({ useRouter: jest.fn() }));
 
 const useSession = require('next-auth/react').useSession as jest.Mock;
-const signIn = require('next-auth/react').signIn as jest.Mock;
 const signOut = require('next-auth/react').signOut as jest.Mock;
 const useSWR = require('swr').default as jest.Mock;
 const useRouter = require('next/router').useRouter as jest.Mock;
@@ -28,7 +27,7 @@ describe('AccessGate', () => {
   beforeEach(() => {
     process.env = { ...ORIGINAL_ENV };
     replace.mockClear();
-    useRouter.mockReturnValue({ replace, pathname: '/recipes' });
+    useRouter.mockReturnValue({ replace, pathname: '/recipes', asPath: '/recipes' });
     mockSWRByKey({});
   });
 
@@ -76,7 +75,7 @@ describe('AccessGate', () => {
     expect(screen.queryByText('App content')).not.toBeInTheDocument();
   });
 
-  it('prompts Google sign-in when unauthenticated', () => {
+  it('redirects to /login when unauthenticated', () => {
     useSession.mockReturnValue({ data: null, status: 'unauthenticated' });
 
     render(
@@ -85,12 +84,11 @@ describe('AccessGate', () => {
       </AccessGate>,
     );
 
-    expect(screen.getByText('Please sign in to continue.')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }));
-    expect(signIn).toHaveBeenCalledWith('google');
+    expect(replace).toHaveBeenCalledWith('/login?callbackUrl=%2Frecipes');
+    expect(screen.queryByText('App content')).not.toBeInTheDocument();
   });
 
-  it('prompts sign-in when the session has a refresh error', () => {
+  it('redirects to /login when the session has a refresh error', () => {
     useSession.mockReturnValue({ data: { error: 'RefreshAccessTokenError' }, status: 'authenticated' });
 
     render(
@@ -99,7 +97,21 @@ describe('AccessGate', () => {
       </AccessGate>,
     );
 
-    expect(screen.getByText('Please sign in to continue.')).toBeInTheDocument();
+    expect(replace).toHaveBeenCalledWith('/login?callbackUrl=%2Frecipes');
+  });
+
+  it('redirects to /login when the allowlist probe 401s (stale pre-exchange session)', () => {
+    useSession.mockReturnValue({ data: { user: {} }, status: 'authenticated' });
+    mockSWRByKey({ '/api/access': { data: { status: 401 }, isLoading: false } });
+
+    render(
+      <AccessGate>
+        <div>App content</div>
+      </AccessGate>,
+    );
+
+    expect(replace).toHaveBeenCalledWith('/login?callbackUrl=%2Frecipes');
+    expect(screen.queryByText('App content')).not.toBeInTheDocument();
   });
 
   it('shows a checking-access message while the allowlist probe is loading', () => {
