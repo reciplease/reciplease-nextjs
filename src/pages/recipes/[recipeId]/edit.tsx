@@ -5,10 +5,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
 import { full } from '@/lib/recipe-id';
-import { useActiveHouse } from '@/lib/houses';
+import { useActiveHouse, apiFetch } from '@/lib/houses';
+import { toRecipe, type BackendRecipe } from '@/lib/recipes';
 
-const fetcher = (url: string): Promise<Recipe> =>
-  fetch(url).then((res) => res.json());
+const fetcher = async (url: string): Promise<Recipe> => {
+  const backendRecipe: BackendRecipe = await apiFetch(url).then((res) => res.json());
+  return toRecipe(backendRecipe);
+};
 
 interface Props {
   recipeShortId: RecipeShortId;
@@ -29,7 +32,7 @@ export default function EditRecipe({ recipeShortId }: Props) {
     activeHouse.id === recipe.houseId;
 
   async function handleSubmit(values: RecipeFormValues) {
-    const res = await fetch(`/api/recipes/${recipeId}`, {
+    const res = await apiFetch(`/api/recipes/${recipeId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -103,7 +106,7 @@ export default function EditRecipe({ recipeShortId }: Props) {
             isPublic: recipe.isPublic,
             ingredients: recipe.ingredients.map((ingredient) => ({
               name: ingredient.name,
-              measureId: ingredient.measure.measureId,
+              measureId: ingredient.measure,
               amount: ingredient.amount,
             })),
           }}

@@ -9,6 +9,7 @@ jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; h
 jest.mock('@/components/Metadata', () => () => null);
 jest.mock('@/lib/houses', () => ({
   useActiveHouse: () => ({ id: 'house-1', name: 'Bayview Gardens', role: 'OWNER' }),
+  apiFetch: (url: string, init: RequestInit = {}) => fetch(url, init),
 }));
 
 global.fetch = jest.fn();
@@ -39,6 +40,6 @@ describe('EditRecipe data fetching', () => {
     expect(screen.getByText('Loading...')).toBeInTheDocument();
 
     await waitFor(() => expect(screen.getByLabelText('Recipe title')).toHaveValue('Tacos'));
-    expect(fetch).toHaveBeenCalledWith(`/api/recipes/${full(recipeShortId)}`);
+    expect(fetch).toHaveBeenCalledWith(`/api/recipes/${full(recipeShortId)}`, expect.anything());
   });
 });

@@ -12,29 +12,35 @@ global.fetch = jest.fn();
 const item: InventoryItem = {
   uuid: 'uuid-1',
   name: 'Milk',
-  measure: { measureId: 'ml', singular: 'millilitre', plural: 'millilitres', short: 'ml' },
+  measure: 'ml',
   amount: 500,
   expiration: '2099-12-31',
 };
+
+const ML: Measure = { measureId: 'ml', singular: 'millilitre', plural: 'millilitres', short: 'ml' };
+
+function mockFetchByUrl(itemResponse: { ok: boolean; json?: () => Promise<unknown> }) {
+  (fetch as jest.Mock).mockImplementation((url: string) => {
+    if (url === '/api/measures') return Promise.resolve({ ok: true, json: async () => [ML] });
+    return Promise.resolve(itemResponse);
+  });
+}
 
 describe('InventoryItemPage data fetching', () => {
   afterEach(() => (fetch as jest.Mock).mockReset());
 
   it('loads and displays the item from the API', async () => {
-    (fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => item,
-    });
+    mockFetchByUrl({ ok: true, json: async () => item });
 
     render(<InventoryItemPage uuid="uuid-1" />);
     expect(screen.getByText('Loading...')).toBeInTheDocument();
 
     await waitFor(() => expect(screen.getByText('Milk')).toBeInTheDocument());
-    expect(fetch).toHaveBeenCalledWith('/api/inventory/uuid-1');
+    expect(fetch).toHaveBeenCalledWith('/api/inventory/uuid-1', expect.anything());
   });
 
   it('shows not found when the request fails', async () => {
-    (fetch as jest.Mock).mockResolvedValue({ ok: false });
+    mockFetchByUrl({ ok: false });
 
     render(<InventoryItemPage uuid="uuid-2" />);
 

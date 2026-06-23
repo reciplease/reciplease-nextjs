@@ -2,9 +2,13 @@ import RecipePreview from '@/components/RecipePreview';
 import Metadata from '@/components/Metadata';
 import Recipe from '@/pages/recipes/[recipeId]';
 import useSWR from 'swr';
+import { fetchOrRedirect } from '@/lib/publicPageFetch';
+import { toRecipe, type BackendRecipe } from '@/lib/recipes';
 
-const fetcher = (url: string): Promise<Recipe[]> =>
-  fetch(url).then((res) => res.json());
+const fetcher = async (url: string): Promise<Recipe[]> => {
+  const backendRecipes = await fetchOrRedirect<BackendRecipe[]>(url);
+  return backendRecipes.map(toRecipe);
+};
 
 export default function Recipes() {
   const { data: recipes, error, isLoading } = useSWR(`/api/recipes`, fetcher);

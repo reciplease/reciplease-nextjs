@@ -9,15 +9,19 @@ const ALL_PROVIDERS: { id: 'google' | 'github'; label: string }[] = [
   { id: 'github', label: 'GitHub' },
 ];
 
+// Sync the reciplease-session cookie before calling through the proxy — needed
+// here too since linking rotates the token (a fresh sign-in just completed).
+const fetcher = async (url: string): Promise<Identities | null> => {
+  await fetch('/api/session-cookie');
+  const res = await fetch(url);
+  return res.ok ? res.json() : null;
+};
+
 export default function AccountSettingsPage() {
-  const { data: session } = useSession();
-  const token = session?.accessToken;
+  const { data: session, status } = useSession();
   const { data: identities, isLoading } = useSWR<Identities | null>(
-    token ? '/api/me/identities' : null,
-    (url: string) =>
-      fetch(url, { headers: { Authorization: `Bearer ${token}` } }).then((res) =>
-        res.ok ? res.json() : null,
-      ),
+    status === 'authenticated' ? '/api/me/identities' : null,
+    fetcher,
   );
 
   const linked = new Set(identities?.providers ?? []);

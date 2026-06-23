@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import Recipes from '@/pages/recipes';
 
+jest.mock('next/router', () => ({ replace: jest.fn(), asPath: '/recipes' }));
 jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; href: string }) => (
   <a href={href}>{children}</a>
 ));
@@ -12,10 +13,9 @@ describe('Recipes list data fetching', () => {
   afterEach(() => (fetch as jest.Mock).mockReset());
 
   it('loads recipes from the API', async () => {
-    const recipes: Recipe[] = [
+    const recipes = [
       {
         recipeId: '333333333333333333333333',
-        recipeShortId: 'short-3',
         name: 'Pizza',
         description: 'Cheesy pizza',
         ingredients: [],
@@ -26,6 +26,7 @@ describe('Recipes list data fetching', () => {
     ];
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
+      status: 200,
       json: async () => recipes,
     });
 
@@ -33,6 +34,6 @@ describe('Recipes list data fetching', () => {
     expect(screen.getByText('Loading...')).toBeInTheDocument();
 
     await waitFor(() => expect(screen.getByText('Pizza')).toBeInTheDocument());
-    expect(fetch).toHaveBeenCalledWith('/api/recipes');
+    expect(fetch).toHaveBeenCalledWith('/api/recipes', expect.anything());
   });
 });

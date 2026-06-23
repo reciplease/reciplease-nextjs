@@ -102,7 +102,7 @@ describe('AccessGate', () => {
 
   it('redirects to /login when the allowlist probe 401s (stale pre-exchange session)', () => {
     useSession.mockReturnValue({ data: { user: {} }, status: 'authenticated' });
-    mockSWRByKey({ '/api/access': { data: { status: 401 }, isLoading: false } });
+    mockSWRByKey({ '/api/houses': { data: { status: 401 }, isLoading: false } });
 
     render(
       <AccessGate>
@@ -116,7 +116,7 @@ describe('AccessGate', () => {
 
   it('shows a checking-access message while the allowlist probe is loading', () => {
     useSession.mockReturnValue({ data: { user: { handle: 'cook' } }, status: 'authenticated' });
-    mockSWRByKey({ '/api/access': { data: undefined, isLoading: true } });
+    mockSWRByKey({ '/api/houses': { data: undefined, isLoading: true } });
 
     render(
       <AccessGate>
@@ -129,7 +129,7 @@ describe('AccessGate', () => {
 
   it('shows a not-allowed message with the user handle when the allowlist probe returns 403', () => {
     useSession.mockReturnValue({ data: { user: { handle: 'cook' } }, status: 'authenticated' });
-    mockSWRByKey({ '/api/access': { data: { status: 403 }, isLoading: false } });
+    mockSWRByKey({ '/api/houses': { data: { status: 403 }, isLoading: false } });
 
     render(
       <AccessGate>
@@ -144,7 +144,7 @@ describe('AccessGate', () => {
 
   it('shows a generic not-allowed message when there is no user handle', () => {
     useSession.mockReturnValue({ data: { user: {} }, status: 'authenticated' });
-    mockSWRByKey({ '/api/access': { data: { status: 403 }, isLoading: false } });
+    mockSWRByKey({ '/api/houses': { data: { status: 403 }, isLoading: false } });
 
     render(
       <AccessGate>
@@ -158,7 +158,7 @@ describe('AccessGate', () => {
   it('shows a checking-access message while /api/me is loading', () => {
     useSession.mockReturnValue({ data: { user: { handle: 'cook' } }, status: 'authenticated' });
     mockSWRByKey({
-      '/api/access': { data: { status: 200 }, isLoading: false },
+      '/api/houses': { data: { status: 200 }, isLoading: false },
       '/api/me': { data: undefined, isLoading: true },
     });
 
@@ -175,7 +175,7 @@ describe('AccessGate', () => {
   it('redirects to /onboarding/handle when /api/me reports no handle', () => {
     useSession.mockReturnValue({ data: { user: { handle: null } }, status: 'authenticated' });
     mockSWRByKey({
-      '/api/access': { data: { status: 200 }, isLoading: false },
+      '/api/houses': { data: { status: 200 }, isLoading: false },
       '/api/me': { data: { id: 'user-1', handle: null }, isLoading: false },
     });
 
@@ -192,7 +192,7 @@ describe('AccessGate', () => {
   it('renders children when the allowlist probe succeeds and /api/me reports a handle', () => {
     useSession.mockReturnValue({ data: { user: { handle: 'cook' } }, status: 'authenticated' });
     mockSWRByKey({
-      '/api/access': { data: { status: 200 }, isLoading: false },
+      '/api/houses': { data: { status: 200 }, isLoading: false },
       '/api/me': { data: { id: 'user-1', handle: 'cook' }, isLoading: false },
     });
 

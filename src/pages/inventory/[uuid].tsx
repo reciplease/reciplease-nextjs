@@ -4,9 +4,11 @@ import Link from 'next/link';
 import Metadata from '@/components/Metadata';
 import { formatDate, formatTimestamp } from '@/lib/formatDate';
 import { toDataUrl } from '@/lib/imageCapture';
+import { useMeasures, findMeasure } from '@/lib/measures';
+import { apiFetch } from '@/lib/houses';
 
 const fetcher = (url: string): Promise<InventoryItem> =>
-  fetch(url).then((res) => {
+  apiFetch(url).then((res) => {
     if (!res.ok) throw new Error('Not found');
     return res.json();
   });
@@ -21,6 +23,7 @@ function isExpired(expiration: string): boolean {
 
 export default function InventoryItemPage({ uuid }: Props) {
   const { data: item, error, isLoading } = useSWR(`/api/inventory/${uuid}`, fetcher);
+  const measures = useMeasures();
 
   if (isLoading) {
     return (
@@ -77,7 +80,7 @@ export default function InventoryItemPage({ uuid }: Props) {
           )}
           <p>
             Amount: {item.amount}{' '}
-            {item.amount === 1 ? item.measure.singular : item.measure.plural}
+            {displayMeasure(item, measures)}
           </p>
           <p className={expired ? 'opacity-60' : ''}>
             Expires: {formatDate(item.expiration)}
@@ -95,6 +98,12 @@ export default function InventoryItemPage({ uuid }: Props) {
       </section>
     </>
   );
+}
+
+function displayMeasure(item: InventoryItem, measures: Measure[]): string {
+  const measure = findMeasure(item.measure, measures);
+  if (!measure) return item.measure;
+  return item.amount === 1 ? measure.singular : measure.plural;
 }
 
 export function getServerSideProps(context: GetServerSidePropsContext) {

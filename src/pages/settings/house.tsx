@@ -1,6 +1,6 @@
 import Metadata from '@/components/Metadata';
 import HouseSwitcher from '@/components/HouseSwitcher';
-import { useActiveHouse, useHouseMembers, usePendingInvites } from '@/lib/houses';
+import { useActiveHouse, useHouseMembers, usePendingInvites, apiFetch } from '@/lib/houses';
 import { signOut } from 'next-auth/react';
 import { useState } from 'react';
 
@@ -48,7 +48,7 @@ export default function HouseSettingsPage() {
     setUpdatingUserId(userId);
     setError(null);
     try {
-      const res = await fetch(`/api/houses/members/${userId}`, {
+      const res = await apiFetch(`/api/houses/members/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role }),
@@ -67,7 +67,7 @@ export default function HouseSettingsPage() {
     setGenerating(true);
     setError(null);
     try {
-      const res = await fetch('/api/houses/invites', {
+      const res = await apiFetch('/api/houses/invites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: newInviteRole }),
@@ -88,7 +88,7 @@ export default function HouseSettingsPage() {
 
   async function deleteInvite(inviteId: string) {
     setError(null);
-    const res = await fetch(`/api/houses/invites/${inviteId}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/houses/invites/${inviteId}`, { method: 'DELETE' });
     if (!res.ok) {
       setError('Could not delete that invite. Please try again.');
       return;

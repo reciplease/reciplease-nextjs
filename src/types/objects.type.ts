@@ -12,9 +12,11 @@ type Recipe = {
 
 // A recipe ingredient is a self-contained spec: it is not linked to any inventory
 // item. Inventory is only paired with a recipe ingredient when a recipe is planned.
+// `measure` is the raw measureId as returned by the backend — components needing
+// to display it look it up via `useMeasures()`/`findMeasure()`.
 type RecipeIngredient = {
   name: string;
-  measure: Measure;
+  measure: MeasureId;
   amount: number;
 };
 
@@ -26,10 +28,11 @@ type CreateRecipeIngredient = {
 
 // A physical pantry item. Carries its own name/measure plus an optional barcode
 // (recorded when scanned) used to suggest items when planning a recipe again.
+// `measure` is the raw measureId as returned by the backend.
 type InventoryItem = {
   uuid: InventoryItemId;
   name: string;
-  measure: Measure;
+  measure: MeasureId;
   amount: number;
   expiration: string;
   barcode?: string;

@@ -1,5 +1,4 @@
 import { shorten } from './recipe-id';
-import { toMeasure } from './measures';
 
 export type BackendIngredient = {
   name: string;
@@ -18,7 +17,12 @@ export type BackendRecipe = {
   updatedAt?: string;
 };
 
-export function toRecipe(b: BackendRecipe, measures: Measure[]): Recipe {
+// The backend returns ingredients/measures as raw measureId strings — no
+// expansion happens here or anywhere else; components that need to display a
+// measure's name look it up via `useMeasures()`/`findMeasure()`. This mapper's
+// only job is deriving the UI-only `recipeShortId` and filling in nullable
+// defaults.
+export function toRecipe(b: BackendRecipe): Recipe {
   return {
     recipeId: b.recipeId,
     recipeShortId: shorten(b.recipeId),
@@ -29,7 +33,7 @@ export function toRecipe(b: BackendRecipe, measures: Measure[]): Recipe {
     steps: b.steps ?? [],
     ingredients: (b.ingredients ?? []).map((i) => ({
       name: i.name,
-      measure: toMeasure(i.measure, measures),
+      measure: i.measure,
       amount: i.amount,
     })),
     updatedAt: b.updatedAt,

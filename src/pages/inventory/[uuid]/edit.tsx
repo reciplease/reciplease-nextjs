@@ -5,9 +5,10 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
 import { compressToBase64, toDataUrl } from '@/lib/imageCapture';
+import { apiFetch } from '@/lib/houses';
 
 const itemFetcher = (url: string): Promise<InventoryItem> =>
-  fetch(url).then((res) => {
+  apiFetch(url).then((res) => {
     if (!res.ok) throw new Error('Not found');
     return res.json();
   });
@@ -58,7 +59,7 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
   const router = useRouter();
 
   const [name, setName] = useState(item.name);
-  const [measureId, setMeasureId] = useState<MeasureId>(item.measure.measureId);
+  const [measureId, setMeasureId] = useState<MeasureId>(item.measure);
   const [amount, setAmount] = useState(String(item.amount));
   const [expiration, setExpiration] = useState(item.expiration);
   const [barcode, setBarcode] = useState(item.barcode ?? '');
@@ -82,7 +83,7 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
     setError(null);
     setDeleting(true);
     try {
-      const res = await fetch(`/api/inventory/${uuid}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/inventory/${uuid}`, { method: 'DELETE' });
       if (!res.ok) {
         setError('Failed to delete item. Please try again.');
         return;
@@ -108,7 +109,7 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
         ...(barcode.trim() ? { barcode: barcode.trim() } : {}),
         ...(image ? { image } : {}),
       };
-      const res = await fetch(`/api/inventory/${uuid}`, {
+      const res = await apiFetch(`/api/inventory/${uuid}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

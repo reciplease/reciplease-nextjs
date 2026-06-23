@@ -1,12 +1,14 @@
 import { useRouter } from 'next/router';
 import Metadata from '@/components/Metadata';
 import RecipeForm, { RecipeFormValues } from '@/components/RecipeForm';
+import { toRecipe, type BackendRecipe } from '@/lib/recipes';
+import { apiFetch } from '@/lib/houses';
 
 export default function NewRecipe() {
   const router = useRouter();
 
   async function handleSubmit(values: RecipeFormValues) {
-    const createRes = await fetch('/api/recipes', {
+    const createRes = await apiFetch('/api/recipes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -19,11 +21,12 @@ export default function NewRecipe() {
     if (!createRes.ok) {
       return 'Failed to create recipe. Please try again.';
     }
-    const recipe: Recipe = await createRes.json();
+    const backendRecipe: BackendRecipe = await createRes.json();
+    const recipe = toRecipe(backendRecipe);
 
     // Ingredients attach one-by-one on the backend.
     for (const ingredient of values.ingredients) {
-      const res = await fetch(`/api/recipes/${recipe.recipeId}/ingredients`, {
+      const res = await apiFetch(`/api/recipes/${recipe.recipeId}/ingredients`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

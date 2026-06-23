@@ -2,12 +2,10 @@
 jest.mock('next/headers', () => ({ cookies: jest.fn() }));
 jest.mock('next-auth/jwt', () => ({ decode: jest.fn() }));
 
-import { backendFetch, accessToken, BACKEND_URL } from '@/lib/backend';
+import { accessToken } from '@/lib/backend';
 
 const { cookies } = require('next/headers');
 const { decode } = require('next-auth/jwt');
-
-global.fetch = jest.fn();
 
 function cookieStore(values: Record<string, string> = {}) {
   return {
@@ -20,7 +18,6 @@ const ORIGINAL_ENV = process.env;
 
 beforeEach(() => {
   process.env = { ...ORIGINAL_ENV, NEXTAUTH_SECRET: 'secret' };
-  (fetch as jest.Mock).mockReset();
   (decode as jest.Mock).mockReset();
   (cookies as jest.Mock).mockReset();
 });
@@ -64,7 +61,6 @@ describe('accessToken', () => {
     (decode as jest.Mock).mockResolvedValue({ reciplaseToken: 'rcpls-jwt' });
 
     expect(await accessToken()).toBe('rcpls-jwt');
-    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('joins chunked session cookies before decoding', async () => {
@@ -85,47 +81,5 @@ describe('accessToken', () => {
 
     expect(await accessToken()).toBe('rcpls-jwt');
     expect(decode).toHaveBeenCalledWith({ token: 'securetok', secret: 'secret' });
-  });
-});
-
-describe('backendFetch', () => {
-  it('adds an Authorization header when signed in', async () => {
-    (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
-    (decode as jest.Mock).mockResolvedValue({ reciplaseToken: 'rcpls-jwt' });
-    (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
-
-    await backendFetch('/api/measures');
-
-    const [url, init] = (fetch as jest.Mock).mock.calls[0];
-    expect(url).toBe(`${BACKEND_URL}/api/measures`);
-    expect((init.headers as Headers).get('Authorization')).toBe('Bearer rcpls-jwt');
-  });
-
-  it('omits the Authorization header when not signed in', async () => {
-    (cookies as jest.Mock).mockResolvedValue(cookieStore());
-    (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
-
-    await backendFetch('/api/measures');
-
-    const [, init] = (fetch as jest.Mock).mock.calls[0];
-    expect((init.headers as Headers).has('Authorization')).toBe(false);
-  });
-
-  it('preserves the method, body and other headers from init', async () => {
-    (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
-    (decode as jest.Mock).mockResolvedValue({ reciplaseToken: 'rcpls-jwt' });
-    (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
-
-    await backendFetch('/api/inventory', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Milk' }),
-    });
-
-    const [, init] = (fetch as jest.Mock).mock.calls[0];
-    expect(init.method).toBe('POST');
-    expect(init.body).toBe(JSON.stringify({ name: 'Milk' }));
-    expect((init.headers as Headers).get('Content-Type')).toBe('application/json');
-    expect((init.headers as Headers).get('Authorization')).toBe('Bearer rcpls-jwt');
   });
 });

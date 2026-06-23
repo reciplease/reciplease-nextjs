@@ -2,9 +2,10 @@ import useSWR from 'swr';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
 import { toDataUrl } from '@/lib/imageCapture';
+import { apiFetch } from '@/lib/houses';
 
 const fetcher = (url: string): Promise<InventoryItem[]> =>
-  fetch(url).then((res) => res.json());
+  apiFetch(url).then((res) => res.json());
 
 function isExpired(expiration: string): boolean {
   return new Date(expiration) < new Date();

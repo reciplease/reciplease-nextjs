@@ -16,14 +16,14 @@ const mockItems: InventoryItem[] = [
   {
     uuid: 'uuid-1',
     name: 'Bread',
-    measure: items,
+    measure: items.measureId,
     amount: 2,
     expiration: '2099-12-31',
   },
   {
     uuid: 'uuid-2',
     name: 'Avocado',
-    measure: items,
+    measure: items.measureId,
     amount: 3,
     expiration: '2099-06-30',
     image: 'ZmFrZS1pbWFnZQ==',
@@ -31,7 +31,7 @@ const mockItems: InventoryItem[] = [
   {
     uuid: 'uuid-3',
     name: 'Flour',
-    measure: grams,
+    measure: grams.measureId,
     amount: 500,
     expiration: '2020-01-01',
   },

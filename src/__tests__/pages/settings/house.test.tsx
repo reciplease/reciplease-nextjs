@@ -1,7 +1,12 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import HouseSettingsPage from '@/pages/settings/house';
 
-jest.mock('@/lib/houses');
+jest.mock('@/lib/houses', () => ({
+  useActiveHouse: jest.fn(),
+  useHouseMembers: jest.fn(),
+  usePendingInvites: jest.fn(),
+  apiFetch: (url: string, init?: RequestInit) => fetch(url, init),
+}));
 jest.mock('@/components/Metadata', () => () => null);
 jest.mock('@/components/HouseSwitcher', () => () => <div data-testid="house-switcher" />);
 jest.mock('next-auth/react');
@@ -89,11 +94,10 @@ describe('HouseSettingsPage', () => {
       const selects = screen.getAllByLabelText('Role');
       fireEvent.change(selects[1], { target: { value: 'OWNER' } });
 
-      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith('/api/houses/members/member-1', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: 'OWNER' }),
-      }));
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+        '/api/houses/members/member-1',
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ role: 'OWNER' }) }),
+      ));
       await waitFor(() => expect(mutateMembers).toHaveBeenCalled());
     });
 
@@ -106,11 +110,10 @@ describe('HouseSettingsPage', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Generate invite' }));
 
-      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith('/api/houses/invites', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: 'READ_ONLY' }),
-      }));
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+        '/api/houses/invites',
+        expect.objectContaining({ method: 'POST', body: JSON.stringify({ role: 'READ_ONLY' }) }),
+      ));
       await waitFor(() =>
         expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/invite/xyz789`),
       );
@@ -124,7 +127,10 @@ describe('HouseSettingsPage', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
-      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith('/api/houses/invites/invite-1', { method: 'DELETE' }));
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+        '/api/houses/invites/invite-1',
+        expect.objectContaining({ method: 'DELETE' }),
+      ));
       await waitFor(() => expect(mutateInvites).toHaveBeenCalled());
     });
 

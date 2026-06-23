@@ -1,9 +1,11 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import NewRecipe from '@/pages/recipes/new';
+import { shorten } from '@/lib/recipe-id';
 
 jest.mock('swr');
 jest.mock('next/router', () => ({ useRouter: jest.fn() }));
 jest.mock('@/components/Metadata', () => () => null);
+jest.mock('@/lib/houses', () => ({ apiFetch: (url: string, init?: RequestInit) => fetch(url, init) }));
 
 const useSWR = require('swr').default as jest.Mock;
 const useRouter = require('next/router').useRouter as jest.Mock;
@@ -11,6 +13,9 @@ global.fetch = jest.fn();
 
 const grams: Measure = { measureId: 'GRAMS', singular: 'gram', plural: 'grams', short: 'g' };
 const items: Measure = { measureId: 'ITEMS', singular: 'item', plural: 'items', short: 'item' };
+
+const RECIPE_ID = '111111111111111111111111';
+const RECIPE_SHORT_ID = shorten(RECIPE_ID);
 
 describe('NewRecipe builder', () => {
   const push = jest.fn();
@@ -83,7 +88,7 @@ describe('NewRecipe builder', () => {
       if (url === '/api/recipes' && opts.method === 'POST') {
         return Promise.resolve({
           ok: true,
-          json: async () => ({ recipeId: 'full-id', recipeShortId: 'short-id' }),
+          json: async () => ({ recipeId: RECIPE_ID }),
         });
       }
       return Promise.resolve({ ok: true, json: async () => ({}) });
@@ -107,13 +112,13 @@ describe('NewRecipe builder', () => {
         }),
       );
       expect(fetch).toHaveBeenCalledWith(
-        '/api/recipes/full-id/ingredients',
+        `/api/recipes/${RECIPE_ID}/ingredients`,
         expect.objectContaining({
           method: 'PUT',
           body: JSON.stringify({ name: 'Beef', measure: 'GRAMS', amount: 500 }),
         }),
       );
-      expect(push).toHaveBeenCalledWith('/recipes/short-id');
+      expect(push).toHaveBeenCalledWith(`/recipes/${RECIPE_SHORT_ID}`);
     });
   });
 
@@ -122,7 +127,7 @@ describe('NewRecipe builder', () => {
       if (url === '/api/recipes' && opts.method === 'POST') {
         return Promise.resolve({
           ok: true,
-          json: async () => ({ recipeId: 'full-id', recipeShortId: 'short-id' }),
+          json: async () => ({ recipeId: RECIPE_ID }),
         });
       }
       return Promise.resolve({ ok: true, json: async () => ({}) });
@@ -137,7 +142,7 @@ describe('NewRecipe builder', () => {
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
-        '/api/recipes/full-id/ingredients',
+        `/api/recipes/${RECIPE_ID}/ingredients`,
         expect.objectContaining({
           method: 'PUT',
           body: JSON.stringify({ name: 'Beef', measure: 'GRAMS', amount: 500 }),
@@ -152,7 +157,7 @@ describe('NewRecipe builder', () => {
       if (url === '/api/recipes' && opts.method === 'POST') {
         return Promise.resolve({
           ok: true,
-          json: async () => ({ recipeId: 'full-id', recipeShortId: 'short-id' }),
+          json: async () => ({ recipeId: RECIPE_ID }),
         });
       }
       return Promise.resolve({ ok: true, json: async () => ({}) });
@@ -167,7 +172,7 @@ describe('NewRecipe builder', () => {
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
-        '/api/recipes/full-id/ingredients',
+        `/api/recipes/${RECIPE_ID}/ingredients`,
         expect.objectContaining({
           method: 'PUT',
           body: JSON.stringify({ name: 'Beef', measure: '', amount: 500 }),
@@ -204,7 +209,7 @@ describe('NewRecipe builder', () => {
       if (url === '/api/recipes' && opts.method === 'POST') {
         return Promise.resolve({
           ok: true,
-          json: async () => ({ recipeId: 'full-id', recipeShortId: 'short-id' }),
+          json: async () => ({ recipeId: RECIPE_ID }),
         });
       }
       return Promise.resolve({ ok: false });

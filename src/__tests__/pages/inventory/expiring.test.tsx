@@ -11,6 +11,13 @@ const useSWR = require('swr').default;
 
 const measure: Measure = { measureId: 'ITEMS', singular: 'item', plural: 'items', short: 'item' };
 
+function mockInventory(state: { isLoading: boolean; data: InventoryItem[] | undefined; error: Error | undefined }) {
+  useSWR.mockImplementation((key: string) => {
+    if (key === '/api/measures') return { data: [measure], isLoading: false };
+    return state;
+  });
+}
+
 // Dates relative to "now" so bucketing is deterministic regardless of when
 // the test runs, without needing to fake the system clock. Built from local
 // Y/M/D (not toISOString, which is UTC and can land on the wrong calendar
@@ -25,27 +32,27 @@ function daysFromNow(days: number): string {
 }
 
 const mockItems: InventoryItem[] = [
-  { uuid: 'uuid-1', name: 'Bread', measure, amount: 2, expiration: daysFromNow(20) },
-  { uuid: 'uuid-2', name: 'Milk', measure, amount: 1, expiration: daysFromNow(-3) },
-  { uuid: 'uuid-3', name: 'Eggs', measure, amount: 6, expiration: daysFromNow(3) },
-  { uuid: 'uuid-4', name: 'Flour', measure, amount: 1, expiration: daysFromNow(90) },
+  { uuid: 'uuid-1', name: 'Bread', measure: measure.measureId, amount: 2, expiration: daysFromNow(20) },
+  { uuid: 'uuid-2', name: 'Milk', measure: measure.measureId, amount: 1, expiration: daysFromNow(-3) },
+  { uuid: 'uuid-3', name: 'Eggs', measure: measure.measureId, amount: 6, expiration: daysFromNow(3) },
+  { uuid: 'uuid-4', name: 'Flour', measure: measure.measureId, amount: 1, expiration: daysFromNow(90) },
 ];
 
 describe('ExpiringInventory', () => {
   it('shows loading state', () => {
-    useSWR.mockReturnValue({ isLoading: true, data: undefined, error: undefined });
+    mockInventory({ isLoading: true, data: undefined, error: undefined });
     render(<ExpiringInventory />);
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
   it('shows error state', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: undefined, error: new Error('fail') });
+    mockInventory({ isLoading: false, data: undefined, error: new Error('fail') });
     render(<ExpiringInventory />);
     expect(screen.getByText('Could not load inventory')).toBeInTheDocument();
   });
 
   it('splits items into "next week" (including already-expired) and "next month" sections', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: mockItems, error: undefined });
+    mockInventory({ isLoading: false, data: mockItems, error: undefined });
     render(<ExpiringInventory />);
 
     const nextWeek = screen.getByRole('heading', { level: 4, name: 'In the next week' });
@@ -62,9 +69,9 @@ describe('ExpiringInventory', () => {
   });
 
   it('greys out a section heading when nothing falls into it', () => {
-    useSWR.mockReturnValue({
+    mockInventory({
       isLoading: false,
-      data: [{ uuid: 'uuid-1', name: 'Eggs', measure, amount: 6, expiration: daysFromNow(3) }],
+      data: [{ uuid: 'uuid-1', name: 'Eggs', measure: measure.measureId, amount: 6, expiration: daysFromNow(3) }],
       error: undefined,
     });
     render(<ExpiringInventory />);
@@ -74,7 +81,7 @@ describe('ExpiringInventory', () => {
   });
 
   it('shows days left instead of a raw date, and flags already-expired items', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: mockItems, error: undefined });
+    mockInventory({ isLoading: false, data: mockItems, error: undefined });
     render(<ExpiringInventory />);
 
     expect(screen.getByText('Expired 3 days ago')).toBeInTheDocument();
@@ -83,19 +90,19 @@ describe('ExpiringInventory', () => {
   });
 
   it('shows quantity for each item', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: mockItems, error: undefined });
+    mockInventory({ isLoading: false, data: mockItems, error: undefined });
     render(<ExpiringInventory />);
     expect(screen.getByText('6 items')).toBeInTheDocument();
   });
 
   it('links back to the pantry view', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: mockItems, error: undefined });
+    mockInventory({ isLoading: false, data: mockItems, error: undefined });
     render(<ExpiringInventory />);
     expect(screen.getByRole('link', { name: /pantry/i })).toHaveAttribute('href', '/inventory');
   });
 
   it('shows empty state message when no items', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: [], error: undefined });
+    mockInventory({ isLoading: false, data: [], error: undefined });
     render(<ExpiringInventory />);
     expect(screen.getByText('No items in inventory')).toBeInTheDocument();
   });

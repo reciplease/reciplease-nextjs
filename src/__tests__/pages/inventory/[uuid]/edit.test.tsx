@@ -20,7 +20,7 @@ const uuid = 'b465af6e-2465-4436-84c1-14f35db68dbf';
 const item: InventoryItem = {
   uuid,
   name: 'Bread',
-  measure: items,
+  measure: items.measureId,
   amount: 1,
   expiration: '2099-12-31',
   barcode: '0123456789012',
@@ -132,7 +132,10 @@ describe('EditInventoryItem page', () => {
       fireEvent.click(screen.getByRole('button', { name: /delete item/i }));
 
       await waitFor(() => {
-        expect(fetch).toHaveBeenCalledWith(`/api/inventory/${uuid}`, { method: 'DELETE' });
+        expect(fetch).toHaveBeenCalledWith(
+          `/api/inventory/${uuid}`,
+          expect.objectContaining({ method: 'DELETE' }),
+        );
         expect(push).toHaveBeenCalledWith('/inventory');
       });
     });

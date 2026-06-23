@@ -18,7 +18,7 @@ describe('InventoryList data fetching', () => {
         {
           uuid: 'uuid-1',
           name: 'Bread',
-          measure: { measureId: 'ITEMS', singular: 'item', plural: 'items', short: 'item' },
+          measure: 'ITEMS',
           amount: 2,
           expiration: '2099-12-31',
         },
@@ -29,6 +29,6 @@ describe('InventoryList data fetching', () => {
     expect(screen.getByText('Loading...')).toBeInTheDocument();
 
     await waitFor(() => expect(screen.getByText('Bread')).toBeInTheDocument());
-    expect(fetch).toHaveBeenCalledWith('/api/inventory');
+    expect(fetch).toHaveBeenCalledWith('/api/inventory', expect.anything());
   });
 });

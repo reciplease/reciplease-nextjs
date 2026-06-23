@@ -6,6 +6,8 @@ export type HouseMember = { userId: string; handle: string | null; role: 'OWNER'
 export type PendingInvite = { id: string; code: string; role: 'OWNER' | 'READ_ONLY'; createdAt: string };
 
 export const HOUSE_COOKIE = 'reciplease-house-id';
+// Mirrors org.reciplease.configuration.HouseAccess.HOUSE_HEADER on the backend.
+export const HOUSE_HEADER = 'X-RCPLS-House-Id';
 
 export function readHouseCookie(): string | undefined {
   if (typeof document === 'undefined') return undefined;
@@ -13,6 +15,19 @@ export function readHouseCookie(): string | undefined {
     .split('; ')
     .find((row) => row.startsWith(`${HOUSE_COOKIE}=`))
     ?.split('=')[1];
+}
+
+// Attaches the active house as a header on every house-scoped backend call.
+// Previously the BFF read the plain reciplease-house-id cookie server-side and
+// translated it into this header; now that calls go straight through the
+// generic proxy, the browser has to set it itself.
+export function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const houseId = readHouseCookie();
+  const headers = new Headers(init.headers);
+  if (houseId && !headers.has(HOUSE_HEADER)) {
+    headers.set(HOUSE_HEADER, houseId);
+  }
+  return fetch(url, { ...init, headers });
 }
 
 const fetcher = (url: string): Promise<House[]> =>
@@ -36,10 +51,10 @@ export function useActiveHouse(): House | undefined {
 }
 
 const membersFetcher = (url: string): Promise<HouseMember[]> =>
-  fetch(url).then((res) => (res.ok ? res.json() : []));
+  apiFetch(url).then((res) => (res.ok ? res.json() : []));
 
 const invitesFetcher = (url: string): Promise<PendingInvite[]> =>
-  fetch(url).then((res) => (res.ok ? res.json() : []));
+  apiFetch(url).then((res) => (res.ok ? res.json() : []));
 
 // Only owners can see/manage members and invites — gate the fetch on that so
 // read-only members never even issue the (403-bound) request.

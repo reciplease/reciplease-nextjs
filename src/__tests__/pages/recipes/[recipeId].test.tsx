@@ -23,11 +23,18 @@ const recipe: Recipe = {
   name: 'Tacos',
   description: 'Tasty tacos',
   ingredients: [
-    { name: 'Beef', measure: grams, amount: 500 },
-    { name: 'Tortilla', measure: items, amount: 1 },
+    { name: 'Beef', measure: grams.measureId, amount: 500 },
+    { name: 'Tortilla', measure: items.measureId, amount: 1 },
   ],
   steps: ['Brown the beef', 'Warm the tortillas'],
 };
+
+function mockRecipe(state: { isLoading: boolean; data: Recipe | undefined; error: Error | undefined }) {
+  useSWR.mockImplementation((key: string) => {
+    if (key === '/api/measures') return { data: [grams, items], isLoading: false };
+    return state;
+  });
+}
 
 describe('RecipePage', () => {
   beforeEach(() => {
@@ -35,26 +42,26 @@ describe('RecipePage', () => {
   });
 
   it('shows loading state', () => {
-    useSWR.mockReturnValue({ isLoading: true, data: undefined, error: undefined });
+    mockRecipe({ isLoading: true, data: undefined, error: undefined });
     render(<RecipePage recipeShortId="EREREREREREREREREREREQ" />);
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
   it('shows not found when error', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: undefined, error: new Error('fail') });
+    mockRecipe({ isLoading: false, data: undefined, error: new Error('fail') });
     render(<RecipePage recipeShortId="EREREREREREREREREREREQ" />);
     expect(screen.getByText('No recipe found')).toBeInTheDocument();
     expect(screen.getByText(JSON.stringify(new Error('fail')))).toBeInTheDocument();
   });
 
   it('shows not found when there is no recipe and no error', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: undefined, error: undefined });
+    mockRecipe({ isLoading: false, data: undefined, error: undefined });
     render(<RecipePage recipeShortId="EREREREREREREREREREREQ" />);
     expect(screen.getByText('No recipe found')).toBeInTheDocument();
   });
 
   it('renders the recipe with ingredients (plural and singular) and steps', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: recipe, error: undefined });
+    mockRecipe({ isLoading: false, data: recipe, error: undefined });
     render(<RecipePage recipeShortId="EREREREREREREREREREREQ" />);
 
     expect(screen.getByText('Tacos')).toBeInTheDocument();
@@ -66,20 +73,20 @@ describe('RecipePage', () => {
   });
 
   it('does not show an edit link when the caller has no active house', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: recipe, error: undefined });
+    mockRecipe({ isLoading: false, data: recipe, error: undefined });
     render(<RecipePage recipeShortId="EREREREREREREREREREREQ" />);
     expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument();
   });
 
   it('does not show an edit link when the caller is only a READ_ONLY member', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: recipe, error: undefined });
+    mockRecipe({ isLoading: false, data: recipe, error: undefined });
     useActiveHouse.mockReturnValue({ id: 'house-1', name: 'Bayview Gardens', role: 'READ_ONLY' });
     render(<RecipePage recipeShortId="EREREREREREREREREREREQ" />);
     expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument();
   });
 
   it('shows an edit link when the caller is an OWNER of the recipe house', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: recipe, error: undefined });
+    mockRecipe({ isLoading: false, data: recipe, error: undefined });
     useActiveHouse.mockReturnValue({ id: 'house-1', name: 'Bayview Gardens', role: 'OWNER' });
     render(<RecipePage recipeShortId="EREREREREREREREREREREQ" />);
     expect(screen.getByRole('link', { name: 'Edit' })).toHaveAttribute(
@@ -89,14 +96,14 @@ describe('RecipePage', () => {
   });
 
   it('does not show an edit link when the caller owns a different house', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: recipe, error: undefined });
+    mockRecipe({ isLoading: false, data: recipe, error: undefined });
     useActiveHouse.mockReturnValue({ id: 'some-other-house', name: 'Other House', role: 'OWNER' });
     render(<RecipePage recipeShortId="EREREREREREREREREREREQ" />);
     expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument();
   });
 
   it('shows the last updated timestamp when present', () => {
-    useSWR.mockReturnValue({
+    mockRecipe({
       isLoading: false,
       data: { ...recipe, updatedAt: '2026-06-10T12:00:00.000Z' },
       error: undefined,
@@ -106,7 +113,7 @@ describe('RecipePage', () => {
   });
 
   it('omits the last updated line when absent', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: recipe, error: undefined });
+    mockRecipe({ isLoading: false, data: recipe, error: undefined });
     render(<RecipePage recipeShortId="EREREREREREREREREREREQ" />);
     expect(screen.queryByText(/Last updated:/)).not.toBeInTheDocument();
   });

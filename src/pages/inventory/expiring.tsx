@@ -2,9 +2,11 @@ import useSWR from 'swr';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
 import { toDataUrl } from '@/lib/imageCapture';
+import { useMeasures, findMeasure } from '@/lib/measures';
+import { apiFetch } from '@/lib/houses';
 
 const fetcher = (url: string): Promise<InventoryItem[]> =>
-  fetch(url).then((res) => res.json());
+  apiFetch(url).then((res) => res.json());
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -31,7 +33,21 @@ function formatDaysLeft(daysLeft: number): string {
 
 type ItemWithDaysLeft = InventoryItem & { daysLeft: number };
 
-function ExpirationSection({ title, items }: { title: string; items: ItemWithDaysLeft[] }) {
+function displayMeasure(item: InventoryItem, measures: Measure[]): string {
+  const measure = findMeasure(item.measure, measures);
+  if (!measure) return item.measure;
+  return item.amount === 1 ? measure.singular : measure.plural;
+}
+
+function ExpirationSection({
+  title,
+  items,
+  measures,
+}: {
+  title: string;
+  items: ItemWithDaysLeft[];
+  measures: Measure[];
+}) {
   return (
     <div>
       <h4 className={`text-lg font-medium${items.length === 0 ? ' opacity-40' : ''}`}>
@@ -54,7 +70,7 @@ function ExpirationSection({ title, items }: { title: string; items: ItemWithDay
                   <h5 className="font-medium">{item.name}</h5>
                   <p>
                     {item.amount}{' '}
-                    {item.amount === 1 ? item.measure.singular : item.measure.plural}
+                    {displayMeasure(item, measures)}
                   </p>
                   <p className="text-sm text-[#666]">{formatDaysLeft(item.daysLeft)}</p>
                 </article>
@@ -69,6 +85,7 @@ function ExpirationSection({ title, items }: { title: string; items: ItemWithDay
 
 export default function ExpiringInventory() {
   const { data: items, error, isLoading } = useSWR('/api/inventory', fetcher);
+  const measures = useMeasures();
 
   if (isLoading) {
     return (
@@ -111,8 +128,8 @@ export default function ExpiringInventory() {
           <p>No items in inventory</p>
         ) : (
           <>
-            <ExpirationSection title="In the next week" items={nextWeek} />
-            <ExpirationSection title="In the next month" items={nextMonth} />
+            <ExpirationSection title="In the next week" items={nextWeek} measures={measures} />
+            <ExpirationSection title="In the next month" items={nextMonth} measures={measures} />
           </>
         )}
       </section>

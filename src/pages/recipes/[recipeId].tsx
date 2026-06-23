@@ -6,9 +6,14 @@ import { full } from '@/lib/recipe-id';
 import { formatTimestamp } from '@/lib/formatDate';
 import { useActiveHouse } from '@/lib/houses';
 import { recipeTitleTransitionName } from '@/lib/viewTransitionNames';
+import { fetchOrRedirect } from '@/lib/publicPageFetch';
+import { toRecipe, type BackendRecipe } from '@/lib/recipes';
+import { useMeasures, findMeasure } from '@/lib/measures';
 
-const fetcher = (url: string): Promise<Recipe> =>
-  fetch(url).then((res) => res.json());
+const fetcher = async (url: string): Promise<Recipe> => {
+  const backendRecipe = await fetchOrRedirect<BackendRecipe>(url);
+  return toRecipe(backendRecipe);
+};
 
 interface Props {
   recipeShortId: RecipeShortId;
@@ -22,6 +27,7 @@ export default function Recipe({ recipeShortId }: Props) {
     isLoading,
   } = useSWR(`/api/recipes/${recipeId}`, fetcher);
   const activeHouse = useActiveHouse();
+  const measures = useMeasures();
   // Editable only if the caller owns the house this recipe actually belongs
   // to — being an OWNER elsewhere doesn't grant edit rights on someone else's
   // (possibly public) recipe.
@@ -86,7 +92,7 @@ export default function Recipe({ recipeShortId }: Props) {
         <ul className="ms-16 list-disc">
           {recipe.ingredients.map((ingredient, index) => (
             <li key={index} className="my-4">
-              {displayIngredient(ingredient)}
+              {displayIngredient(ingredient, measures)}
             </li>
           ))}
         </ul>
@@ -101,15 +107,14 @@ export default function Recipe({ recipeShortId }: Props) {
   );
 }
 
-function displayIngredient(ingredient: RecipeIngredient) {
-  return `${ingredient.name} - ${ingredient.amount} ${displayMeasure(
-    ingredient,
-  )}`;
+function displayIngredient(ingredient: RecipeIngredient, measures: Measure[]) {
+  return `${ingredient.name} - ${ingredient.amount} ${displayMeasure(ingredient, measures)}`;
 }
 
-function displayMeasure(ingredient: RecipeIngredient) {
-  if (ingredient.amount == 1) return ingredient.measure.singular;
-  return ingredient.measure.plural;
+function displayMeasure(ingredient: RecipeIngredient, measures: Measure[]) {
+  const measure = findMeasure(ingredient.measure, measures);
+  if (!measure) return ingredient.measure;
+  return ingredient.amount == 1 ? measure.singular : measure.plural;
 }
 
 export function getServerSideProps(context: GetServerSidePropsContext) {

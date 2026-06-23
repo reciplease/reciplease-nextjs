@@ -19,7 +19,7 @@ describe('OnboardingHandle', () => {
     (fetch as jest.Mock).mockReset();
   });
 
-  it('submits the handle with the bearer token and redirects to /recipes on success', async () => {
+  it('submits the handle and redirects to /recipes on success', async () => {
     (fetch as jest.Mock).mockResolvedValue({ status: 200, ok: true });
 
     render(<OnboardingHandle />);
@@ -29,7 +29,7 @@ describe('OnboardingHandle', () => {
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/recipes'));
     expect(fetch).toHaveBeenCalledWith('/api/me/handle', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer rcpls-jwt' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ handle: 'chef🍳' }),
     });
   });

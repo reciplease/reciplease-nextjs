@@ -7,6 +7,7 @@ import MeasureCombobox from '@/components/scanner/MeasureCombobox';
 import { lookupProduct } from '@/lib/openfoodfacts';
 import { compressToBase64, toDataUrl } from '@/lib/imageCapture';
 import { formatDate } from '@/lib/formatDate';
+import { apiFetch } from '@/lib/houses';
 
 const measuresFetcher = (url: string): Promise<Measure[]> =>
   fetch(url).then((r) => r.json());
@@ -69,13 +70,13 @@ export default function ScanPage() {
     let source: 'inventory' | 'openfoodfacts' | null = null;
 
     try {
-      const res = await fetch('/api/inventory');
+      const res = await apiFetch('/api/inventory');
       if (res.ok) {
         const items: InventoryItem[] = await res.json();
         const prior = items.find((it) => it.barcode === scanned);
         if (prior) {
           suggestedName = prior.name;
-          suggestedMeasure = prior.measure;
+          suggestedMeasure = measures.find((m) => m.measureId === prior.measure) ?? null;
           source = 'inventory';
         }
       }
@@ -164,7 +165,7 @@ export default function ScanPage() {
         ...(barcode ? { barcode } : {}),
         ...(image ? { image } : {}),
       };
-      const res = await fetch('/api/inventory', {
+      const res = await apiFetch('/api/inventory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

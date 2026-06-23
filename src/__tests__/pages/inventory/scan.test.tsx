@@ -172,14 +172,14 @@ describe('ScanPage', () => {
     it('suggests the name and measure from a previously inventoried item with the same barcode', async () => {
       useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
       (fetch as jest.Mock).mockImplementation((url: string, opts?: { method?: string }) => {
-        if (url === '/api/inventory' && !opts) {
+        if (url === '/api/inventory' && opts?.method === undefined) {
           return Promise.resolve({
             ok: true,
             json: async () => [
               {
                 uuid: 'u1',
                 name: 'Whole Milk',
-                measure: mockMeasures[0],
+                measure: mockMeasures[0].measureId,
                 amount: 1,
                 expiration: '2027-01-01',
                 barcode: '1234567890123',
@@ -204,14 +204,14 @@ describe('ScanPage', () => {
       useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
       (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: ['Oat Milk', 'Oatly Oat Milk'], measureId: null });
       (fetch as jest.Mock).mockImplementation((url: string, opts?: { method?: string }) => {
-        if (url === '/api/inventory' && !opts) {
+        if (url === '/api/inventory' && opts?.method === undefined) {
           return Promise.resolve({
             ok: true,
             json: async () => [
               {
                 uuid: 'u1',
                 name: 'Whole Milk',
-                measure: mockMeasures[0],
+                measure: mockMeasures[0].measureId,
                 amount: 1,
                 expiration: '2027-01-01',
                 barcode: 'a-different-barcode',
@@ -232,7 +232,7 @@ describe('ScanPage', () => {
       useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
       (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: ['Oat Milk', 'Oatly Oat Milk'], measureId: null });
       (fetch as jest.Mock).mockImplementation((url: string, opts?: { method?: string }) => {
-        if (url === '/api/inventory' && !opts) {
+        if (url === '/api/inventory' && opts?.method === undefined) {
           return Promise.resolve({ ok: false });
         }
         return Promise.resolve({ ok: true, json: async () => ({}) });

@@ -4,7 +4,10 @@ import { full } from '@/lib/recipe-id';
 import { GetServerSidePropsContext } from 'next';
 
 jest.mock('swr');
-jest.mock('@/lib/houses');
+jest.mock('@/lib/houses', () => ({
+  useActiveHouse: jest.fn(),
+  apiFetch: (url: string, init?: RequestInit) => fetch(url, init),
+}));
 jest.mock('next/router', () => ({ useRouter: jest.fn() }));
 jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; href: string }) => (
   <a href={href}>{children}</a>
@@ -30,8 +33,8 @@ const recipe: Recipe = {
   name: 'Tacos',
   description: 'Tasty tacos',
   ingredients: [
-    { name: 'Beef', measure: grams, amount: 500 },
-    { name: 'Tortilla', measure: items, amount: 1 },
+    { name: 'Beef', measure: grams.measureId, amount: 500 },
+    { name: 'Tortilla', measure: items.measureId, amount: 1 },
   ],
   steps: ['Brown the beef', 'Warm the tortillas'],
 };

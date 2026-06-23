@@ -12,7 +12,7 @@ const useRouter = require('next/router').useRouter as jest.Mock;
 global.fetch = jest.fn();
 
 // Each test gets its own fresh SWR cache (provider: () => new Map()) so one
-// test's cached /api/access or /api/me response can't leak into the next —
+// test's cached /api/houses or /api/me response can't leak into the next —
 // SWR's cache is otherwise a module-level singleton shared across tests.
 function renderGated(children: ReactNode) {
   return render(
@@ -29,10 +29,11 @@ describe('AccessGate access probe', () => {
 
   afterEach(() => (fetch as jest.Mock).mockReset());
 
-  it('probes /api/access and /api/me and renders children once both resolve favourably', async () => {
+  it('syncs the session cookie, probes /api/houses and /api/me, and renders children once both resolve favourably', async () => {
     useSession.mockReturnValue({ data: { user: { handle: 'cook' } }, status: 'authenticated' });
     (fetch as jest.Mock).mockImplementation((url: string) => {
-      if (url === '/api/access') return Promise.resolve({ status: 200 });
+      if (url === '/api/session-cookie') return Promise.resolve({ status: 204 });
+      if (url === '/api/houses') return Promise.resolve({ status: 200 });
       if (url === '/api/me') {
         return Promise.resolve({ ok: true, json: async () => ({ id: 'user-1', handle: 'cook' }) });
       }
@@ -43,7 +44,8 @@ describe('AccessGate access probe', () => {
 
     expect(screen.getByText('Checking access…')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('App content')).toBeInTheDocument());
-    expect(fetch).toHaveBeenCalledWith('/api/access');
+    expect(fetch).toHaveBeenCalledWith('/api/session-cookie');
+    expect(fetch).toHaveBeenCalledWith('/api/houses');
     expect(fetch).toHaveBeenCalledWith('/api/me');
   });
 
@@ -52,7 +54,8 @@ describe('AccessGate access probe', () => {
     useRouter.mockReturnValue({ replace, pathname: '/recipes' });
     useSession.mockReturnValue({ data: { user: { handle: null } }, status: 'authenticated' });
     (fetch as jest.Mock).mockImplementation((url: string) => {
-      if (url === '/api/access') return Promise.resolve({ status: 200 });
+      if (url === '/api/session-cookie') return Promise.resolve({ status: 204 });
+      if (url === '/api/houses') return Promise.resolve({ status: 200 });
       if (url === '/api/me') {
         return Promise.resolve({ ok: true, json: async () => ({ id: 'user-1', handle: null }) });
       }

@@ -4,13 +4,6 @@ import { BACKEND_URL } from '@/lib/backend-url';
 
 export { BACKEND_URL };
 
-// Mirrors org.reciplease.configuration.HouseAccess.HOUSE_HEADER on the backend.
-export const HOUSE_HEADER = 'X-RCPLS-House-Id';
-// The browser-side cookie the house switcher writes; read here so server-side
-// BFF route handlers can forward the active house on every backend call
-// without each route needing to know about it.
-export const HOUSE_COOKIE = 'reciplease-house-id';
-
 type CookieStore = Awaited<ReturnType<typeof cookies>>;
 
 /**
@@ -64,22 +57,4 @@ export async function accessToken(): Promise<string | undefined> {
     return undefined;
   }
   return token?.reciplaseToken as string | undefined;
-}
-
-export async function backendFetch(
-  path: string,
-  init?: RequestInit,
-): Promise<Response> {
-  const token = await accessToken();
-  const headers = new Headers(init?.headers);
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-  if (!headers.has(HOUSE_HEADER)) {
-    const houseId = (await cookies()).get(HOUSE_COOKIE)?.value;
-    if (houseId) {
-      headers.set(HOUSE_HEADER, houseId);
-    }
-  }
-  return fetch(`${BACKEND_URL}${path}`, { ...init, headers });
 }

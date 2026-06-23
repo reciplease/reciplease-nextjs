@@ -8,8 +8,14 @@ import styles from '@/components/AccessGate.module.scss';
 type Access = { status: number };
 type Me = { id: string; handle: string | null };
 
-const probe = (url: string): Promise<Access> =>
-  fetch(url).then((res) => ({ status: res.status }));
+// Sync the reciplease-session cookie (from the NextAuth-held token) before
+// probing, since the generic API proxy forwards whatever cookie the browser
+// currently has — a freshly-signed-in browser may not have it yet.
+const probe = async (url: string): Promise<Access> => {
+  await fetch('/api/session-cookie');
+  const res = await fetch(url);
+  return { status: res.status };
+};
 
 const meFetcher = (url: string): Promise<Me | null> =>
   fetch(url).then((res) => (res.ok ? res.json() : null));
@@ -23,13 +29,16 @@ function Centered({ children }: { children: ReactNode }) {
  * having set a handle.
  *
  * - Not signed in: redirect to /login (middleware also redirects here).
- * - Signed in: probe the backend. A 200 renders the app; a 403 means the
- *   account is valid but not on the allowlist, so we show a "not allowed"
- *   notice. A 401 means our bearer token is missing/invalid even though
- *   NextAuth thinks we're signed in — this happens for sessions that predate
- *   the Reciplease-JWT exchange (no `account` event fires for an
- *   already-valid session, so it never got one) — so we send those back
- *   through /login too, which forces a fresh OAuth handshake and mints one.
+ * - Signed in: sync the reciplease-session cookie (see /api/session-cookie) then
+ *   probe a backend endpoint that actually enforces the allowlist
+ *   (`GET /api/houses`, via the generic API proxy — there's no synthetic
+ *   `/api/access` anymore). A 200 renders the app; a 403 means the account is
+ *   valid but not on the allowlist, so we show a "not allowed" notice. A 401
+ *   means our token is missing/invalid even though NextAuth thinks we're signed
+ *   in — this happens for sessions that predate the Reciplease-JWT exchange (no
+ *   `account` event fires for an already-valid session, so it never got one) —
+ *   so we send those back through /login too, which forces a fresh OAuth
+ *   handshake and mints one.
  * - Allowed but no handle yet (checked fresh via /api/me, since the
  *   NextAuth-session-cached handle can be stale right after onboarding sets
  *   one): redirect to the one-time handle setup page instead of rendering
@@ -47,7 +56,7 @@ export default function AccessGate({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   const { data, isLoading } = useSWR<Access>(
-    !authDisabled && status === 'authenticated' ? '/api/access' : null,
+    !authDisabled && status === 'authenticated' ? '/api/houses' : null,
     probe,
   );
 
