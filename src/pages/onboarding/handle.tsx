@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { useSession } from 'next-auth/react';
 import Head from 'next/head';
 
 // Same post-login destination login.tsx defaults to when there's no explicit
@@ -9,7 +8,6 @@ const HOME = '/recipes';
 
 export default function OnboardingHandle() {
   const router = useRouter();
-  const { data: session } = useSession();
   const [handle, setHandle] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,10 +20,7 @@ export default function OnboardingHandle() {
     try {
       const res = await fetch('/api/me/handle', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ handle: handle.trim() }),
       });
       if (res.status === 409) {
