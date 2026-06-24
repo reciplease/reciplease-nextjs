@@ -6,23 +6,29 @@ import type { ReactNode } from 'react';
 import styles from '@/components/AccessGate.module.scss';
 
 type Access = { status: number };
-type Me = { id: string; handle: string | null };
+type Me = { status: number; handle: string | null };
 
-// Distinct SWR key so this allowlist probe does NOT share a cache entry with
+// Distinct SWR key so this access probe does NOT share a cache entry with
 // useHouses() (which also fetches /api/houses, in the Header on every page). If
 // they collided, SWR would dedupe to a single fetcher and AccessGate could get
 // useHouses' array shape instead of {status}, and hang on "Checking access".
-const PROBE_KEY = 'access-gate:allowlist-probe';
+const PROBE_KEY = 'access-gate:house-probe';
 
 const probe = async (): Promise<Access> => {
   const res = await fetch('/api/houses');
   return { status: res.status };
 };
 
+// Returns the status alongside the handle so the gate can tell apart "no handle
+// yet" (200) from "this token's user no longer exists" (404 — e.g. the account
+// was deleted), which needs a fresh sign-in, not the handle page.
 const meFetcher = async (url: string): Promise<Me> => {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
-  return res.json();
+  if (res.status === 200) {
+    const body = await res.json();
+    return { status: 200, handle: body.handle ?? null };
+  }
+  return { status: res.status, handle: null };
 };
 
 function Centered({ children }: { children: ReactNode }) {
@@ -67,15 +73,6 @@ export default function AccessGate({ children }: { children: ReactNode }) {
     probe,
   );
 
-  const needsReauth =
-    status === 'unauthenticated' || !!session?.error || data?.status === 401;
-
-  useEffect(() => {
-    if (!authDisabled && needsReauth) {
-      router.replace(`/login?callbackUrl=${encodeURIComponent(router.asPath)}`);
-    }
-  }, [authDisabled, needsReauth, router]);
-
   const allowed = !authDisabled && status === 'authenticated' && data?.status === 200;
   const {
     data: me,
@@ -83,6 +80,19 @@ export default function AccessGate({ children }: { children: ReactNode }) {
     isLoading: meLoading,
     mutate: retryMe,
   } = useSWR<Me>(allowed ? '/api/me' : null, meFetcher);
+
+  // A 404/401 from /api/me means the token's user no longer exists (deleted
+  // account / stale session): a fresh sign-in re-creates the user, so treat it
+  // like any other reauth case.
+  const meStale = me?.status === 401 || me?.status === 404;
+  const needsReauth =
+    status === 'unauthenticated' || !!session?.error || data?.status === 401 || meStale;
+
+  useEffect(() => {
+    if (!authDisabled && needsReauth) {
+      router.replace(`/login?callbackUrl=${encodeURIComponent(router.asPath)}`);
+    }
+  }, [authDisabled, needsReauth, router]);
 
   if (authDisabled) {
     return <>{children}</>;
@@ -115,8 +125,8 @@ export default function AccessGate({ children }: { children: ReactNode }) {
         <h1>Not allowed</h1>
         <p>
           {session?.user?.handle
-            ? `${session.user.handle} isn't on the Reciplease allowlist.`
-            : "This account isn't on the Reciplease allowlist."}
+            ? `${session.user.handle} doesn't have access yet — you need an invite to a house.`
+            : 'This account doesn’t have access yet — you need an invite to a house.'}
         </p>
         <button onClick={() => signOut()}>Sign out</button>
       </Centered>
@@ -136,7 +146,7 @@ export default function AccessGate({ children }: { children: ReactNode }) {
     return <Centered>Checking access…</Centered>;
   }
 
-  if (!me.handle) {
+  if (me.status === 200 && !me.handle) {
     router.replace('/onboarding/handle');
     return <Centered>Setting up your account…</Centered>;
   }

@@ -34,7 +34,7 @@ describe('AccessGate access probe', () => {
     (fetch as jest.Mock).mockImplementation((url: string) => {
       if (url === '/api/houses') return Promise.resolve({ status: 200 });
       if (url === '/api/me') {
-        return Promise.resolve({ ok: true, json: async () => ({ id: 'user-1', handle: 'cook' }) });
+        return Promise.resolve({ status: 200, json: async () => ({ id: 'user-1', handle: 'cook' }) });
       }
       return Promise.reject(new Error(`unexpected fetch: ${url}`));
     });
@@ -54,7 +54,7 @@ describe('AccessGate access probe', () => {
     (fetch as jest.Mock).mockImplementation((url: string) => {
       if (url === '/api/houses') return Promise.resolve({ status: 200 });
       if (url === '/api/me') {
-        return Promise.resolve({ ok: true, json: async () => ({ id: 'user-1', handle: null }) });
+        return Promise.resolve({ status: 200, json: async () => ({ id: 'user-1', handle: null }) });
       }
       return Promise.reject(new Error(`unexpected fetch: ${url}`));
     });

@@ -20,6 +20,10 @@ const useSWR = require('swr').default;
 const { useSession } = require('next-auth/react');
 const useRouter = require('next/router').useRouter as jest.Mock;
 
+jest.mock('@/lib/navigate', () => ({ hardNavigate: jest.fn() }));
+const { hardNavigate } = require('@/lib/navigate') as { hardNavigate: jest.Mock };
+beforeEach(() => hardNavigate.mockClear());
+
 describe('getServerSideProps', () => {
   afterEach(() => jest.restoreAllMocks());
 
@@ -87,10 +91,18 @@ describe('InvitePage', () => {
     expect(screen.queryByText(/google/i)).not.toBeInTheDocument();
   });
 
+  // After a successful accept the page checks /api/me and full-navigates.
+  function mockAcceptThenMe(handle: string | null) {
+    global.fetch = jest.fn().mockImplementation((url: string) => {
+      if (url === '/api/me') return Promise.resolve({ ok: true, json: async () => ({ handle }) });
+      return Promise.resolve({ ok: true });
+    });
+  }
+
   it('requires an explicit accept when already signed in (no auto-accept)', async () => {
     useSession.mockReturnValue({ status: 'authenticated' });
     mockPreview();
-    global.fetch = jest.fn().mockResolvedValue({ ok: true });
+    mockAcceptThenMe('chef');
 
     render(<InvitePage code="abc123" initialPreview={preview} />);
 
@@ -104,11 +116,22 @@ describe('InvitePage', () => {
     );
   });
 
+  it('sends a brand-new user (no handle) to onboarding after accepting', async () => {
+    useSession.mockReturnValue({ status: 'authenticated' });
+    mockPreview();
+    mockAcceptThenMe(null);
+
+    render(<InvitePage code="abc123" initialPreview={preview} />);
+    fireEvent.click(screen.getByRole('button', { name: /accept invite/i }));
+
+    await waitFor(() => expect(hardNavigate).toHaveBeenCalledWith('/onboarding/handle'));
+  });
+
   it('auto-accepts when returning from sign-in with autoaccept=true', async () => {
     useRouter.mockReturnValue({ push: jest.fn(), query: { autoaccept: 'true' } });
     useSession.mockReturnValue({ status: 'authenticated' });
     mockPreview();
-    global.fetch = jest.fn().mockResolvedValue({ ok: true });
+    mockAcceptThenMe('chef');
 
     render(<InvitePage code="abc123" initialPreview={preview} />);
 
@@ -117,5 +140,6 @@ describe('InvitePage', () => {
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith('/api/invites/abc123/accept', { method: 'POST' }),
     );
+    await waitFor(() => expect(hardNavigate).toHaveBeenCalledWith('/recipes'));
   });
 });

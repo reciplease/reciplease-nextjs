@@ -6,6 +6,7 @@ import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
 import useSWR from 'swr';
 import { useEffect, useState } from 'react';
+import { hardNavigate } from '@/lib/navigate';
 
 type InvitePreview = { houseId: string; houseName: string };
 
@@ -47,7 +48,12 @@ export default function InvitePage({ code, initialPreview }: Props) {
         );
         return;
       }
-      router.push('/recipes');
+      // A brand-new user (signed up via this invite) has no handle yet, and
+      // /recipes is public so it wouldn't prompt for one. Send them to the
+      // handle setup; existing users with a handle go to the app. Full nav so
+      // the freshly-minted membership/handle are read without stale caches.
+      const me = await fetch('/api/me').then((r) => (r.ok ? r.json() : null));
+      hardNavigate(me && !me.handle ? '/onboarding/handle' : '/recipes');
     } catch {
       setAcceptError('Something went wrong accepting this invite. Please try again.');
     } finally {

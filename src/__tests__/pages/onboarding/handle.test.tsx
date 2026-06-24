@@ -9,6 +9,9 @@ const useRouter = require('next/router').useRouter as jest.Mock;
 
 global.fetch = jest.fn();
 
+jest.mock('@/lib/navigate', () => ({ hardNavigate: jest.fn() }));
+const { hardNavigate } = require('@/lib/navigate') as { hardNavigate: jest.Mock };
+
 describe('OnboardingHandle', () => {
   const replace = jest.fn();
 
@@ -16,17 +19,18 @@ describe('OnboardingHandle', () => {
     useRouter.mockReturnValue({ replace });
     useSession.mockReturnValue({ data: { accessToken: 'rcpls-jwt' } });
     replace.mockClear();
+    hardNavigate.mockClear();
     (fetch as jest.Mock).mockReset();
   });
 
-  it('submits the handle and redirects to /recipes on success', async () => {
+  it('submits the handle and reloads to /recipes on success', async () => {
     (fetch as jest.Mock).mockResolvedValue({ status: 200, ok: true });
 
     render(<OnboardingHandle />);
     fireEvent.change(screen.getByLabelText('Handle'), { target: { value: 'chef🍳' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save handle' }));
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/recipes'));
+    await waitFor(() => expect(hardNavigate).toHaveBeenCalledWith('/recipes'));
     expect(fetch).toHaveBeenCalledWith('/api/me/handle', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

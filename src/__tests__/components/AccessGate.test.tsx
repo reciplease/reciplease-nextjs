@@ -104,7 +104,7 @@ describe('AccessGate', () => {
 
   it('redirects to /login when the allowlist probe 401s (stale pre-exchange session)', () => {
     useSession.mockReturnValue({ data: { user: {} }, status: 'authenticated' });
-    mockSWRByKey({ 'access-gate:allowlist-probe': { data: { status: 401 }, isLoading: false } });
+    mockSWRByKey({ 'access-gate:house-probe': { data: { status: 401 }, isLoading: false } });
 
     render(
       <AccessGate>
@@ -118,7 +118,7 @@ describe('AccessGate', () => {
 
   it('shows a checking-access message while the allowlist probe is loading', () => {
     useSession.mockReturnValue({ data: { user: { handle: 'cook' } }, status: 'authenticated' });
-    mockSWRByKey({ 'access-gate:allowlist-probe': { data: undefined, isLoading: true } });
+    mockSWRByKey({ 'access-gate:house-probe': { data: undefined, isLoading: true } });
 
     render(
       <AccessGate>
@@ -133,7 +133,7 @@ describe('AccessGate', () => {
     useSession.mockReturnValue({ data: { user: { handle: 'cook' } }, status: 'authenticated' });
     const retryProbe = jest.fn();
     mockSWRByKey({
-      'access-gate:allowlist-probe': { data: undefined, isLoading: false, error: new Error('network down'), mutate: retryProbe },
+      'access-gate:house-probe': { data: undefined, isLoading: false, error: new Error('network down'), mutate: retryProbe },
     });
 
     render(
@@ -152,7 +152,7 @@ describe('AccessGate', () => {
     useSession.mockReturnValue({ data: { user: { handle: 'cook' } }, status: 'authenticated' });
     const retryMe = jest.fn();
     mockSWRByKey({
-      'access-gate:allowlist-probe': { data: { status: 200 }, isLoading: false },
+      'access-gate:house-probe': { data: { status: 200 }, isLoading: false },
       '/api/me': { data: undefined, isLoading: false, error: new Error('network down'), mutate: retryMe },
     });
 
@@ -170,7 +170,7 @@ describe('AccessGate', () => {
 
   it('shows a not-allowed message with the user handle when the allowlist probe returns 403', () => {
     useSession.mockReturnValue({ data: { user: { handle: 'cook' } }, status: 'authenticated' });
-    mockSWRByKey({ 'access-gate:allowlist-probe': { data: { status: 403 }, isLoading: false } });
+    mockSWRByKey({ 'access-gate:house-probe': { data: { status: 403 }, isLoading: false } });
 
     render(
       <AccessGate>
@@ -178,14 +178,14 @@ describe('AccessGate', () => {
       </AccessGate>,
     );
 
-    expect(screen.getByText("cook isn't on the Reciplease allowlist.")).toBeInTheDocument();
+    expect(screen.getByText(/cook doesn't have access yet/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(signOut).toHaveBeenCalled();
   });
 
   it('shows a generic not-allowed message when there is no user handle', () => {
     useSession.mockReturnValue({ data: { user: {} }, status: 'authenticated' });
-    mockSWRByKey({ 'access-gate:allowlist-probe': { data: { status: 403 }, isLoading: false } });
+    mockSWRByKey({ 'access-gate:house-probe': { data: { status: 403 }, isLoading: false } });
 
     render(
       <AccessGate>
@@ -193,13 +193,13 @@ describe('AccessGate', () => {
       </AccessGate>,
     );
 
-    expect(screen.getByText("This account isn't on the Reciplease allowlist.")).toBeInTheDocument();
+    expect(screen.getByText(/This account doesn.t have access yet/)).toBeInTheDocument();
   });
 
   it('shows a checking-access message while /api/me is loading', () => {
     useSession.mockReturnValue({ data: { user: { handle: 'cook' } }, status: 'authenticated' });
     mockSWRByKey({
-      'access-gate:allowlist-probe': { data: { status: 200 }, isLoading: false },
+      'access-gate:house-probe': { data: { status: 200 }, isLoading: false },
       '/api/me': { data: undefined, isLoading: true },
     });
 
@@ -216,8 +216,8 @@ describe('AccessGate', () => {
   it('redirects to /onboarding/handle when /api/me reports no handle', () => {
     useSession.mockReturnValue({ data: { user: { handle: null } }, status: 'authenticated' });
     mockSWRByKey({
-      'access-gate:allowlist-probe': { data: { status: 200 }, isLoading: false },
-      '/api/me': { data: { id: 'user-1', handle: null }, isLoading: false },
+      'access-gate:house-probe': { data: { status: 200 }, isLoading: false },
+      '/api/me': { data: { status: 200, handle: null }, isLoading: false },
     });
 
     render(
@@ -233,8 +233,8 @@ describe('AccessGate', () => {
   it('renders children when the allowlist probe succeeds and /api/me reports a handle', () => {
     useSession.mockReturnValue({ data: { user: { handle: 'cook' } }, status: 'authenticated' });
     mockSWRByKey({
-      'access-gate:allowlist-probe': { data: { status: 200 }, isLoading: false },
-      '/api/me': { data: { id: 'user-1', handle: 'cook' }, isLoading: false },
+      'access-gate:house-probe': { data: { status: 200 }, isLoading: false },
+      '/api/me': { data: { status: 200, handle: 'cook' }, isLoading: false },
     });
 
     render(

@@ -6,7 +6,15 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Layout from '@/components/Layout';
 import AccessGate from '@/components/AccessGate';
-import { useViewTransitionRouter } from '@/lib/viewTransitions';
+
+// NOTE: Cross-page View Transitions were removed. On the Pages Router they have
+// to be driven manually (open on routeChangeStart, hold the updateCallback promise
+// until the route commits), and that holds the DOM hostage to the browser's ~4s
+// update-callback timeout whenever a navigation doesn't resolve it cleanly —
+// causing intermittent multi-second input freezes. Re-add them via the App
+// Router's native useViewTransition / Link integration after migrating, where the
+// framework owns the lifecycle. (Per-element `view-transition-name`s left in place
+// — see lib/viewTransitionNames.ts — they're inert without a running transition.)
 
 // Local-only profile: NEXT_PUBLIC_FAKE_AUTH=true injects a signed-in session
 // (user@reciplease.org) so the authenticated UI is reachable without Google.
@@ -25,7 +33,6 @@ export default function App({
                               pageProps,
                             }: AppProps<{ session?: Session }>) {
   const router = useRouter();
-  useViewTransitionRouter(router);
   // The login page renders standalone (no chrome, no AccessGate).
   // login and the scanner are full-screen standalone pages (no header/layout chrome).
   // The handle onboarding page must also stay outside AccessGate, since

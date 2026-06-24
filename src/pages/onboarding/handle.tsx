@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { hardNavigate } from '@/lib/navigate';
 
 // Same post-login destination login.tsx defaults to when there's no explicit
 // callbackUrl.
@@ -31,7 +32,11 @@ export default function OnboardingHandle() {
         setError('Something went wrong. Please try again.');
         return;
       }
-      await router.replace(HOME);
+      // Full reload (not router.replace) so the new handle is read fresh: the
+      // handle is cached in SWR (/api/me), and a client-side nav would let
+      // AccessGate see the stale null handle and bounce straight back here — an
+      // infinite onboarding loop.
+      hardNavigate(HOME);
     } finally {
       setSubmitting(false);
     }
