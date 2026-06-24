@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import useSWR from 'swr';
-
-const fetcher = (url: string): Promise<Measure[]> => fetch(url).then((r) => r.json());
+import { useMeasures } from '@/lib/measures';
 
 type Props = {
   value: Measure | null;
@@ -11,7 +9,7 @@ type Props = {
 // Picker over the static measure catalog (served from a backend enum). Measures
 // are fixed reference data, so there's no "create" path — just search and select.
 export default function MeasureCombobox({ value, onChange }: Props) {
-  const { data: measures = [] } = useSWR<Measure[]>('/api/measures', fetcher);
+  const measures = useMeasures();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);

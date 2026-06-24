@@ -1,5 +1,6 @@
 import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
+import { ensureSessionCookie } from '@/lib/sessionCookie';
 
 export type House = { id: string; name: string; role: 'OWNER' | 'READ_ONLY' };
 export type HouseMember = { userId: string; handle: string | null; role: 'OWNER' | 'READ_ONLY' };
@@ -17,11 +18,14 @@ export function readHouseCookie(): string | undefined {
     ?.split('=')[1];
 }
 
-// Attaches the active house as a header on every house-scoped backend call.
-// Previously the BFF read the plain reciplease-house-id cookie server-side and
-// translated it into this header; now that calls go straight through the
-// generic proxy, the browser has to set it itself.
-export function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
+// Every authenticated backend call goes through here. Two jobs:
+//  1. Ensure the reciplease-session cookie has been synced (the proxy needs it
+//     to authenticate the call — see ensureSessionCookie).
+//  2. Attach the active house as a header. Previously the BFF read the plain
+//     reciplease-house-id cookie server-side and translated it into this header;
+//     now that calls go straight through the generic proxy, the browser sets it.
+export async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  await ensureSessionCookie();
   const houseId = readHouseCookie();
   const headers = new Headers(init.headers);
   if (houseId && !headers.has(HOUSE_HEADER)) {
@@ -31,7 +35,7 @@ export function apiFetch(url: string, init: RequestInit = {}): Promise<Response>
 }
 
 const fetcher = (url: string): Promise<House[]> =>
-  fetch(url).then((res) => (res.ok ? res.json() : []));
+  apiFetch(url).then((res) => (res.ok ? res.json() : []));
 
 export function useHouses() {
   const { status } = useSession();

@@ -1,9 +1,6 @@
 import { FormEvent, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
-import useSWR from 'swr';
-
-const fetcher = <T,>(url: string): Promise<T> =>
-  fetch(url).then((res) => res.json());
+import { useMeasures } from '@/lib/measures';
 
 type IngredientRowState = {
   key: number;
@@ -155,7 +152,7 @@ export default function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const { data: measures } = useSWR<Measure[]>('/api/measures', fetcher);
+  const measures = useMeasures();
 
   function setRowName(key: number, value: string) {
     setRows((prev) => {

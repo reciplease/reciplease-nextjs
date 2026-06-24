@@ -11,7 +11,7 @@ describe('MeasureCombobox measures fetcher', () => {
   afterEach(() => (fetch as jest.Mock).mockReset());
 
   it('fetches /api/measures and lists the result once it resolves', async () => {
-    (fetch as jest.Mock).mockResolvedValue({ json: async () => mockMeasures });
+    (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => mockMeasures });
 
     render(<MeasureCombobox value={null} onChange={jest.fn()} />);
 

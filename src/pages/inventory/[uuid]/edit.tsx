@@ -14,7 +14,10 @@ const itemFetcher = (url: string): Promise<InventoryItem> =>
   });
 
 const measuresFetcher = (url: string): Promise<Measure[]> =>
-  fetch(url).then((res) => res.json());
+  fetch(url).then((res) => {
+    if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
+    return res.json();
+  });
 
 interface Props {
   uuid: string;

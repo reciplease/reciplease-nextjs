@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { SWRConfig } from 'swr';
 import type { ReactNode } from 'react';
 import AccessGate from '@/components/AccessGate';
+import { resetSessionCookieForTests } from '@/lib/sessionCookie';
 
 jest.mock('next-auth/react');
 jest.mock('next/router', () => ({ useRouter: jest.fn() }));
@@ -24,6 +25,7 @@ function renderGated(children: ReactNode) {
 
 describe('AccessGate access probe', () => {
   beforeEach(() => {
+    resetSessionCookieForTests();
     useRouter.mockReturnValue({ replace: jest.fn(), pathname: '/recipes' });
   });
 

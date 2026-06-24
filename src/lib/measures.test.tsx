@@ -8,7 +8,7 @@ describe('useMeasures', () => {
   afterEach(() => (global.fetch as jest.Mock).mockReset());
 
   it('fetches and returns the measure catalog', async () => {
-    global.fetch = jest.fn().mockResolvedValue({ json: async () => [GRAMS] });
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => [GRAMS] });
 
     const { result } = renderHook(() => useMeasures(), {
       wrapper: ({ children }) => (

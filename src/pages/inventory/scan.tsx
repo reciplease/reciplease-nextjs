@@ -1,16 +1,13 @@
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
-import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
 import MeasureCombobox from '@/components/scanner/MeasureCombobox';
 import { lookupProduct } from '@/lib/openfoodfacts';
 import { compressToBase64, toDataUrl } from '@/lib/imageCapture';
 import { formatDate } from '@/lib/formatDate';
 import { apiFetch } from '@/lib/houses';
-
-const measuresFetcher = (url: string): Promise<Measure[]> =>
-  fetch(url).then((r) => r.json());
+import { useMeasures } from '@/lib/measures';
 
 // Load scanner adapters client-side only (they use browser APIs)
 const BarcodeScanner = dynamic(() => import('@/components/scanner/BarcodeScanner'), { ssr: false });
@@ -33,7 +30,7 @@ async function fetchAsImage(url: string): Promise<Blob> {
 export default function ScanPage() {
   const router = useRouter();
   // Shared cache with MeasureCombobox; used to resolve a suggested measureId.
-  const { data: measures = [] } = useSWR<Measure[]>('/api/measures', measuresFetcher);
+  const measures = useMeasures();
 
   const [phase, setPhase] = useState<ScanPhase>('barcode');
   // The item being built up across phases. The barcode is recorded on the

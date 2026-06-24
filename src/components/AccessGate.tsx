@@ -4,24 +4,32 @@ import { useEffect } from 'react';
 import useSWR from 'swr';
 import type { ReactNode } from 'react';
 import styles from '@/components/AccessGate.module.scss';
+import { ensureSessionCookie } from '@/lib/sessionCookie';
 
 type Access = { status: number };
 type Me = { id: string; handle: string | null };
 
+// Distinct SWR key so this allowlist probe does NOT share a cache entry with
+// useHouses() (which also fetches /api/houses, in the Header on every page). If
+// they collided, SWR would dedupe to a single fetcher and AccessGate could get
+// useHouses' array shape instead of {status}, and hang on "Checking access".
+const PROBE_KEY = 'access-gate:allowlist-probe';
+
 // Sync the reciplease-session cookie (from the NextAuth-held token) before
 // probing, since the generic API proxy forwards whatever cookie the browser
 // currently has — a freshly-signed-in browser may not have it yet.
-const probe = async (url: string): Promise<Access> => {
-  await fetch('/api/session-cookie');
-  const res = await fetch(url);
+const probe = async (): Promise<Access> => {
+  await ensureSessionCookie();
+  const res = await fetch('/api/houses');
   return { status: res.status };
 };
 
-const meFetcher = (url: string): Promise<Me> =>
-  fetch(url).then((res) => {
-    if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
-    return res.json();
-  });
+const meFetcher = async (url: string): Promise<Me> => {
+  await ensureSessionCookie();
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
+  return res.json();
+};
 
 function Centered({ children }: { children: ReactNode }) {
   return <div className={styles.gate}>{children}</div>;
@@ -64,7 +72,7 @@ export default function AccessGate({ children }: { children: ReactNode }) {
     isLoading,
     mutate: retryProbe,
   } = useSWR<Access>(
-    !authDisabled && status === 'authenticated' ? '/api/houses' : null,
+    !authDisabled && status === 'authenticated' ? PROBE_KEY : null,
     probe,
   );
 
