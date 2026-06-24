@@ -1,6 +1,6 @@
 import Metadata from '@/components/Metadata';
-import { GetServerSidePropsContext } from 'next';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import useSWR from 'swr';
 import { full } from '@/lib/recipe-id';
 import { formatTimestamp } from '@/lib/formatDate';
@@ -15,17 +15,18 @@ const fetcher = async (url: string): Promise<Recipe> => {
   return toRecipe(backendRecipe);
 };
 
-interface Props {
-  recipeShortId: RecipeShortId;
-}
-
-export default function Recipe({ recipeShortId }: Props) {
-  const recipeId = full(recipeShortId);
+// The recipe short id comes from the URL client-side (router.query) rather than
+// getServerSideProps — GSSP here only ever passed the param through, but forced a
+// _next/data server round-trip (and froze the view transition) on every nav.
+export default function Recipe() {
+  const router = useRouter();
+  const recipeShortId = router.query.recipeId as RecipeShortId | undefined;
+  const recipeId = recipeShortId ? full(recipeShortId) : undefined;
   const {
     data: recipe,
     error,
     isLoading,
-  } = useSWR(`/api/recipes/${recipeId}`, fetcher);
+  } = useSWR(recipeId ? `/api/recipes/${recipeId}` : null, fetcher);
   const activeHouse = useActiveHouse();
   const measures = useMeasures();
   // Editable only if the caller owns the house this recipe actually belongs
@@ -36,7 +37,7 @@ export default function Recipe({ recipeShortId }: Props) {
     activeHouse?.role === 'OWNER' &&
     activeHouse.id === recipe.houseId;
 
-  if (isLoading) {
+  if (!router.isReady || isLoading) {
     return (
       <>
         <Metadata title={'Loading Recipe'} description={'Loading recipe...'} />
@@ -115,10 +116,4 @@ function displayMeasure(ingredient: RecipeIngredient, measures: Measure[]) {
   const measure = findMeasure(ingredient.measure, measures);
   if (!measure) return ingredient.measure;
   return ingredient.amount == 1 ? measure.singular : measure.plural;
-}
-
-export function getServerSideProps(context: GetServerSidePropsContext) {
-  return {
-    props: { recipeShortId: context.params?.recipeId },
-  };
 }

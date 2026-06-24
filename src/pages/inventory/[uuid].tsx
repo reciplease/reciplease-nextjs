@@ -1,6 +1,6 @@
 import useSWR from 'swr';
-import { GetServerSidePropsContext } from 'next';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import Metadata from '@/components/Metadata';
 import { formatDate, formatTimestamp } from '@/lib/formatDate';
 import { toDataUrl } from '@/lib/imageCapture';
@@ -13,23 +13,21 @@ const fetcher = (url: string): Promise<InventoryItem> =>
     return res.json();
   });
 
-interface Props {
-  uuid: string;
-}
-
 function isExpired(expiration: string): boolean {
   return new Date(expiration) < new Date();
 }
 
-export default function InventoryItemPage({ uuid }: Props) {
+export default function InventoryItemPage() {
+  const router = useRouter();
+  const uuid = router.query.uuid as string | undefined;
   const activeHouse = useActiveHouse();
   const { data: item, error, isLoading } = useSWR(
-    activeHouse ? [`/api/inventory/${uuid}`, activeHouse.id] : null,
+    uuid && activeHouse ? [`/api/inventory/${uuid}`, activeHouse.id] : null,
     () => fetcher(`/api/inventory/${uuid}`),
   );
   const measures = useMeasures();
 
-  if (!activeHouse || isLoading) {
+  if (!router.isReady || !activeHouse || isLoading) {
     return (
       <>
         <Metadata title="Loading" description="Loading inventory item..." />
@@ -108,8 +106,4 @@ function displayMeasure(item: InventoryItem, measures: Measure[]): string {
   const measure = findMeasure(item.measure, measures);
   if (!measure) return item.measure;
   return item.amount === 1 ? measure.singular : measure.plural;
-}
-
-export function getServerSideProps(context: GetServerSidePropsContext) {
-  return { props: { uuid: context.params?.uuid } };
 }

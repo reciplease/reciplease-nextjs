@@ -43,24 +43,24 @@ describe('EditInventoryItem page', () => {
   beforeEach(() => {
     (fetch as jest.Mock).mockReset();
     push.mockReset();
-    useRouter.mockReturnValue({ push });
+    useRouter.mockReturnValue({ push, isReady: true, query: { uuid } });
   });
 
   it('shows loading state', () => {
     mockItemSWR({ isLoading: true, data: undefined, error: undefined });
-    render(<EditInventoryItem uuid={uuid} />);
+    render(<EditInventoryItem />);
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
   it('shows not found when the item fails to load', () => {
     mockItemSWR({ isLoading: false, data: undefined, error: new Error('nope') });
-    render(<EditInventoryItem uuid={uuid} />);
+    render(<EditInventoryItem />);
     expect(screen.getByText('Item not found')).toBeInTheDocument();
   });
 
   it('pre-populates the form from the existing item', () => {
     mockItemSWR({ isLoading: false, data: item, error: undefined });
-    render(<EditInventoryItem uuid={uuid} />);
+    render(<EditInventoryItem />);
     expect(screen.getByLabelText('Name')).toHaveValue('Bread');
     expect(screen.getByLabelText('Amount')).toHaveValue(1);
     expect(screen.getByLabelText('Expiration date')).toHaveValue('2099-12-31');
@@ -71,7 +71,7 @@ describe('EditInventoryItem page', () => {
     mockItemSWR({ isLoading: false, data: item, error: undefined });
     (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
 
-    render(<EditInventoryItem uuid={uuid} />);
+    render(<EditInventoryItem />);
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Sourdough' } });
     fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '2' } });
     fireEvent.submit(screen.getByRole('button', { name: /save changes/i }).closest('form')!);
@@ -98,7 +98,7 @@ describe('EditInventoryItem page', () => {
     mockItemSWR({ isLoading: false, data: item, error: undefined });
     (fetch as jest.Mock).mockResolvedValue({ ok: false });
 
-    render(<EditInventoryItem uuid={uuid} />);
+    render(<EditInventoryItem />);
     fireEvent.submit(screen.getByRole('button', { name: /save changes/i }).closest('form')!);
 
     await waitFor(() => {
@@ -121,7 +121,7 @@ describe('EditInventoryItem page', () => {
       confirmSpy.mockReturnValue(false);
       mockItemSWR({ isLoading: false, data: item, error: undefined });
 
-      render(<EditInventoryItem uuid={uuid} />);
+      render(<EditInventoryItem />);
       fireEvent.click(screen.getByRole('button', { name: /delete item/i }));
 
       expect(fetch).not.toHaveBeenCalled();
@@ -132,7 +132,7 @@ describe('EditInventoryItem page', () => {
       mockItemSWR({ isLoading: false, data: item, error: undefined });
       (fetch as jest.Mock).mockResolvedValue({ ok: true });
 
-      render(<EditInventoryItem uuid={uuid} />);
+      render(<EditInventoryItem />);
       fireEvent.click(screen.getByRole('button', { name: /delete item/i }));
 
       await waitFor(() => {
@@ -149,7 +149,7 @@ describe('EditInventoryItem page', () => {
       mockItemSWR({ isLoading: false, data: item, error: undefined });
       (fetch as jest.Mock).mockResolvedValue({ ok: false });
 
-      render(<EditInventoryItem uuid={uuid} />);
+      render(<EditInventoryItem />);
       fireEvent.click(screen.getByRole('button', { name: /delete item/i }));
 
       await waitFor(() => {

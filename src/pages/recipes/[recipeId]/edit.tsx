@@ -1,6 +1,5 @@
 import Metadata from '@/components/Metadata';
 import RecipeForm, { RecipeFormValues } from '@/components/RecipeForm';
-import { GetServerSidePropsContext } from 'next';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
@@ -13,18 +12,15 @@ const fetcher = async (url: string): Promise<Recipe> => {
   return toRecipe(backendRecipe);
 };
 
-interface Props {
-  recipeShortId: RecipeShortId;
-}
-
-export default function EditRecipe({ recipeShortId }: Props) {
+export default function EditRecipe() {
   const router = useRouter();
-  const recipeId = full(recipeShortId);
+  const recipeShortId = router.query.recipeId as RecipeShortId | undefined;
+  const recipeId = recipeShortId ? full(recipeShortId) : undefined;
   const {
     data: recipe,
     error,
     isLoading,
-  } = useSWR(`/api/recipes/${recipeId}`, fetcher);
+  } = useSWR(recipeId ? `/api/recipes/${recipeId}` : null, fetcher);
   const activeHouse = useActiveHouse();
   const editable =
     !!recipe?.houseId &&
@@ -54,7 +50,7 @@ export default function EditRecipe({ recipeShortId }: Props) {
     router.push(`/recipes/${recipeShortId}`);
   }
 
-  if (isLoading) {
+  if (!router.isReady || isLoading) {
     return (
       <>
         <Metadata title="Loading Recipe" description="Loading recipe..." />
@@ -114,10 +110,4 @@ export default function EditRecipe({ recipeShortId }: Props) {
       </section>
     </>
   );
-}
-
-export function getServerSideProps(context: GetServerSidePropsContext) {
-  return {
-    props: { recipeShortId: context.params?.recipeId },
-  };
 }

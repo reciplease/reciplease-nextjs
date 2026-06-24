@@ -1,10 +1,18 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import InventoryItemPage, { getServerSideProps } from '@/pages/inventory/[uuid]';
-import { GetServerSidePropsContext } from 'next';
+import { SWRConfig } from 'swr';
+import type { ReactNode } from 'react';
+import InventoryItemPage from '@/pages/inventory/[uuid]';
+
+// Fresh SWR cache per render so one test's cached item can't leak into the next.
+const renderFresh = (node: ReactNode) =>
+  render(<SWRConfig value={{ provider: () => new Map() }}>{node}</SWRConfig>);
 
 jest.mock('@/lib/houses', () => ({
   useActiveHouse: () => ({ id: 'h1', name: 'Home', role: 'OWNER' }),
   apiFetch: (url: string, init?: RequestInit) => fetch(url, init),
+}));
+jest.mock('next/router', () => ({
+  useRouter: () => ({ isReady: true, query: { uuid: 'uuid-1' } }),
 }));
 jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; href: string }) => (
   <a href={href}>{children}</a>
@@ -36,8 +44,7 @@ describe('InventoryItemPage data fetching', () => {
   it('loads and displays the item from the API', async () => {
     mockFetchByUrl({ ok: true, json: async () => item });
 
-    render(<InventoryItemPage uuid="uuid-1" />);
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    renderFresh(<InventoryItemPage />);
 
     await waitFor(() => expect(screen.getByText('Milk')).toBeInTheDocument());
     expect(fetch).toHaveBeenCalledWith('/api/inventory/uuid-1', undefined);
@@ -46,16 +53,8 @@ describe('InventoryItemPage data fetching', () => {
   it('shows not found when the request fails', async () => {
     mockFetchByUrl({ ok: false });
 
-    render(<InventoryItemPage uuid="uuid-2" />);
+    renderFresh(<InventoryItemPage />);
 
     await waitFor(() => expect(screen.getByText('Item not found')).toBeInTheDocument());
-  });
-});
-
-describe('getServerSideProps', () => {
-  it('passes the uuid route param through as a prop', () => {
-    const context = { params: { uuid: 'abc-123' } } as unknown as GetServerSidePropsContext;
-
-    expect(getServerSideProps(context)).toEqual({ props: { uuid: 'abc-123' } });
   });
 });

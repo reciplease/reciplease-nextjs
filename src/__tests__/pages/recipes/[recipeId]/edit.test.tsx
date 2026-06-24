@@ -1,7 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import EditRecipe, { getServerSideProps } from '@/pages/recipes/[recipeId]/edit';
+import EditRecipe from '@/pages/recipes/[recipeId]/edit';
 import { full } from '@/lib/recipe-id';
-import { GetServerSidePropsContext } from 'next';
 
 jest.mock('swr');
 jest.mock('@/lib/houses', () => ({
@@ -54,32 +53,32 @@ describe('EditRecipe page', () => {
     (fetch as jest.Mock).mockReset();
     push.mockReset();
     back.mockReset();
-    useRouter.mockReturnValue({ push, back });
+    useRouter.mockReturnValue({ push, back, isReady: true, query: { recipeId: recipeShortId } });
     useActiveHouse.mockReturnValue({ id: 'house-1', name: 'Bayview Gardens', role: 'OWNER' });
   });
 
   it('shows loading state', () => {
     mockRecipeSWR({ isLoading: true, data: undefined, error: undefined });
-    render(<EditRecipe recipeShortId={recipeShortId} />);
+    render(<EditRecipe />);
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
   it('shows not found when error', () => {
     mockRecipeSWR({ isLoading: false, data: undefined, error: new Error('fail') });
-    render(<EditRecipe recipeShortId={recipeShortId} />);
+    render(<EditRecipe />);
     expect(screen.getByText('No recipe found')).toBeInTheDocument();
   });
 
   it('shows not found when there is no recipe and no error', () => {
     mockRecipeSWR({ isLoading: false, data: undefined, error: undefined });
-    render(<EditRecipe recipeShortId={recipeShortId} />);
+    render(<EditRecipe />);
     expect(screen.getByText('No recipe found')).toBeInTheDocument();
   });
 
   it('shows a not-authorized message and link back when the caller is not an OWNER of the recipe house', () => {
     mockRecipeSWR({ isLoading: false, data: recipe, error: undefined });
     useActiveHouse.mockReturnValue({ id: 'house-1', name: 'Bayview Gardens', role: 'READ_ONLY' });
-    render(<EditRecipe recipeShortId={recipeShortId} />);
+    render(<EditRecipe />);
     expect(screen.getByText('You do not have permission to edit this recipe.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Back to recipe' })).toHaveAttribute(
       'href',
@@ -89,7 +88,7 @@ describe('EditRecipe page', () => {
 
   it('renders the form pre-filled with the recipe details', () => {
     mockRecipeSWR({ isLoading: false, data: recipe, error: undefined });
-    render(<EditRecipe recipeShortId={recipeShortId} />);
+    render(<EditRecipe />);
 
     expect(screen.getByLabelText('Recipe title')).toHaveValue('Tacos');
     expect(screen.getByLabelText('Description')).toHaveValue('Tasty tacos');
@@ -111,7 +110,7 @@ describe('EditRecipe page', () => {
 
   it('allows removing an ingredient row', () => {
     mockRecipeSWR({ isLoading: false, data: recipe, error: undefined });
-    render(<EditRecipe recipeShortId={recipeShortId} />);
+    render(<EditRecipe />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove ingredient 1' }));
 
@@ -121,7 +120,7 @@ describe('EditRecipe page', () => {
 
   it('allows removing a step', () => {
     mockRecipeSWR({ isLoading: false, data: recipe, error: undefined });
-    render(<EditRecipe recipeShortId={recipeShortId} />);
+    render(<EditRecipe />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove step 1' }));
 
@@ -131,7 +130,7 @@ describe('EditRecipe page', () => {
 
   it('navigates back when cancel is clicked', () => {
     mockRecipeSWR({ isLoading: false, data: recipe, error: undefined });
-    render(<EditRecipe recipeShortId={recipeShortId} />);
+    render(<EditRecipe />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
@@ -141,7 +140,7 @@ describe('EditRecipe page', () => {
   it('saves changes and redirects to the recipe page on success', async () => {
     mockRecipeSWR({ isLoading: false, data: recipe, error: undefined });
     (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
-    render(<EditRecipe recipeShortId={recipeShortId} />);
+    render(<EditRecipe />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
@@ -169,7 +168,7 @@ describe('EditRecipe page', () => {
   it('shows an error message when save fails', async () => {
     mockRecipeSWR({ isLoading: false, data: recipe, error: undefined });
     (fetch as jest.Mock).mockResolvedValue({ ok: false });
-    render(<EditRecipe recipeShortId={recipeShortId} />);
+    render(<EditRecipe />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
@@ -182,20 +181,12 @@ describe('EditRecipe page', () => {
   it('shows an unexpected error message if saving throws', async () => {
     mockRecipeSWR({ isLoading: false, data: recipe, error: undefined });
     (fetch as jest.Mock).mockRejectedValue(new Error('network down'));
-    render(<EditRecipe recipeShortId={recipeShortId} />);
+    render(<EditRecipe />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('An unexpected error occurred.');
     });
-  });
-});
-
-describe('getServerSideProps', () => {
-  it('passes the recipeId route param through as a prop', () => {
-    const context = { params: { recipeId: 'abc-123' } } as unknown as GetServerSidePropsContext;
-
-    expect(getServerSideProps(context)).toEqual({ props: { recipeShortId: 'abc-123' } });
   });
 });

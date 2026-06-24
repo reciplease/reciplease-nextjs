@@ -2,7 +2,11 @@ import { render, screen, waitFor } from '@testing-library/react';
 import EditRecipe from '@/pages/recipes/[recipeId]/edit';
 import { full } from '@/lib/recipe-id';
 
-jest.mock('next/router', () => ({ useRouter: () => ({ push: jest.fn(), back: jest.fn() }) }));
+const RECIPE_SHORT_ID = 'EREREREREREREREREREREI';
+
+jest.mock('next/router', () => ({
+  useRouter: () => ({ push: jest.fn(), back: jest.fn(), isReady: true, query: { recipeId: 'EREREREREREREREREREREI' } }),
+}));
 jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; href: string }) => (
   <a href={href}>{children}</a>
 ));
@@ -18,10 +22,9 @@ describe('EditRecipe data fetching', () => {
   afterEach(() => (fetch as jest.Mock).mockReset());
 
   it('loads the recipe from the API', async () => {
-    const recipeShortId = 'EREREREREREREREREREREI';
     const recipe: Recipe = {
-      recipeId: full(recipeShortId),
-      recipeShortId,
+      recipeId: full(RECIPE_SHORT_ID),
+      recipeShortId: RECIPE_SHORT_ID,
       houseId: 'house-1',
       isPublic: false,
       name: 'Tacos',
@@ -30,16 +33,15 @@ describe('EditRecipe data fetching', () => {
       steps: [],
     };
     (fetch as jest.Mock).mockImplementation((url: string) => {
-      if (url === `/api/recipes/${full(recipeShortId)}`) {
+      if (url === `/api/recipes/${full(RECIPE_SHORT_ID)}`) {
         return Promise.resolve({ ok: true, json: async () => recipe });
       }
       return Promise.resolve({ ok: true, json: async () => [] });
     });
 
-    render(<EditRecipe recipeShortId={recipeShortId} />);
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    render(<EditRecipe />);
 
     await waitFor(() => expect(screen.getByLabelText('Recipe title')).toHaveValue('Tacos'));
-    expect(fetch).toHaveBeenCalledWith(`/api/recipes/${full(recipeShortId)}`, expect.anything());
+    expect(fetch).toHaveBeenCalledWith(`/api/recipes/${full(RECIPE_SHORT_ID)}`, expect.anything());
   });
 });

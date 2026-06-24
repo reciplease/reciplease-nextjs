@@ -2,7 +2,13 @@ import { render, screen, waitFor } from '@testing-library/react';
 import RecipePage from '@/pages/recipes/[recipeId]';
 import { full } from '@/lib/recipe-id';
 
-jest.mock('next/router', () => ({ replace: jest.fn(), asPath: '/recipes' }));
+const RECIPE_SHORT_ID = 'EREREREREREREREREREREQ';
+
+jest.mock('next/router', () => ({
+  __esModule: true,
+  default: { replace: jest.fn(), asPath: '/recipes' },
+  useRouter: () => ({ isReady: true, query: { recipeId: 'EREREREREREREREREREREQ' } }),
+}));
 jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; href: string }) => (
   <a href={href}>{children}</a>
 ));
@@ -18,8 +24,7 @@ describe('RecipePage data fetching', () => {
   afterEach(() => (fetch as jest.Mock).mockReset());
 
   it('loads the recipe from the API', async () => {
-    const recipeShortId = 'EREREREREREREREREREREQ';
-    const recipeId = full(recipeShortId);
+    const recipeId = full(RECIPE_SHORT_ID);
     (fetch as jest.Mock).mockImplementation((url: string) => {
       if (url === '/api/measures') return Promise.resolve({ ok: true, status: 200, json: async () => [] });
       return Promise.resolve({
@@ -37,8 +42,7 @@ describe('RecipePage data fetching', () => {
       });
     });
 
-    render(<RecipePage recipeShortId={recipeShortId} />);
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    render(<RecipePage />);
 
     await waitFor(() => expect(screen.getByText('Tacos')).toBeInTheDocument());
     expect(fetch).toHaveBeenCalledWith(`/api/recipes/${recipeId}`);

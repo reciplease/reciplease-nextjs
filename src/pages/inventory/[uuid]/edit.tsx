@@ -1,6 +1,5 @@
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/router';
-import { GetServerSidePropsContext } from 'next';
 import Link from 'next/link';
 import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
@@ -19,19 +18,17 @@ const measuresFetcher = (url: string): Promise<Measure[]> =>
     return res.json();
   });
 
-interface Props {
-  uuid: string;
-}
-
-export default function EditInventoryItem({ uuid }: Props) {
+export default function EditInventoryItem() {
+  const router = useRouter();
+  const uuid = router.query.uuid as string | undefined;
   const activeHouse = useActiveHouse();
   const { data: item, error: itemError, isLoading: itemLoading } = useSWR(
-    activeHouse ? [`/api/inventory/${uuid}`, activeHouse.id] : null,
+    uuid && activeHouse ? [`/api/inventory/${uuid}`, activeHouse.id] : null,
     () => itemFetcher(`/api/inventory/${uuid}`),
   );
   const { data: measures, isLoading: measuresLoading } = useSWR('/api/measures', measuresFetcher);
 
-  if (!activeHouse || itemLoading) {
+  if (!router.isReady || !activeHouse || itemLoading) {
     return (
       <>
         <Metadata title="Loading" description="Loading inventory item..." />
@@ -40,7 +37,7 @@ export default function EditInventoryItem({ uuid }: Props) {
     );
   }
 
-  if (itemError || !item) {
+  if (itemError || !item || !uuid) {
     return (
       <>
         <Metadata title="Not Found" description="Inventory item not found" />
@@ -243,8 +240,4 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
       </section>
     </>
   );
-}
-
-export function getServerSideProps(context: GetServerSidePropsContext) {
-  return { props: { uuid: context.params?.uuid } };
 }

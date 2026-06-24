@@ -6,6 +6,9 @@ jest.mock('@/lib/houses', () => ({
   useActiveHouse: () => ({ id: 'h1', name: 'Home', role: 'OWNER' }),
   apiFetch: (url: string, init?: RequestInit) => fetch(url, init),
 }));
+jest.mock('next/router', () => ({
+  useRouter: () => ({ isReady: true, query: { uuid: 'uuid-1' } }),
+}));
 jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; href: string }) => (
   <a href={href}>{children}</a>
 ));
@@ -33,39 +36,39 @@ function mockItem(state: { isLoading?: boolean; data?: InventoryItem; error?: un
 describe('InventoryItemPage', () => {
   it('shows loading state', () => {
     mockItem({ isLoading: true });
-    render(<InventoryItemPage uuid="uuid-1" />);
+    render(<InventoryItemPage />);
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
   it('shows not found when error', () => {
     mockItem({ error: new Error('fail') });
-    render(<InventoryItemPage uuid="uuid-1" />);
+    render(<InventoryItemPage />);
     expect(screen.getByText('Item not found')).toBeInTheDocument();
   });
 
   it('renders item name and amount', () => {
     mockItem({ data: item });
-    render(<InventoryItemPage uuid="uuid-1" />);
+    render(<InventoryItemPage />);
     expect(screen.getByText('Milk')).toBeInTheDocument();
     expect(screen.getByText(/500 millilitres/)).toBeInTheDocument();
   });
 
   it('shows singular measure when amount is 1', () => {
     mockItem({ data: { ...item, amount: 1 } });
-    render(<InventoryItemPage uuid="uuid-1" />);
+    render(<InventoryItemPage />);
     expect(screen.getByText(/1 millilitre/)).toBeInTheDocument();
   });
 
   it('shows the expiration date localized, not as a raw ISO string', () => {
     mockItem({ data: item });
-    render(<InventoryItemPage uuid="uuid-1" />);
+    render(<InventoryItemPage />);
     expect(screen.queryByText(/2099-12-31/)).not.toBeInTheDocument();
     expect(screen.getByText(/Dec.*2099|2099.*Dec/)).toBeInTheDocument();
   });
 
   it('flags an expired item', () => {
     mockItem({ data: { ...item, expiration: '2000-01-01' } });
-    render(<InventoryItemPage uuid="uuid-1" />);
+    render(<InventoryItemPage />);
     expect(screen.getByText(/— expired/)).toBeInTheDocument();
   });
 });
