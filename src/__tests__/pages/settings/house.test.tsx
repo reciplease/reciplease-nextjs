@@ -15,11 +15,8 @@ jest.mock('@/lib/houses', () => ({
 }));
 jest.mock('@/components/Metadata', () => () => null);
 jest.mock('@/components/HouseSwitcher', () => () => <div data-testid="house-switcher" />);
-jest.mock('@/components/LinkedAccounts', () => () => <div data-testid="linked-accounts" />);
-jest.mock('next-auth/react');
 
 const { useActiveHouse, useHouseMembers, usePendingInvites } = require('@/lib/houses');
-const { signOut } = require('next-auth/react');
 
 beforeEach(() => {
   Object.assign(navigator, { clipboard: { writeText: jest.fn().mockResolvedValue(undefined) } });
@@ -49,17 +46,6 @@ describe('HouseSettingsPage', () => {
     render(<HouseSettingsPage />);
 
     expect(screen.getByText(/Only owners of Test House/)).toBeInTheDocument();
-  });
-
-  it('signs out when "Sign out" is clicked, even for read-only members', () => {
-    useActiveHouse.mockReturnValue({ id: 'house-1', name: 'Test House', role: 'READ_ONLY' });
-    useHouseMembers.mockReturnValue({ data: undefined, mutate: jest.fn() });
-    usePendingInvites.mockReturnValue({ data: undefined, mutate: jest.fn() });
-
-    render(<HouseSettingsPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
-
-    expect(signOut).toHaveBeenCalledWith({ callbackUrl: '/' });
   });
 
   describe('as an owner', () => {

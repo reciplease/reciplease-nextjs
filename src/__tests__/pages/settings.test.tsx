@@ -2,6 +2,10 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import SettingsPage from '@/pages/settings';
 
 jest.mock('@/components/Metadata', () => () => null);
+jest.mock('@/components/LinkedAccounts', () => () => <div data-testid="linked-accounts" />);
+jest.mock('next-auth/react');
+
+const { signOut } = require('next-auth/react');
 
 const STORAGE_KEY = 'reciplease.settings.v1';
 
@@ -44,5 +48,17 @@ describe('Settings page', () => {
     renderPage();
 
     expect(screen.getByRole('radio', { name: 'Reduced' })).toBeChecked();
+  });
+
+  it('shows linked accounts management', () => {
+    renderPage();
+    expect(screen.getByTestId('linked-accounts')).toBeInTheDocument();
+  });
+
+  it('signs out when "Sign out" is clicked', () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+
+    expect(signOut).toHaveBeenCalledWith({ callbackUrl: '/' });
   });
 });

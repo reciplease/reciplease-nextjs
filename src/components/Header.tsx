@@ -107,8 +107,8 @@ export default function Header() {
     </Link>
   ) : null;
 
-  // Sign out lives on /settings/house now, alongside the rest of the account/
-  // house controls — the header just shows who's signed in.
+  // Sign out lives on /settings now, alongside the rest of the account
+  // controls — the header just shows who's signed in.
   const authControls = authenticated ? (
     session.user?.handle && (
       <span className="text-[0.85rem] opacity-70">{session.user.handle}</span>
@@ -154,10 +154,11 @@ export default function Header() {
 
       <div className="ml-auto mr-8 flex items-center gap-3">
         {houseSettingsLink}
-        {settingsLink}
 
         {/* Desktop account controls. */}
         <div className="hidden items-center gap-3 md:flex">{authControls}</div>
+
+        {settingsLink}
 
         {/* Mobile hamburger — toggles the collapsed menu. */}
         <button

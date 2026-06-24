@@ -1,5 +1,7 @@
 import Metadata from '@/components/Metadata';
+import LinkedAccounts from '@/components/LinkedAccounts';
 import { useSettings, type MotionSetting } from '@/lib/settings';
+import { signOut } from 'next-auth/react';
 
 // A labelled segmented radio group. Generic over the option value so both the
 // theme and motion controls can share it.
@@ -76,9 +78,15 @@ export default function SettingsPage() {
           onChange={setMotion}
         />
 
-        <p className="text-sm opacity-70">
-          These preferences are saved in this browser only.
+        <p className="mb-8 text-sm opacity-70">
+          Appearance preferences are saved in this browser only.
         </p>
+
+        <LinkedAccounts returnTo="/settings" />
+
+        <button type="button" className="cursor-pointer" onClick={() => signOut({ callbackUrl: '/' })}>
+          Sign out
+        </button>
       </section>
     </>
   );
