@@ -1,8 +1,9 @@
 import Metadata from '@/components/Metadata';
 import { BACKEND_URL } from '@/lib/backend-url';
 import { GetServerSidePropsContext } from 'next';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import useSWR from 'swr';
 import { useEffect, useState } from 'react';
 
@@ -28,6 +29,11 @@ export default function InvitePage({ code, initialPreview }: Props) {
   const [accepting, setAccepting] = useState(false);
   const [acceptError, setAcceptError] = useState<string | null>(null);
 
+  // The sign-in link carries ?autoaccept=true so that accepting *by signing in*
+  // completes without a second click. An already-signed-in visitor (no flag)
+  // clicks Accept explicitly instead.
+  const autoAccept = router.query.autoaccept === 'true';
+
   async function acceptInvite() {
     setAccepting(true);
     setAcceptError(null);
@@ -49,16 +55,15 @@ export default function InvitePage({ code, initialPreview }: Props) {
     }
   }
 
-  // Auto-accept once signed in, so there's no extra click after the Google redirect.
+  // Auto-accept only when arriving back from sign-in (autoaccept flag set),
+  // never for a visitor who was already logged in.
   useEffect(() => {
-    if (status === 'authenticated' && preview && !accepting && !acceptError) {
-      // intentional: triggers a one-time network request as soon as the user is
-      // signed in, not derived render state.
+    if (autoAccept && status === 'authenticated' && preview && !accepting && !acceptError) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       acceptInvite();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, preview]);
+  }, [autoAccept, status, preview]);
 
   if (isLoading || status === 'loading') {
     return (
@@ -94,21 +99,35 @@ export default function InvitePage({ code, initialPreview }: Props) {
 
         {status === 'unauthenticated' && (
           <>
-            <p className="mb-4">Sign in with Google to accept this invite.</p>
-            <button
-              onClick={() => signIn('google', { callbackUrl: `/invite/${code}` })}
-              className="cursor-pointer"
+            <p className="mb-4">Sign in to accept this invite.</p>
+            <Link
+              href={`/login?callbackUrl=${encodeURIComponent(`/invite/${code}?autoaccept=true`)}`}
+              className="cursor-pointer underline"
             >
-              Sign in with Google
-            </button>
+              Sign in
+            </Link>
           </>
         )}
 
-        {status === 'authenticated' && (
+        {status === 'authenticated' && autoAccept && (
           <>
-            <p className="mb-4">{accepting ? 'Joining…' : 'Accepting your invite…'}</p>
+            <p className="mb-4">Joining {preview.houseName}…</p>
             {acceptError && (
-              <p role="alert" className="text-red-600">
+              <p role="alert" className="mt-4 text-red-600">
+                {acceptError}
+              </p>
+            )}
+          </>
+        )}
+
+        {status === 'authenticated' && !autoAccept && (
+          <>
+            <p className="mb-4">Accept this invite to join {preview.houseName}.</p>
+            <button onClick={acceptInvite} disabled={accepting} className="cursor-pointer">
+              {accepting ? 'Joining…' : 'Accept invite'}
+            </button>
+            {acceptError && (
+              <p role="alert" className="mt-4 text-red-600">
                 {acceptError}
               </p>
             )}

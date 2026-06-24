@@ -1,10 +1,13 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import InvitePage, { getServerSideProps } from '@/pages/invite/[code]';
 import { GetServerSidePropsContext } from 'next';
 
 jest.mock('swr');
 jest.mock('next-auth/react');
-jest.mock('next/router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
+jest.mock('next/router', () => ({ useRouter: jest.fn() }));
+jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; href: string }) => (
+  <a href={href}>{children}</a>
+));
 jest.mock('@/lib/backend-url', () => ({ BACKEND_URL: 'http://localhost:8080' }));
 jest.mock('@/components/Metadata', () => ({ title, description }: { title: string; description: string }) => (
   <>
@@ -15,6 +18,7 @@ jest.mock('@/components/Metadata', () => ({ title, description }: { title: strin
 
 const useSWR = require('swr').default;
 const { useSession } = require('next-auth/react');
+const useRouter = require('next/router').useRouter as jest.Mock;
 
 describe('getServerSideProps', () => {
   afterEach(() => jest.restoreAllMocks());
@@ -50,16 +54,68 @@ describe('getServerSideProps', () => {
 });
 
 describe('InvitePage', () => {
+  const preview = { houseId: 'house-1', houseName: 'Test House' };
+
+  function mockPreview() {
+    useSWR.mockReturnValue({ data: preview, error: undefined, isLoading: false });
+  }
+
+  beforeEach(() => {
+    useRouter.mockReturnValue({ push: jest.fn(), query: {} });
+  });
+
   it('renders the house name immediately using the server-fetched preview', () => {
     useSession.mockReturnValue({ status: 'unauthenticated' });
-    useSWR.mockReturnValue({
-      data: { houseId: 'house-1', houseName: 'Test House' },
-      error: undefined,
-      isLoading: false,
-    });
+    mockPreview();
 
-    render(<InvitePage code="abc123" initialPreview={{ houseId: 'house-1', houseName: 'Test House' }} />);
+    render(<InvitePage code="abc123" initialPreview={preview} />);
 
     expect(screen.getAllByText("You're invited to Test House").length).toBeGreaterThan(0);
+  });
+
+  it('offers a generic sign-in link that carries autoaccept back through login', () => {
+    useSession.mockReturnValue({ status: 'unauthenticated' });
+    mockPreview();
+
+    render(<InvitePage code="abc123" initialPreview={preview} />);
+
+    const link = screen.getByRole('link', { name: /sign in/i });
+    expect(link).toHaveAttribute(
+      'href',
+      '/login?callbackUrl=%2Finvite%2Fabc123%3Fautoaccept%3Dtrue',
+    );
+    expect(screen.queryByText(/google/i)).not.toBeInTheDocument();
+  });
+
+  it('requires an explicit accept when already signed in (no auto-accept)', async () => {
+    useSession.mockReturnValue({ status: 'authenticated' });
+    mockPreview();
+    global.fetch = jest.fn().mockResolvedValue({ ok: true });
+
+    render(<InvitePage code="abc123" initialPreview={preview} />);
+
+    // Nothing is posted until the user clicks Accept.
+    expect(fetch).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /accept invite/i }));
+
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith('/api/invites/abc123/accept', { method: 'POST' }),
+    );
+  });
+
+  it('auto-accepts when returning from sign-in with autoaccept=true', async () => {
+    useRouter.mockReturnValue({ push: jest.fn(), query: { autoaccept: 'true' } });
+    useSession.mockReturnValue({ status: 'authenticated' });
+    mockPreview();
+    global.fetch = jest.fn().mockResolvedValue({ ok: true });
+
+    render(<InvitePage code="abc123" initialPreview={preview} />);
+
+    // No button — it accepts on its own.
+    expect(screen.queryByRole('button', { name: /accept invite/i })).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith('/api/invites/abc123/accept', { method: 'POST' }),
+    );
   });
 });
