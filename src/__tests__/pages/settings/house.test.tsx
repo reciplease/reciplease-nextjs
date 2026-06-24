@@ -15,6 +15,7 @@ jest.mock('@/lib/houses', () => ({
 }));
 jest.mock('@/components/Metadata', () => () => null);
 jest.mock('@/components/HouseSwitcher', () => () => <div data-testid="house-switcher" />);
+jest.mock('@/components/LinkedAccounts', () => () => <div data-testid="linked-accounts" />);
 jest.mock('next-auth/react');
 
 const { useActiveHouse, useHouseMembers, usePendingInvites } = require('@/lib/houses');

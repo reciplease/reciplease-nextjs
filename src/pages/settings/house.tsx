@@ -1,5 +1,6 @@
 import Metadata from '@/components/Metadata';
 import HouseSwitcher from '@/components/HouseSwitcher';
+import LinkedAccounts from '@/components/LinkedAccounts';
 import { useActiveHouse, useHouseMembers, usePendingInvites, apiFetch } from '@/lib/houses';
 import { signOut } from 'next-auth/react';
 import { useState } from 'react';
@@ -129,6 +130,7 @@ export default function HouseSettingsPage() {
           <p className="mb-8 text-sm opacity-70">
             Only owners of {activeHouse.name} can manage members and invites.
           </p>
+          <LinkedAccounts returnTo="/settings/house" />
           <button type="button" className="cursor-pointer" onClick={() => signOut({ callbackUrl: '/' })}>
             Sign out
           </button>
@@ -227,6 +229,8 @@ export default function HouseSettingsPage() {
             ))}
           </ul>
         </fieldset>
+
+        <LinkedAccounts returnTo="/settings/house" />
 
         <button type="button" className="cursor-pointer" onClick={() => signOut({ callbackUrl: '/' })}>
           Sign out
