@@ -1,9 +1,12 @@
 /** @jest-environment node */
+jest.mock('@/lib/backend', () => ({ accessToken: jest.fn(), BACKEND_URL: 'http://backend.test' }));
 import { authOptions, exchangeIdentity } from '@/lib/auth-options';
+import { accessToken } from '@/lib/backend';
 import type { Account, Session } from 'next-auth';
 import type { JWT } from 'next-auth/jwt';
 
 global.fetch = jest.fn();
+const accessTokenMock = accessToken as jest.Mock;
 
 const { jwt, session } = authOptions.callbacks!;
 
@@ -11,6 +14,8 @@ const ORIGINAL_ENV = process.env;
 
 beforeEach(() => {
   (fetch as jest.Mock).mockReset();
+  accessTokenMock.mockReset();
+  accessTokenMock.mockResolvedValue(undefined);
   process.env = { ...ORIGINAL_ENV };
 });
 
@@ -131,6 +136,55 @@ describe('jwt callback', () => {
 
     const body = JSON.parse((fetch as jest.Mock).mock.calls[0][1].body);
     expect(body.linkToken).toBe('existing-jwt');
+  });
+
+  it('recovers the linkToken from the session cookie when NextAuth drops it from the token', async () => {
+    // The real link case: an already-signed-in user links a 2nd provider, but
+    // NextAuth gives a fresh token with no recipleaseToken — it must come from
+    // the existing session cookie (accessToken()), or linking creates a new user.
+    const token = {} as JWT;
+    const account = { provider: 'github', providerAccountId: '999' } as unknown as Account;
+    accessTokenMock.mockResolvedValue('cookie-recovered-jwt');
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'rotated-jwt', userId: 'user-1', handle: 'chef' }),
+    });
+
+    await jwt!({ token, account, user: undefined as never });
+
+    const body = JSON.parse((fetch as jest.Mock).mock.calls[0][1].body);
+    expect(body.linkToken).toBe('cookie-recovered-jwt');
+  });
+
+  it('treats it as a fresh login (no linkToken) when there is no session cookie', async () => {
+    const token = {} as JWT;
+    const account = { provider: 'google', providerAccountId: 'sub-1' } as unknown as Account;
+    accessTokenMock.mockResolvedValue(undefined);
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'rcpls-jwt', userId: 'user-1', handle: null }),
+    });
+
+    await jwt!({ token, account, user: undefined as never });
+
+    const body = JSON.parse((fetch as jest.Mock).mock.calls[0][1].body);
+    expect(body.linkToken).toBeUndefined();
+  });
+
+  it('falls back to a fresh login if recovering the cookie token throws', async () => {
+    const token = {} as JWT;
+    const account = { provider: 'google', providerAccountId: 'sub-1' } as unknown as Account;
+    accessTokenMock.mockRejectedValue(new Error('cookies() outside request scope'));
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'rcpls-jwt', userId: 'user-1', handle: null }),
+    });
+
+    const result = await jwt!({ token, account, user: undefined as never });
+
+    expect(result).toMatchObject({ recipleaseToken: 'rcpls-jwt' });
+    const body = JSON.parse((fetch as jest.Mock).mock.calls[0][1].body);
+    expect(body.linkToken).toBeUndefined();
   });
 
   it('sets an error on the token when the exchange fails, without crashing', async () => {

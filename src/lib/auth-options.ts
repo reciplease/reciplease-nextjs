@@ -3,14 +3,34 @@ import GoogleProvider from 'next-auth/providers/google';
 import GithubProvider from 'next-auth/providers/github';
 import type { JWT } from 'next-auth/jwt';
 import { BACKEND_URL } from '@/lib/backend-url';
+import { accessToken } from '@/lib/backend';
 
 // On sign-in, we exchange the OAuth provider's identity for a Reciplease JWT,
 // which is what we forward to the backend as a bearer token from then on (the
-// backend no longer trusts provider id_tokens directly). If the user already
-// has a Reciplease session (token.recipleaseToken is set from a previous
-// sign-in), we pass it along as `linkToken` so the backend links this new
-// provider identity to the existing account instead of creating/finding a
-// separate one.
+// backend no longer trusts provider id_tokens directly). If the user is already
+// signed in (linking a second provider), we pass their existing Reciplease JWT
+// as `linkToken` so the backend links this new provider identity to the existing
+// account instead of creating a separate one.
+
+/**
+ * The current user's existing Reciplease token, if they're already signed in.
+ *
+ * NextAuth does NOT carry the prior session's custom claims into the `token`
+ * passed to this callback during a fresh `signIn()` — so when an authenticated
+ * user links a second provider, `token.recipleaseToken` is undefined here. The
+ * exchange runs server-side during the OAuth callback, though, where the user's
+ * existing NextAuth session cookie is still on the request: recover the token
+ * from it so linking attaches to the right account. Guarded because `cookies()`
+ * throws if ever called outside a request scope.
+ */
+async function existingLinkToken(token: JWT): Promise<string | undefined> {
+  if (token.recipleaseToken) return token.recipleaseToken;
+  try {
+    return (await accessToken()) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export type ExchangeResult =
   | { ok: true; token: string; userId: string; handle: string | null }
@@ -69,14 +89,12 @@ export const authOptions: NextAuthOptions = {
   pages: { signIn: '/login', error: '/login' },
   callbacks: {
     async jwt({ token, account }) {
-      // Initial sign-in (or a link attempt for an already-signed-in user):
-      // NextAuth passes a fresh `account` only right after the OAuth handshake.
-      // `token` still carries whatever was decoded from the existing session
-      // cookie, so token.recipleaseToken (if present) is the current user's
-      // existing Reciplease JWT — pass it as linkToken to turn this into a link
-      // request rather than a fresh login.
+      // `account` is set only right after an OAuth handshake (sign-in or a link).
+      // existingLinkToken recovers the current user's Reciplease JWT (if any) so
+      // an already-signed-in user linking a second provider attaches it to their
+      // existing account; otherwise it's a fresh login.
       if (account) {
-        const result = await exchangeIdentity(account, token.recipleaseToken);
+        const result = await exchangeIdentity(account, await existingLinkToken(token));
         if (result.ok) {
           token.recipleaseToken = result.token;
           token.userId = result.userId;
