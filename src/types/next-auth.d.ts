@@ -23,7 +23,7 @@ declare module 'next-auth/jwt' {
     // The Reciplease JWT minted by POST /api/auth/exchange; this is the
     // bearer credential for backend API calls, and also what's passed back
     // as `linkToken` when the user signs in with a second provider.
-    reciplaseToken?: string;
+    recipleaseToken?: string;
     userId?: string;
     handle?: string | null;
     error?: string;

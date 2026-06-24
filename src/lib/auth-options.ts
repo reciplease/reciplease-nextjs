@@ -7,7 +7,7 @@ import { BACKEND_URL } from '@/lib/backend-url';
 // On sign-in, we exchange the OAuth provider's identity for a Reciplease JWT,
 // which is what we forward to the backend as a bearer token from then on (the
 // backend no longer trusts provider id_tokens directly). If the user already
-// has a Reciplease session (token.reciplaseToken is set from a previous
+// has a Reciplease session (token.recipleaseToken is set from a previous
 // sign-in), we pass it along as `linkToken` so the backend links this new
 // provider identity to the existing account instead of creating/finding a
 // separate one.
@@ -72,13 +72,13 @@ export const authOptions: NextAuthOptions = {
       // Initial sign-in (or a link attempt for an already-signed-in user):
       // NextAuth passes a fresh `account` only right after the OAuth handshake.
       // `token` still carries whatever was decoded from the existing session
-      // cookie, so token.reciplaseToken (if present) is the current user's
+      // cookie, so token.recipleaseToken (if present) is the current user's
       // existing Reciplease JWT — pass it as linkToken to turn this into a link
       // request rather than a fresh login.
       if (account) {
-        const result = await exchangeIdentity(account, token.reciplaseToken);
+        const result = await exchangeIdentity(account, token.recipleaseToken);
         if (result.ok) {
-          token.reciplaseToken = result.token;
+          token.recipleaseToken = result.token;
           token.userId = result.userId;
           token.handle = result.handle;
           token.error = undefined;
@@ -93,7 +93,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       // Never expose raw tokens beyond what the client needs to call our own
       // backend: accessToken is the Reciplease JWT (not any provider token).
-      session.accessToken = token.reciplaseToken;
+      session.accessToken = token.recipleaseToken;
       session.error = token.error;
       if (session.user) {
         session.user.handle = token.handle ?? null;

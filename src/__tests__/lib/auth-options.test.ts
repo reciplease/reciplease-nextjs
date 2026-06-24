@@ -112,15 +112,15 @@ describe('jwt callback', () => {
     const result = await jwt!({ token, account, user: undefined as never });
 
     expect(result).toMatchObject({
-      reciplaseToken: 'rcpls-jwt',
+      recipleaseToken: 'rcpls-jwt',
       userId: 'user-1',
       handle: 'chef',
       error: undefined,
     });
   });
 
-  it('passes the existing reciplaseToken on the token as linkToken (linking a 2nd provider)', async () => {
-    const token = { reciplaseToken: 'existing-jwt', userId: 'user-1', handle: 'chef' } as JWT;
+  it('passes the existing recipleaseToken on the token as linkToken (linking a 2nd provider)', async () => {
+    const token = { recipleaseToken: 'existing-jwt', userId: 'user-1', handle: 'chef' } as JWT;
     const account = { provider: 'github', providerAccountId: '999' } as unknown as Account;
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
@@ -134,7 +134,7 @@ describe('jwt callback', () => {
   });
 
   it('sets an error on the token when the exchange fails, without crashing', async () => {
-    const token = { reciplaseToken: 'existing-jwt' } as JWT;
+    const token = { recipleaseToken: 'existing-jwt' } as JWT;
     const account = { provider: 'github', providerAccountId: '999' } as unknown as Account;
     (fetch as jest.Mock).mockResolvedValue({ ok: false, status: 409 });
 
@@ -144,7 +144,7 @@ describe('jwt callback', () => {
   });
 
   it('leaves the token untouched when there is no fresh account (subsequent requests)', async () => {
-    const token = { reciplaseToken: 'existing-jwt', handle: 'chef' } as JWT;
+    const token = { recipleaseToken: 'existing-jwt', handle: 'chef' } as JWT;
 
     const result = await jwt!({ token, account: null, user: undefined as never });
 
@@ -155,7 +155,7 @@ describe('jwt callback', () => {
 
 describe('session callback', () => {
   it('exposes the Reciplease JWT as accessToken and the handle on session.user', async () => {
-    const token = { reciplaseToken: 'rcpls-jwt', handle: 'chef' } as unknown as JWT;
+    const token = { recipleaseToken: 'rcpls-jwt', handle: 'chef' } as unknown as JWT;
     const sessionInput = { user: { name: 'Alice' }, expires: '2999-12-31T23:59:59.999Z' } as unknown as Parameters<
       NonNullable<typeof session>
     >[0]['session'];
@@ -191,7 +191,7 @@ describe('session callback', () => {
   });
 
   it('defaults handle to null when the token has none', async () => {
-    const token = { reciplaseToken: 'rcpls-jwt' } as unknown as JWT;
+    const token = { recipleaseToken: 'rcpls-jwt' } as unknown as JWT;
     const sessionInput = { user: { name: 'Alice' }, expires: '2999-12-31T23:59:59.999Z' } as unknown as Parameters<
       NonNullable<typeof session>
     >[0]['session'];

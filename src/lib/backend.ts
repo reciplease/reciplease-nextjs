@@ -56,5 +56,5 @@ export async function accessToken(): Promise<string | undefined> {
     // Malformed session JWE — treat as not signed in rather than crash.
     return undefined;
   }
-  return token?.reciplaseToken as string | undefined;
+  return token?.recipleaseToken as string | undefined;
 }

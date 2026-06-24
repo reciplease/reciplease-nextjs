@@ -49,16 +49,16 @@ describe('accessToken', () => {
     expect(await accessToken()).toBeUndefined();
   });
 
-  it('returns undefined when the decoded token has no reciplaseToken', async () => {
+  it('returns undefined when the decoded token has no recipleaseToken', async () => {
     (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
     (decode as jest.Mock).mockResolvedValue({});
 
     expect(await accessToken()).toBeUndefined();
   });
 
-  it('returns the stored reciplaseToken', async () => {
+  it('returns the stored recipleaseToken', async () => {
     (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
-    (decode as jest.Mock).mockResolvedValue({ reciplaseToken: 'rcpls-jwt' });
+    (decode as jest.Mock).mockResolvedValue({ recipleaseToken: 'rcpls-jwt' });
 
     expect(await accessToken()).toBe('rcpls-jwt');
   });
@@ -67,7 +67,7 @@ describe('accessToken', () => {
     (cookies as jest.Mock).mockResolvedValue(
       cookieStore({ 'next-auth.session-token.0': 'part1', 'next-auth.session-token.1': 'part2' }),
     );
-    (decode as jest.Mock).mockResolvedValue({ reciplaseToken: 'rcpls-jwt' });
+    (decode as jest.Mock).mockResolvedValue({ recipleaseToken: 'rcpls-jwt' });
 
     expect(await accessToken()).toBe('rcpls-jwt');
     expect(decode).toHaveBeenCalledWith({ token: 'part1part2', secret: 'secret' });
@@ -77,7 +77,7 @@ describe('accessToken', () => {
     (cookies as jest.Mock).mockResolvedValue(
       cookieStore({ '__Secure-next-auth.session-token': 'securetok' }),
     );
-    (decode as jest.Mock).mockResolvedValue({ reciplaseToken: 'rcpls-jwt' });
+    (decode as jest.Mock).mockResolvedValue({ recipleaseToken: 'rcpls-jwt' });
 
     expect(await accessToken()).toBe('rcpls-jwt');
     expect(decode).toHaveBeenCalledWith({ token: 'securetok', secret: 'secret' });
