@@ -2,6 +2,10 @@ import { render, screen } from '@testing-library/react';
 import InventoryList from '@/pages/inventory';
 
 jest.mock('swr');
+jest.mock('@/lib/houses', () => ({
+  useActiveHouse: () => ({ id: 'h1', name: 'Home', role: 'OWNER' }),
+  apiFetch: (url: string, init?: RequestInit) => fetch(url, init),
+}));
 jest.mock('next/link', () => ({ children, href, className }: { children: React.ReactNode; href: string; className?: string }) => (
   <a href={href} className={className}>{children}</a>
 ));

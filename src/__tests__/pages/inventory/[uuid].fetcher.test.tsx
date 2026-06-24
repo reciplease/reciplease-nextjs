@@ -2,6 +2,10 @@ import { render, screen, waitFor } from '@testing-library/react';
 import InventoryItemPage, { getServerSideProps } from '@/pages/inventory/[uuid]';
 import { GetServerSidePropsContext } from 'next';
 
+jest.mock('@/lib/houses', () => ({
+  useActiveHouse: () => ({ id: 'h1', name: 'Home', role: 'OWNER' }),
+  apiFetch: (url: string, init?: RequestInit) => fetch(url, init),
+}));
 jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; href: string }) => (
   <a href={href}>{children}</a>
 ));
@@ -36,7 +40,7 @@ describe('InventoryItemPage data fetching', () => {
     expect(screen.getByText('Loading...')).toBeInTheDocument();
 
     await waitFor(() => expect(screen.getByText('Milk')).toBeInTheDocument());
-    expect(fetch).toHaveBeenCalledWith('/api/inventory/uuid-1', expect.anything());
+    expect(fetch).toHaveBeenCalledWith('/api/inventory/uuid-1', undefined);
   });
 
   it('shows not found when the request fails', async () => {

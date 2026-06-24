@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Metadata from '@/components/Metadata';
 import { toDataUrl } from '@/lib/imageCapture';
 import { useMeasures, findMeasure } from '@/lib/measures';
-import { apiFetch } from '@/lib/houses';
+import { apiFetch, useActiveHouse } from '@/lib/houses';
 
 const fetcher = (url: string): Promise<InventoryItem[]> =>
   apiFetch(url).then((res) => res.json());
@@ -84,10 +84,14 @@ function ExpirationSection({
 }
 
 export default function ExpiringInventory() {
-  const { data: items, error, isLoading } = useSWR('/api/inventory', fetcher);
+  const activeHouse = useActiveHouse();
+  const { data: items, error, isLoading } = useSWR(
+    activeHouse ? ['/api/inventory', activeHouse.id] : null,
+    () => fetcher('/api/inventory'),
+  );
   const measures = useMeasures();
 
-  if (isLoading) {
+  if (!activeHouse || isLoading) {
     return (
       <>
         <Metadata title="Loading Inventory" description="Loading inventory..." />

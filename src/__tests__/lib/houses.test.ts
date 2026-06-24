@@ -1,6 +1,10 @@
 import { useHouseMembers, usePendingInvites, apiFetch } from '@/lib/houses';
 import { resetSessionCookieForTests } from '@/lib/sessionCookie';
 
+// These tests invoke the hooks directly (not via render) and only assert the SWR
+// key, so stub useEffect to a no-op — useActiveHouse's cookie-persisting effect
+// is irrelevant here and would otherwise throw outside a render.
+jest.mock('react', () => ({ ...jest.requireActual('react'), useEffect: () => {} }));
 jest.mock('swr');
 jest.mock('next-auth/react');
 

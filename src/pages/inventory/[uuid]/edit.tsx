@@ -5,7 +5,7 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
 import { compressToBase64, toDataUrl } from '@/lib/imageCapture';
-import { apiFetch } from '@/lib/houses';
+import { apiFetch, useActiveHouse } from '@/lib/houses';
 
 const itemFetcher = (url: string): Promise<InventoryItem> =>
   apiFetch(url).then((res) => {
@@ -24,10 +24,14 @@ interface Props {
 }
 
 export default function EditInventoryItem({ uuid }: Props) {
-  const { data: item, error: itemError, isLoading: itemLoading } = useSWR(`/api/inventory/${uuid}`, itemFetcher);
+  const activeHouse = useActiveHouse();
+  const { data: item, error: itemError, isLoading: itemLoading } = useSWR(
+    activeHouse ? [`/api/inventory/${uuid}`, activeHouse.id] : null,
+    () => itemFetcher(`/api/inventory/${uuid}`),
+  );
   const { data: measures, isLoading: measuresLoading } = useSWR('/api/measures', measuresFetcher);
 
-  if (itemLoading) {
+  if (!activeHouse || itemLoading) {
     return (
       <>
         <Metadata title="Loading" description="Loading inventory item..." />

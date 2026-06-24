@@ -2,6 +2,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import EditInventoryItem from '@/pages/inventory/[uuid]/edit';
 
 jest.mock('swr');
+jest.mock('@/lib/houses', () => ({
+  useActiveHouse: () => ({ id: 'h1', name: 'Home', role: 'OWNER' }),
+  apiFetch: (url: string, init?: RequestInit) => fetch(url, init),
+}));
 jest.mock('next/router', () => ({ useRouter: jest.fn() }));
 jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; href: string }) => (
   <a href={href}>{children}</a>

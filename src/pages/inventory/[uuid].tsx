@@ -5,7 +5,7 @@ import Metadata from '@/components/Metadata';
 import { formatDate, formatTimestamp } from '@/lib/formatDate';
 import { toDataUrl } from '@/lib/imageCapture';
 import { useMeasures, findMeasure } from '@/lib/measures';
-import { apiFetch } from '@/lib/houses';
+import { apiFetch, useActiveHouse } from '@/lib/houses';
 
 const fetcher = (url: string): Promise<InventoryItem> =>
   apiFetch(url).then((res) => {
@@ -22,10 +22,14 @@ function isExpired(expiration: string): boolean {
 }
 
 export default function InventoryItemPage({ uuid }: Props) {
-  const { data: item, error, isLoading } = useSWR(`/api/inventory/${uuid}`, fetcher);
+  const activeHouse = useActiveHouse();
+  const { data: item, error, isLoading } = useSWR(
+    activeHouse ? [`/api/inventory/${uuid}`, activeHouse.id] : null,
+    () => fetcher(`/api/inventory/${uuid}`),
+  );
   const measures = useMeasures();
 
-  if (isLoading) {
+  if (!activeHouse || isLoading) {
     return (
       <>
         <Metadata title="Loading" description="Loading inventory item..." />

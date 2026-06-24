@@ -2,7 +2,7 @@ import useSWR from 'swr';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
 import { toDataUrl } from '@/lib/imageCapture';
-import { apiFetch } from '@/lib/houses';
+import { apiFetch, useActiveHouse } from '@/lib/houses';
 
 const fetcher = (url: string): Promise<InventoryItem[]> =>
   apiFetch(url).then((res) => res.json());
@@ -12,9 +12,16 @@ function isExpired(expiration: string): boolean {
 }
 
 export default function InventoryList() {
-  const { data: items, error, isLoading } = useSWR('/api/inventory', fetcher);
+  // Wait for the active house before fetching: house-scoped calls need the
+  // X-RCPLS-House-Id header, which is only known once houses have loaded. Keying
+  // by house id also refetches if the user switches house.
+  const activeHouse = useActiveHouse();
+  const { data: items, error, isLoading } = useSWR(
+    activeHouse ? ['/api/inventory', activeHouse.id] : null,
+    () => fetcher('/api/inventory'),
+  );
 
-  if (isLoading) {
+  if (!activeHouse || isLoading) {
     return (
       <>
         <Metadata title="Loading Inventory" description="Loading inventory..." />

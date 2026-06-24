@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
 import { ensureSessionCookie } from '@/lib/sessionCookie';
@@ -10,6 +11,13 @@ export const HOUSE_COOKIE = 'reciplease-house-id';
 // Mirrors org.reciplease.configuration.HouseAccess.HOUSE_HEADER on the backend.
 export const HOUSE_HEADER = 'X-RCPLS-House-Id';
 
+// In-memory mirror of the active house id. useActiveHouse() keeps this in sync
+// the moment houses resolve, so apiFetch can attach the house header even if the
+// reciplease-house-id cookie write hasn't landed yet (the two used to race, which
+// 403'd every house-scoped call on the first load after sign-in). A holder object
+// (mutated property, not a reassigned binding) so render stays pure.
+const activeHouse: { id: string | undefined } = { id: undefined };
+
 export function readHouseCookie(): string | undefined {
   if (typeof document === 'undefined') return undefined;
   return document.cookie
@@ -18,15 +26,22 @@ export function readHouseCookie(): string | undefined {
     ?.split('=')[1];
 }
 
+export function writeHouseCookie(id: string): void {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${HOUSE_COOKIE}=${id}; path=/; max-age=31536000; samesite=lax`;
+}
+
 // Every authenticated backend call goes through here. Two jobs:
 //  1. Ensure the reciplease-session cookie has been synced (the proxy needs it
 //     to authenticate the call — see ensureSessionCookie).
 //  2. Attach the active house as a header. Previously the BFF read the plain
 //     reciplease-house-id cookie server-side and translated it into this header;
 //     now that calls go straight through the generic proxy, the browser sets it.
+//     Falls back to the in-memory active house id so a not-yet-written cookie
+//     doesn't drop the header (which the backend 403s on).
 export async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
   await ensureSessionCookie();
-  const houseId = readHouseCookie();
+  const houseId = readHouseCookie() ?? activeHouse.id;
   const headers = new Headers(init.headers);
   if (houseId && !headers.has(HOUSE_HEADER)) {
     headers.set(HOUSE_HEADER, houseId);
@@ -47,11 +62,25 @@ export function useHouses() {
 
 // The house the X-RCPLS-House-Id cookie currently points at, resolved against
 // the user's houses (falls back to the first house if the cookie is stale/unset).
+// Resolving also persists the choice (cookie + in-memory mirror) so every
+// house-scoped apiFetch sends a matching header — without this the fallback was
+// display-only and the header was dropped, 403ing the call. The persistence runs
+// in an effect (before the page's own data-fetch effect, since callers invoke
+// useActiveHouse ahead of their useSWR), keeping render pure.
 export function useActiveHouse(): House | undefined {
   const { data: houses } = useHouses();
-  if (!houses || houses.length === 0) return undefined;
-  const cookieId = readHouseCookie();
-  return houses.find((house) => house.id === cookieId) ?? houses[0];
+  const resolved =
+    houses && houses.length > 0
+      ? houses.find((house) => house.id === readHouseCookie()) ?? houses[0]
+      : undefined;
+
+  useEffect(() => {
+    if (!resolved) return;
+    activeHouse.id = resolved.id;
+    if (resolved.id !== readHouseCookie()) writeHouseCookie(resolved.id);
+  }, [resolved?.id]);
+
+  return resolved;
 }
 
 const membersFetcher = (url: string): Promise<HouseMember[]> =>
