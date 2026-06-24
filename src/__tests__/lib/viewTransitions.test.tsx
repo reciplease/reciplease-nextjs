@@ -89,9 +89,8 @@ describe('useViewTransitionRouter', () => {
     expect(startViewTransition).not.toHaveBeenCalled();
   });
 
-  it('resolves the pending transition once the route changes', async () => {
-    const router = makeRouter('/recipes');
-    let resolveSpy = jest.fn();
+  function trackResolve() {
+    const resolveSpy = jest.fn();
     startViewTransition.mockImplementation((cb: () => void | Promise<void>) => {
       const result = cb();
       if (result && typeof (result as Promise<void>).then === 'function') {
@@ -99,19 +98,42 @@ describe('useViewTransitionRouter', () => {
       }
       return {};
     });
+    return resolveSpy;
+  }
 
-    const { rerender } = render(<TestComponent router={router} />);
+  it('resolves the pending transition on routeChangeComplete', async () => {
+    const router = makeRouter('/recipes');
+    const resolveSpy = trackResolve();
+    render(<TestComponent router={router} />);
 
-    act(() => {
-      router.events.emit('routeChangeStart');
-    });
+    act(() => router.events.emit('routeChangeStart'));
     expect(resolveSpy).not.toHaveBeenCalled();
 
-    const navigatedRouter = makeRouter('/recipes/abc');
-    await act(async () => {
-      rerender(<TestComponent router={navigatedRouter} />);
-    });
+    await act(async () => router.events.emit('routeChangeComplete'));
 
     expect(resolveSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('resolves the pending transition on routeChangeError (cancelled nav) so it cannot freeze the page', async () => {
+    const router = makeRouter('/recipes');
+    const resolveSpy = trackResolve();
+    render(<TestComponent router={router} />);
+
+    act(() => router.events.emit('routeChangeStart'));
+    await act(async () => router.events.emit('routeChangeError'));
+
+    expect(resolveSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes a still-open transition when a new navigation starts (rapid clicks)', async () => {
+    const router = makeRouter('/recipes');
+    const resolveSpy = trackResolve();
+    render(<TestComponent router={router} />);
+
+    act(() => router.events.emit('routeChangeStart'));
+    await act(async () => router.events.emit('routeChangeStart'));
+
+    expect(resolveSpy).toHaveBeenCalledTimes(1);
+    expect(startViewTransition).toHaveBeenCalledTimes(2);
   });
 });
