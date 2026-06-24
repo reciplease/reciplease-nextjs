@@ -1,5 +1,4 @@
 import { useHouseMembers, usePendingInvites, apiFetch } from '@/lib/houses';
-import { resetSessionCookieForTests } from '@/lib/sessionCookie';
 
 // These tests invoke the hooks directly (not via render) and only assert the SWR
 // key, so stub useEffect to a no-op — useActiveHouse's cookie-persisting effect
@@ -11,28 +10,12 @@ jest.mock('next-auth/react');
 const useSWR = require('swr').default;
 const { useSession } = require('next-auth/react');
 
-// apiFetch fires /api/session-cookie first (the cookie sync), then the real
-// request. Grab the call to the given url, not blindly calls[0].
-function fetchCallTo(url: string) {
-  return (fetch as jest.Mock).mock.calls.find(([u]) => u === url);
-}
-
 describe('apiFetch', () => {
   const originalFetch = global.fetch;
-
-  beforeEach(() => resetSessionCookieForTests());
 
   afterEach(() => {
     global.fetch = originalFetch;
     document.cookie = 'reciplease-house-id=; expires=Thu, 01 Jan 1970 00:00:00 UTC';
-  });
-
-  it('syncs the session cookie before the request', async () => {
-    global.fetch = jest.fn().mockResolvedValue({ ok: true });
-
-    await apiFetch('/api/inventory');
-
-    expect(fetch).toHaveBeenCalledWith('/api/session-cookie');
   });
 
   it('attaches the active house as a header when the cookie is set', async () => {
@@ -41,7 +24,7 @@ describe('apiFetch', () => {
 
     await apiFetch('/api/inventory');
 
-    const [, init] = fetchCallTo('/api/inventory')!;
+    const [, init] = (fetch as jest.Mock).mock.calls[0];
     expect((init.headers as Headers).get('X-RCPLS-House-Id')).toBe('house-1');
   });
 
@@ -50,7 +33,7 @@ describe('apiFetch', () => {
 
     await apiFetch('/api/houses');
 
-    const [, init] = fetchCallTo('/api/houses')!;
+    const [, init] = (fetch as jest.Mock).mock.calls[0];
     expect((init.headers as Headers).has('X-RCPLS-House-Id')).toBe(false);
   });
 });

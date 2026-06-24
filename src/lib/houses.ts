@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
-import { ensureSessionCookie } from '@/lib/sessionCookie';
 
 export type House = { id: string; name: string; role: 'OWNER' | 'READ_ONLY' };
 export type HouseMember = { userId: string; handle: string | null; role: 'OWNER' | 'READ_ONLY' };
@@ -31,16 +30,14 @@ export function writeHouseCookie(id: string): void {
   document.cookie = `${HOUSE_COOKIE}=${id}; path=/; max-age=31536000; samesite=lax`;
 }
 
-// Every authenticated backend call goes through here. Two jobs:
-//  1. Ensure the reciplease-session cookie has been synced (the proxy needs it
-//     to authenticate the call — see ensureSessionCookie).
-//  2. Attach the active house as a header. Previously the BFF read the plain
-//     reciplease-house-id cookie server-side and translated it into this header;
-//     now that calls go straight through the generic proxy, the browser sets it.
-//     Falls back to the in-memory active house id so a not-yet-written cookie
-//     doesn't drop the header (which the backend 403s on).
-export async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
-  await ensureSessionCookie();
+// Attaches the active house as a header on house-scoped calls. (Auth itself is
+// handled by the proxy, which decodes the NextAuth session cookie server-side —
+// the client doesn't deal with tokens here.) Previously the BFF read the plain
+// reciplease-house-id cookie server-side and translated it into this header; now
+// that calls go through the generic proxy the browser sets it, falling back to
+// the in-memory active house id so a not-yet-written cookie doesn't drop the
+// header (which the backend 403s on).
+export function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const houseId = readHouseCookie() ?? activeHouse.id;
   const headers = new Headers(init.headers);
   if (houseId && !headers.has(HOUSE_HEADER)) {

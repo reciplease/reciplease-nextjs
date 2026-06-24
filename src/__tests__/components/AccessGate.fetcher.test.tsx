@@ -2,7 +2,6 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { SWRConfig } from 'swr';
 import type { ReactNode } from 'react';
 import AccessGate from '@/components/AccessGate';
-import { resetSessionCookieForTests } from '@/lib/sessionCookie';
 
 jest.mock('next-auth/react');
 jest.mock('next/router', () => ({ useRouter: jest.fn() }));
@@ -25,16 +24,14 @@ function renderGated(children: ReactNode) {
 
 describe('AccessGate access probe', () => {
   beforeEach(() => {
-    resetSessionCookieForTests();
     useRouter.mockReturnValue({ replace: jest.fn(), pathname: '/recipes' });
   });
 
   afterEach(() => (fetch as jest.Mock).mockReset());
 
-  it('syncs the session cookie, probes /api/houses and /api/me, and renders children once both resolve favourably', async () => {
+  it('probes /api/houses and /api/me and renders children once both resolve favourably', async () => {
     useSession.mockReturnValue({ data: { user: { handle: 'cook' } }, status: 'authenticated' });
     (fetch as jest.Mock).mockImplementation((url: string) => {
-      if (url === '/api/session-cookie') return Promise.resolve({ status: 204 });
       if (url === '/api/houses') return Promise.resolve({ status: 200 });
       if (url === '/api/me') {
         return Promise.resolve({ ok: true, json: async () => ({ id: 'user-1', handle: 'cook' }) });
@@ -46,7 +43,6 @@ describe('AccessGate access probe', () => {
 
     expect(screen.getByText('Checking access…')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('App content')).toBeInTheDocument());
-    expect(fetch).toHaveBeenCalledWith('/api/session-cookie');
     expect(fetch).toHaveBeenCalledWith('/api/houses');
     expect(fetch).toHaveBeenCalledWith('/api/me');
   });
@@ -56,7 +52,6 @@ describe('AccessGate access probe', () => {
     useRouter.mockReturnValue({ replace, pathname: '/recipes' });
     useSession.mockReturnValue({ data: { user: { handle: null } }, status: 'authenticated' });
     (fetch as jest.Mock).mockImplementation((url: string) => {
-      if (url === '/api/session-cookie') return Promise.resolve({ status: 204 });
       if (url === '/api/houses') return Promise.resolve({ status: 200 });
       if (url === '/api/me') {
         return Promise.resolve({ ok: true, json: async () => ({ id: 'user-1', handle: null }) });

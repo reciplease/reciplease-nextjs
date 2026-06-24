@@ -9,10 +9,7 @@ const ALL_PROVIDERS: { id: 'google' | 'github'; label: string }[] = [
   { id: 'github', label: 'GitHub' },
 ];
 
-// Sync the reciplease-session cookie before calling through the proxy — needed
-// here too since linking rotates the token (a fresh sign-in just completed).
 const fetcher = async (url: string): Promise<Identities | null> => {
-  await fetch('/api/session-cookie');
   const res = await fetch(url);
   return res.ok ? res.json() : null;
 };

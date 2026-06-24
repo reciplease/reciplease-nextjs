@@ -10,10 +10,7 @@ const signIn = require('next-auth/react').signIn as jest.Mock;
 global.fetch = jest.fn();
 
 function mockIdentities(providers: string[]) {
-  (fetch as jest.Mock).mockImplementation((url: string) => {
-    if (url === '/api/session-cookie') return Promise.resolve({ status: 204 });
-    return Promise.resolve({ ok: true, json: async () => ({ providers }) });
-  });
+  (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ providers }) });
 }
 
 describe('AccountSettingsPage', () => {
@@ -31,7 +28,6 @@ describe('AccountSettingsPage', () => {
     await waitFor(() => expect(screen.getByText('Linked')).toBeInTheDocument());
     expect(screen.getByText('Google')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Link GitHub' })).toBeInTheDocument();
-    expect(fetch).toHaveBeenCalledWith('/api/session-cookie');
     expect(fetch).toHaveBeenCalledWith('/api/me/identities');
   });
 
