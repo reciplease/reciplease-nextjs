@@ -3,6 +3,7 @@ import HouseSwitcher from '@/components/HouseSwitcher';
 import { useActiveHouse, useHouseMembers, usePendingInvites, apiFetch } from '@/lib/houses';
 import { signOut } from 'next-auth/react';
 import { useState } from 'react';
+import useSWR from 'swr';
 
 type Role = 'OWNER' | 'READ_ONLY';
 
@@ -37,6 +38,10 @@ export default function HouseSettingsPage() {
   const activeHouse = useActiveHouse();
   const { data: members, mutate: mutateMembers } = useHouseMembers();
   const { data: invites, mutate: mutateInvites } = usePendingInvites();
+  // Current user's id, so we don't offer to remove yourself (cached by AccessGate).
+  const { data: me } = useSWR<{ id: string }>('/api/me', (url: string) =>
+    apiFetch(url).then((r) => (r.ok ? r.json() : null)),
+  );
 
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [newInviteRole, setNewInviteRole] = useState<Role>('READ_ONLY');
@@ -55,6 +60,22 @@ export default function HouseSettingsPage() {
       });
       if (!res.ok) {
         setError('Could not update that member\'s role. Please try again.');
+        return;
+      }
+      await mutateMembers();
+    } finally {
+      setUpdatingUserId(null);
+    }
+  }
+
+  async function removeMember(userId: string, handle: string | null) {
+    if (!window.confirm(`Remove ${handle ?? 'this member'} from ${activeHouse?.name}?`)) return;
+    setUpdatingUserId(userId);
+    setError(null);
+    try {
+      const res = await apiFetch(`/api/houses/members/${userId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        setError('Could not remove that member. Please try again.');
         return;
       }
       await mutateMembers();
@@ -138,11 +159,25 @@ export default function HouseSettingsPage() {
             {members?.map((member) => (
               <li key={member.userId} className="flex items-center justify-between gap-3">
                 <span>{member.handle ?? '(no handle set)'}</span>
-                <RoleSelect
-                  value={member.role}
-                  disabled={updatingUserId === member.userId}
-                  onChange={(role) => updateRole(member.userId, role)}
-                />
+                <div className="flex items-center gap-2">
+                  <RoleSelect
+                    value={member.role}
+                    disabled={updatingUserId === member.userId}
+                    onChange={(role) => updateRole(member.userId, role)}
+                  />
+                  {me && member.userId !== me.id && (
+                    <button
+                      type="button"
+                      aria-label={`Remove ${member.handle ?? 'member'}`}
+                      title="Remove member"
+                      disabled={updatingUserId === member.userId}
+                      onClick={() => removeMember(member.userId, member.handle)}
+                      className="shrink-0 cursor-pointer rounded border-2 border-red-600 px-2 text-sm text-red-600 hover:bg-red-600 hover:text-white disabled:opacity-50"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

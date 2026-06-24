@@ -1,5 +1,11 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { SWRConfig } from 'swr';
+import type { ReactNode } from 'react';
 import HouseSettingsPage from '@/pages/settings/house';
+
+// Fresh SWR cache so the /api/me lookup can't be polluted by another test.
+const renderFresh = (node: ReactNode) =>
+  render(<SWRConfig value={{ provider: () => new Map() }}>{node}</SWRConfig>);
 
 jest.mock('@/lib/houses', () => ({
   useActiveHouse: jest.fn(),
@@ -142,6 +148,28 @@ describe('HouseSettingsPage', () => {
       fireEvent.change(selects[1], { target: { value: 'OWNER' } });
 
       expect(await screen.findByRole('alert')).toHaveTextContent(/Could not update/);
+    });
+
+    it('offers a remove (X) only for other members, and removing revalidates the list', async () => {
+      (global.fetch as jest.Mock).mockImplementation((url: string) => {
+        if (url === '/api/me') return Promise.resolve({ ok: true, json: async () => ({ id: 'owner-1' }) });
+        return Promise.resolve({ ok: true });
+      });
+      const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
+      renderFresh(<HouseSettingsPage />);
+
+      // No remove button for yourself; one for the other member.
+      const removeButtons = await screen.findAllByRole('button', { name: /^Remove/ });
+      expect(removeButtons).toHaveLength(1);
+
+      fireEvent.click(removeButtons[0]);
+
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+        '/api/houses/members/member-1',
+        expect.objectContaining({ method: 'DELETE' }),
+      ));
+      await waitFor(() => expect(mutateMembers).toHaveBeenCalled());
+      confirmSpy.mockRestore();
     });
   });
 });
