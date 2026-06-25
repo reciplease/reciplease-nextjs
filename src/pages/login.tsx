@@ -4,12 +4,14 @@ import Head from 'next/head';
 import { useState } from 'react';
 import { passkeySignInCredentials } from '@/lib/passkey';
 
+const PASSKEY_SIGNUP_LABEL = 'Create an account with a passkey';
+
 // NextAuth appends ?error=… when a sign-in attempt fails; surface a friendly message.
 const ERROR_MESSAGES: Record<string, string> = {
   AccessDenied: 'Access was denied. Your account may not be permitted.',
   Configuration: 'Sign-in is temporarily unavailable. Please try again later.',
   Verification: 'That sign-in link is no longer valid. Please try again.',
-  CredentialsSignin: "That passkey isn't recognised. If you don't have an account yet, use \"Sign up with a passkey\" instead.",
+  CredentialsSignin: `That passkey isn't recognised. If you don't have an account yet, use "${PASSKEY_SIGNUP_LABEL}" instead.`,
   default: 'Something went wrong while signing in. Please try again.',
 };
 
@@ -156,7 +158,7 @@ export default function Login() {
             onClick={() => handlePasskey('signup')}
           >
             <PasskeyIcon />
-            {passkeyBusy === 'signup' ? 'Creating account…' : 'Create an account with a passkey'}
+            {passkeyBusy === 'signup' ? 'Creating account…' : PASSKEY_SIGNUP_LABEL}
           </button>
         </section>
       </main>
