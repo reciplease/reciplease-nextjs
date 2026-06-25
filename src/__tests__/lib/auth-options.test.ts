@@ -40,6 +40,7 @@ describe('exchangeIdentity', () => {
     const result = await exchangeIdentity(
       { provider: 'github', providerAccountId: '12345' },
       'old-rcpls-jwt',
+      'me@github.com',
     );
 
     expect(result).toEqual({ ok: true, token: 'rcpls-jwt', userId: 'user-1', handle: 'chef' });
@@ -52,6 +53,7 @@ describe('exchangeIdentity', () => {
           provider: 'github',
           providerId: '12345',
           linkToken: 'old-rcpls-jwt',
+          email: 'me@github.com',
         }),
       }),
     );
@@ -66,6 +68,7 @@ describe('exchangeIdentity', () => {
     const result = await exchangeIdentity(
       { provider: 'google', providerAccountId: 'sub-1' },
       undefined,
+      'me@gmail.com',
     );
 
     expect(result).toEqual({ ok: true, token: 'rcpls-jwt', userId: 'user-1', handle: null });
@@ -77,6 +80,7 @@ describe('exchangeIdentity', () => {
     const result = await exchangeIdentity(
       { provider: 'github', providerAccountId: '12345' },
       'old-rcpls-jwt',
+      'me@github.com',
     );
 
     expect(result).toEqual({ ok: false, error: 'IdentityConflict' });
@@ -88,6 +92,7 @@ describe('exchangeIdentity', () => {
     const result = await exchangeIdentity(
       { provider: 'google', providerAccountId: 'sub-1' },
       undefined,
+      'me@gmail.com',
     );
 
     expect(result).toEqual({ ok: false, error: 'ExchangeError' });
@@ -99,6 +104,7 @@ describe('exchangeIdentity', () => {
     const result = await exchangeIdentity(
       { provider: 'google', providerAccountId: 'sub-1' },
       undefined,
+      'me@gmail.com',
     );
 
     expect(result).toEqual({ ok: false, error: 'ExchangeError' });
@@ -114,7 +120,7 @@ describe('jwt callback', () => {
       json: async () => ({ token: 'rcpls-jwt', userId: 'user-1', handle: 'chef' }),
     });
 
-    const result = await jwt!({ token, account, user: undefined as never });
+    const result = await jwt!({ token, account, user: { email: 'me@gmail.com' } as never });
 
     expect(result).toMatchObject({
       recipleaseToken: 'rcpls-jwt',
@@ -122,6 +128,8 @@ describe('jwt callback', () => {
       handle: 'chef',
       error: undefined,
     });
+    const body = JSON.parse((fetch as jest.Mock).mock.calls[0][1].body);
+    expect(body.email).toBe('me@gmail.com');
   });
 
   it('passes the existing recipleaseToken on the token as linkToken (linking a 2nd provider)', async () => {

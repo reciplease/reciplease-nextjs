@@ -2,7 +2,8 @@ import { useSession, signIn } from 'next-auth/react';
 import { useState } from 'react';
 import useSWR from 'swr';
 
-type Identities = { providers: string[] };
+type LinkedIdentity = { provider: string; email: string | null };
+type Identities = { identities: LinkedIdentity[] };
 
 const ALL_PROVIDERS: { id: 'google' | 'github'; label: string }[] = [
   { id: 'google', label: 'Google' },
@@ -26,7 +27,7 @@ export default function LinkedAccounts({ returnTo }: { returnTo: string }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const linked = identities?.providers ?? [];
+  const linked = identities?.identities ?? [];
 
   async function unlink(provider: string) {
     setBusy(provider);
@@ -70,11 +71,17 @@ export default function LinkedAccounts({ returnTo }: { returnTo: string }) {
       ) : (
         <ul className="mt-3 flex flex-col gap-2">
           {ALL_PROVIDERS.map((provider) => {
-            const isLinked = linked.includes(provider.id);
+            const linkedIdentity = linked.find((identity) => identity.provider === provider.id);
+            const isLinked = linkedIdentity !== undefined;
             const isOnlyMethod = isLinked && linked.length === 1;
             return (
               <li key={provider.id} className="flex items-center justify-between gap-3">
-                <span>{provider.label}</span>
+                <span>
+                  {provider.label}
+                  {linkedIdentity?.email && (
+                    <span className="ml-2 text-sm opacity-70">{linkedIdentity.email}</span>
+                  )}
+                </span>
                 {isLinked ? (
                   <button
                     type="button"

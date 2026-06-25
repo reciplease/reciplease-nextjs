@@ -17,13 +17,13 @@ beforeEach(() => {
   useSession.mockReturnValue({ status: 'authenticated', data: {} });
 });
 
-function mockIdentities(providers: string[]) {
-  (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ providers }) });
+function mockIdentities(identities: { provider: string; email: string | null }[]) {
+  (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ identities }) });
 }
 
 describe('LinkedAccounts', () => {
   it('offers to link the provider that is not yet linked', async () => {
-    mockIdentities(['google']);
+    mockIdentities([{ provider: 'google', email: 'me@gmail.com' }]);
     renderFresh(<LinkedAccounts returnTo="/settings/house" />);
 
     const linkGithub = await screen.findByRole('button', { name: 'Link GitHub' });
@@ -31,10 +31,27 @@ describe('LinkedAccounts', () => {
     expect(signIn).toHaveBeenCalledWith('github', { callbackUrl: '/settings/house' });
   });
 
+  it('shows the email of each linked identity', async () => {
+    mockIdentities([{ provider: 'google', email: 'me@gmail.com' }]);
+    renderFresh(<LinkedAccounts returnTo="/settings/house" />);
+
+    expect(await screen.findByText('me@gmail.com')).toBeInTheDocument();
+  });
+
   it('lets you unlink a provider when more than one is linked', async () => {
     (fetch as jest.Mock).mockImplementation((url: string, init?: RequestInit) => {
-      if (init?.method === 'DELETE') return Promise.resolve({ ok: true, json: async () => ({ providers: ['google'] }) });
-      return Promise.resolve({ ok: true, json: async () => ({ providers: ['google', 'github'] }) });
+      if (init?.method === 'DELETE') {
+        return Promise.resolve({ ok: true, json: async () => ({ identities: [{ provider: 'google', email: 'me@gmail.com' }] }) });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          identities: [
+            { provider: 'google', email: 'me@gmail.com' },
+            { provider: 'github', email: 'me@github.com' },
+          ],
+        }),
+      });
     });
     renderFresh(<LinkedAccounts returnTo="/settings/house" />);
 
@@ -47,7 +64,7 @@ describe('LinkedAccounts', () => {
   });
 
   it('disables unlink when it is the only sign-in method', async () => {
-    mockIdentities(['google']);
+    mockIdentities([{ provider: 'google', email: 'me@gmail.com' }]);
     renderFresh(<LinkedAccounts returnTo="/settings/house" />);
 
     // Google is linked and is the only method → its unlink is disabled; GitHub shows Link.

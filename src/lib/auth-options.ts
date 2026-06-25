@@ -39,6 +39,7 @@ export type ExchangeResult =
 export async function exchangeIdentity(
   account: Pick<Account, 'provider' | 'providerAccountId'>,
   linkToken: string | undefined,
+  email: string | null | undefined,
 ): Promise<ExchangeResult> {
   try {
     const response = await fetch(`${BACKEND_URL}/api/auth/exchange`, {
@@ -51,6 +52,7 @@ export async function exchangeIdentity(
         provider: account.provider,
         providerId: account.providerAccountId,
         linkToken,
+        email,
       }),
     });
 
@@ -88,13 +90,15 @@ export const authOptions: NextAuthOptions = {
   // Use our own branded sign-in page instead of NextAuth's default UI.
   pages: { signIn: '/login', error: '/login' },
   callbacks: {
-    async jwt({ token, account }) {
+    async jwt({ token, account, user }) {
       // `account` is set only right after an OAuth handshake (sign-in or a link).
       // existingLinkToken recovers the current user's Reciplease JWT (if any) so
       // an already-signed-in user linking a second provider attaches it to their
       // existing account; otherwise it's a fresh login.
       if (account) {
-        const result = await exchangeIdentity(account, await existingLinkToken(token));
+        // `user` here is the provider's profile for this handshake, not the
+        // previously-signed-in user — its email identifies *this* linked account.
+        const result = await exchangeIdentity(account, await existingLinkToken(token), user?.email);
         if (result.ok) {
           token.recipleaseToken = result.token;
           token.userId = result.userId;
