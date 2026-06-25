@@ -1,14 +1,19 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import Login from '@/pages/login';
 
 jest.mock('next-auth/react', () => ({ signIn: jest.fn() }));
 jest.mock('next/router', () => ({ useRouter: jest.fn() }));
+jest.mock('@/lib/passkey', () => ({ passkeySignInCredentials: jest.fn() }));
 
 const { signIn } = require('next-auth/react');
 const useRouter = require('next/router').useRouter as jest.Mock;
+const { passkeySignInCredentials } = require('@/lib/passkey');
 
 describe('Login page', () => {
-  afterEach(() => (signIn as jest.Mock).mockReset());
+  afterEach(() => {
+    (signIn as jest.Mock).mockReset();
+    (passkeySignInCredentials as jest.Mock).mockReset();
+  });
 
   it('signs in with Google using the default callback url when none is provided', () => {
     useRouter.mockReturnValue({ query: {} });
@@ -83,5 +88,60 @@ describe('Login page', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /sign in with github/i }));
     expect(signIn).toHaveBeenCalledWith('github', { callbackUrl: '/inventory' });
+  });
+
+  it('signs in with a passkey using the result of the browser ceremony', async () => {
+    useRouter.mockReturnValue({ query: {} });
+    (passkeySignInCredentials as jest.Mock).mockResolvedValue({
+      ok: true,
+      mode: 'login',
+      challenge: 'chal-1',
+      credential: '{"id":"cred-1"}',
+    });
+
+    render(<Login />);
+    fireEvent.click(screen.getByRole('button', { name: /sign in with a passkey/i }));
+
+    await waitFor(() =>
+      expect(signIn).toHaveBeenCalledWith('passkey', {
+        mode: 'login',
+        challenge: 'chal-1',
+        credential: '{"id":"cred-1"}',
+        callbackUrl: '/recipes',
+      }),
+    );
+    expect(passkeySignInCredentials).toHaveBeenCalledWith('login');
+  });
+
+  it('creates an account with a passkey using signup mode', async () => {
+    useRouter.mockReturnValue({ query: {} });
+    (passkeySignInCredentials as jest.Mock).mockResolvedValue({
+      ok: true,
+      mode: 'signup',
+      challenge: 'chal-2',
+      credential: '{"id":"cred-2"}',
+    });
+
+    render(<Login />);
+    fireEvent.click(screen.getByRole('button', { name: /create an account with a passkey/i }));
+
+    await waitFor(() => expect(passkeySignInCredentials).toHaveBeenCalledWith('signup'));
+    expect(signIn).toHaveBeenCalledWith('passkey', {
+      mode: 'signup',
+      challenge: 'chal-2',
+      credential: '{"id":"cred-2"}',
+      callbackUrl: '/recipes',
+    });
+  });
+
+  it('shows an error and does not call signIn when the passkey ceremony fails', async () => {
+    useRouter.mockReturnValue({ query: {} });
+    (passkeySignInCredentials as jest.Mock).mockResolvedValue({ ok: false, error: 'Passkey sign-in was cancelled or failed.' });
+
+    render(<Login />);
+    fireEvent.click(screen.getByRole('button', { name: /sign in with a passkey/i }));
+
+    expect(await screen.findByText('Passkey sign-in was cancelled or failed.')).toBeInTheDocument();
+    expect(signIn).not.toHaveBeenCalled();
   });
 });

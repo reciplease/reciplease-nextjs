@@ -1,12 +1,15 @@
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { useState } from 'react';
+import { passkeySignInCredentials } from '@/lib/passkey';
 
 // NextAuth appends ?error=… when a sign-in attempt fails; surface a friendly message.
 const ERROR_MESSAGES: Record<string, string> = {
   AccessDenied: 'Access was denied. Your account may not be permitted.',
   Configuration: 'Sign-in is temporarily unavailable. Please try again later.',
   Verification: 'That sign-in link is no longer valid. Please try again.',
+  CredentialsSignin: "That passkey isn't recognised. If you don't have an account yet, use \"Sign up with a passkey\" instead.",
   default: 'Something went wrong while signing in. Please try again.',
 };
 
@@ -46,11 +49,51 @@ function GithubIcon() {
   );
 }
 
+function PasskeyIcon() {
+  return (
+    <svg
+      className='h-[18px] w-[18px]'
+      viewBox='0 0 24 24'
+      fill='none'
+      stroke='currentColor'
+      strokeWidth='2'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+      aria-hidden='true'
+    >
+      <circle cx='9' cy='7' r='3.5' />
+      <path d='M2 19c0-3 3-5 7-5s7 2 7 5' />
+      <path d='M16 9h6' />
+      <path d='M19 9v6' />
+    </svg>
+  );
+}
+
 export default function Login() {
   const router = useRouter();
   const callbackUrl =
     typeof router.query.callbackUrl === 'string' ? router.query.callbackUrl : '/recipes';
   const error = typeof router.query.error === 'string' ? router.query.error : undefined;
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
+  const [passkeyBusy, setPasskeyBusy] = useState<'login' | 'signup' | null>(null);
+
+  // Unlike the OAuth buttons, the WebAuthn ceremony itself runs here in the browser before
+  // signIn() — a cancelled/failed ceremony never reaches NextAuth, so it can't surface via the
+  // usual ?error= redirect and needs its own local error state.
+  async function handlePasskey(mode: 'login' | 'signup') {
+    setPasskeyError(null);
+    setPasskeyBusy(mode);
+    try {
+      const result = await passkeySignInCredentials(mode);
+      if (!result.ok) {
+        setPasskeyError(result.error);
+        return;
+      }
+      await signIn('passkey', { mode: result.mode, challenge: result.challenge, credential: result.credential, callbackUrl });
+    } finally {
+      setPasskeyBusy(null);
+    }
+  }
 
   return (
     <>
@@ -86,9 +129,35 @@ export default function Login() {
             Sign in with GitHub
           </button>
 
-          <p className='m-0 text-[0.8rem] text-[#8a8478] dark:text-[#908a7d]'>
-            Access is limited to allowlisted accounts.
-          </p>
+          <div className='my-1 flex w-full items-center gap-3 text-[0.75rem] text-[#8a8478] dark:text-[#908a7d]'>
+            <span className='h-px flex-1 bg-[#dadce0] dark:bg-[#4a473f]' />
+            or
+            <span className='h-px flex-1 bg-[#dadce0] dark:bg-[#4a473f]' />
+          </div>
+
+          {passkeyError && (
+            <p className='m-0 w-full rounded-lg bg-[#fdecea] px-3 py-2.5 text-[0.85rem] text-[#9b2c1f]'>
+              {passkeyError}
+            </p>
+          )}
+
+          <button
+            className='inline-flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-lg border border-[#dadce0] bg-white px-4 py-3 text-[0.95rem] font-medium text-[#1f1f1f] transition hover:bg-[#f8f9fa] hover:shadow-[0_1px_3px_rgba(0,0,0,0.12)] disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#4a473f] dark:bg-[#35332e] dark:text-[#e8e6e1] dark:hover:bg-[#3d3b35]'
+            disabled={passkeyBusy !== null}
+            onClick={() => handlePasskey('login')}
+          >
+            <PasskeyIcon />
+            {passkeyBusy === 'login' ? 'Signing in…' : 'Sign in with a passkey'}
+          </button>
+
+          <button
+            className='inline-flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-lg border border-[#dadce0] bg-white px-4 py-3 text-[0.95rem] font-medium text-[#1f1f1f] transition hover:bg-[#f8f9fa] hover:shadow-[0_1px_3px_rgba(0,0,0,0.12)] disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#4a473f] dark:bg-[#35332e] dark:text-[#e8e6e1] dark:hover:bg-[#3d3b35]'
+            disabled={passkeyBusy !== null}
+            onClick={() => handlePasskey('signup')}
+          >
+            <PasskeyIcon />
+            {passkeyBusy === 'signup' ? 'Creating account…' : 'Create an account with a passkey'}
+          </button>
         </section>
       </main>
     </>

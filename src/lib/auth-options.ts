@@ -1,6 +1,7 @@
-import type { NextAuthOptions, Account } from 'next-auth';
+import type { NextAuthOptions, Account, User } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import GithubProvider from 'next-auth/providers/github';
+import CredentialsProvider from 'next-auth/providers/credentials';
 import type { JWT } from 'next-auth/jwt';
 import { BACKEND_URL } from '@/lib/backend-url';
 import { accessToken } from '@/lib/backend';
@@ -70,6 +71,28 @@ export async function exchangeIdentity(
   }
 }
 
+/**
+ * Verifies a passkey signup/login ceremony and mints a Reciplease JWT — the passkey
+ * equivalent of {@link exchangeIdentity}, except there's no separate provider identity to
+ * verify out of band: the backend itself does the WebAuthn verification, so this just
+ * forwards what the browser produced (see {@code src/lib/passkey.ts}) and adopts the result.
+ */
+async function authorizePasskey(mode: 'signup' | 'login', challenge: string, credential: string): Promise<User | null> {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/passkey/${mode}/finish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challenge, credential: JSON.parse(credential) }),
+    });
+    if (!response.ok) return null;
+
+    const body = await response.json();
+    return { id: body.userId, recipleaseToken: body.token, handle: body.handle ?? null };
+  } catch {
+    return null;
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
@@ -85,13 +108,44 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.GITHUB_CLIENT_ID ?? '',
       clientSecret: process.env.GITHUB_CLIENT_SECRET ?? '',
     }),
+    // Signup and login only — linking a passkey to an already signed-in account doesn't go
+    // through NextAuth at all (see src/lib/passkey.ts's registerPasskey), since unlike OAuth
+    // it needs no redirect dance, just a couple of fetches the Settings page makes directly.
+    CredentialsProvider({
+      id: 'passkey',
+      name: 'Passkey',
+      credentials: {
+        mode: { label: 'mode', type: 'text' },
+        challenge: { label: 'challenge', type: 'text' },
+        credential: { label: 'credential', type: 'text' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.mode || !credentials?.challenge || !credentials?.credential) return null;
+        if (credentials.mode !== 'signup' && credentials.mode !== 'login') return null;
+        return authorizePasskey(credentials.mode, credentials.challenge, credentials.credential);
+      },
+    }),
   ],
   session: { strategy: 'jwt' },
   // Use our own branded sign-in page instead of NextAuth's default UI.
   pages: { signIn: '/login', error: '/login' },
   callbacks: {
     async jwt({ token, account, user }) {
-      // `account` is set only right after an OAuth handshake (sign-in or a link).
+      // `account` is set only right after a sign-in/link handshake (OAuth or passkey).
+      if (account?.provider === 'passkey') {
+        // authorize() above already did the WebAuthn verification and minted the JWT —
+        // no further round trip needed, just adopt what it returned.
+        if (user?.recipleaseToken) {
+          token.recipleaseToken = user.recipleaseToken;
+          token.userId = user.id;
+          token.handle = user.handle ?? null;
+          token.error = undefined;
+        } else {
+          token.error = 'ExchangeError';
+        }
+        return token;
+      }
+
       // existingLinkToken recovers the current user's Reciplease JWT (if any) so
       // an already-signed-in user linking a second provider attaches it to their
       // existing account; otherwise it's a fresh login.

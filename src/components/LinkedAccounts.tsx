@@ -1,13 +1,15 @@
 import { useSession, signIn } from 'next-auth/react';
 import { useState } from 'react';
 import useSWR from 'swr';
+import { registerPasskey } from '@/lib/passkey';
 
 type LinkedIdentity = { provider: string; email: string | null };
 type Identities = { identities: LinkedIdentity[] };
 
-const ALL_PROVIDERS: { id: 'google' | 'github'; label: string }[] = [
+const ALL_PROVIDERS: { id: 'google' | 'github' | 'passkey'; label: string }[] = [
   { id: 'google', label: 'Google' },
   { id: 'github', label: 'GitHub' },
+  { id: 'passkey', label: 'Passkey' },
 ];
 
 const fetcher = async (url: string): Promise<Identities | null> => {
@@ -28,6 +30,25 @@ export default function LinkedAccounts({ returnTo }: { returnTo: string }) {
   const [error, setError] = useState<string | null>(null);
 
   const linked = identities?.identities ?? [];
+
+  async function link(provider: string) {
+    if (provider !== 'passkey') {
+      signIn(provider, { callbackUrl: returnTo });
+      return;
+    }
+    setBusy(provider);
+    setError(null);
+    try {
+      const result = await registerPasskey();
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      await mutate();
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function unlink(provider: string) {
     setBusy(provider);
@@ -96,10 +117,11 @@ export default function LinkedAccounts({ returnTo }: { returnTo: string }) {
                 ) : (
                   <button
                     type="button"
-                    className="cursor-pointer"
-                    onClick={() => signIn(provider.id, { callbackUrl: returnTo })}
+                    className="cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={busy === provider.id}
+                    onClick={() => link(provider.id)}
                   >
-                    Link {provider.label}
+                    {busy === provider.id ? 'Adding…' : `Link ${provider.label}`}
                   </button>
                 )}
               </li>

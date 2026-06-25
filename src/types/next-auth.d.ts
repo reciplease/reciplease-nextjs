@@ -2,6 +2,14 @@ import 'next-auth';
 import 'next-auth/jwt';
 
 declare module 'next-auth' {
+  interface User {
+    // Only set by the passkey CredentialsProvider's authorize() — it already verified the
+    // passkey and minted a Reciplease JWT directly, so the jwt callback adopts these rather
+    // than running the OAuth /api/auth/exchange round trip.
+    recipleaseToken?: string;
+    handle?: string | null;
+  }
+
   interface Session {
     // The Reciplease JWT, used as the bearer token for backend API calls.
     accessToken?: string;

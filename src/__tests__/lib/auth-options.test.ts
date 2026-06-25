@@ -213,6 +213,85 @@ describe('jwt callback', () => {
     expect(result).toBe(token);
     expect(fetch).not.toHaveBeenCalled();
   });
+
+  it('adopts the token/userId/handle authorize() already produced for the passkey provider, without calling /api/auth/exchange', async () => {
+    const token = {} as JWT;
+    const account = { provider: 'passkey' } as unknown as Account;
+    const user = { id: 'user-1', recipleaseToken: 'passkey-jwt', handle: 'chef' } as never;
+
+    const result = await jwt!({ token, account, user });
+
+    expect(result).toMatchObject({ recipleaseToken: 'passkey-jwt', userId: 'user-1', handle: 'chef', error: undefined });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('sets an error for the passkey provider when authorize() produced no user', async () => {
+    const token = {} as JWT;
+    const account = { provider: 'passkey' } as unknown as Account;
+
+    const result = await jwt!({ token, account, user: undefined as never });
+
+    expect(result.error).toBe('ExchangeError');
+  });
+});
+
+describe('passkey CredentialsProvider', () => {
+  // CredentialsProvider() always sets provider.id to the literal "credentials"; the id/authorize
+  // we configured live under provider.options instead.
+  const passkeyProvider = (authOptions.providers.find((p) => p.type === 'credentials') as unknown as {
+    options: { authorize: (credentials: Record<string, string> | undefined) => Promise<unknown> };
+  }).options;
+
+  it('calls login/finish for mode=login and returns a user with the minted token', async () => {
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'rcpls-jwt', userId: 'user-1', handle: 'chef' }),
+    });
+
+    const result = await passkeyProvider.authorize({ mode: 'login', challenge: 'chal-1', credential: '{"id":"cred-1"}' });
+
+    expect(result).toEqual({ id: 'user-1', recipleaseToken: 'rcpls-jwt', handle: 'chef' });
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/passkey/login/finish'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ challenge: 'chal-1', credential: { id: 'cred-1' } }),
+      }),
+    );
+  });
+
+  it('calls signup/finish for mode=signup', async () => {
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'rcpls-jwt', userId: 'new-user', handle: null }),
+    });
+
+    const result = await passkeyProvider.authorize({ mode: 'signup', challenge: 'chal-2', credential: '{"id":"cred-2"}' });
+
+    expect(result).toEqual({ id: 'new-user', recipleaseToken: 'rcpls-jwt', handle: null });
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/api/passkey/signup/finish'), expect.anything());
+  });
+
+  it('returns null when the backend rejects the ceremony', async () => {
+    (fetch as jest.Mock).mockResolvedValue({ ok: false, status: 401 });
+
+    const result = await passkeyProvider.authorize({ mode: 'login', challenge: 'chal-1', credential: '{}' });
+
+    expect(result).toBeNull();
+  });
+
+  it('returns null when required fields are missing', async () => {
+    expect(await passkeyProvider.authorize({ mode: 'login', challenge: 'chal-1', credential: '' })).toBeNull();
+    expect(await passkeyProvider.authorize(undefined)).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('returns null for an unrecognised mode', async () => {
+    const result = await passkeyProvider.authorize({ mode: 'reset', challenge: 'chal-1', credential: '{}' });
+
+    expect(result).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
 });
 
 describe('session callback', () => {

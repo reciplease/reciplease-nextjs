@@ -4,7 +4,9 @@ import type { ReactNode } from 'react';
 import LinkedAccounts from '@/components/LinkedAccounts';
 
 jest.mock('next-auth/react');
+jest.mock('@/lib/passkey', () => ({ registerPasskey: jest.fn() }));
 const { useSession, signIn } = require('next-auth/react');
+const { registerPasskey } = require('@/lib/passkey');
 
 global.fetch = jest.fn();
 
@@ -14,6 +16,7 @@ const renderFresh = (node: ReactNode) =>
 beforeEach(() => {
   (fetch as jest.Mock).mockReset();
   (signIn as jest.Mock).mockReset();
+  (registerPasskey as jest.Mock).mockReset();
   useSession.mockReturnValue({ status: 'authenticated', data: {} });
 });
 
@@ -70,5 +73,27 @@ describe('LinkedAccounts', () => {
     // Google is linked and is the only method → its unlink is disabled; GitHub shows Link.
     await screen.findByRole('button', { name: 'Link GitHub' });
     expect(screen.getByRole('button', { name: 'Unlink Google' })).toBeDisabled();
+  });
+
+  it('registers a passkey via the browser ceremony instead of redirecting through signIn', async () => {
+    mockIdentities([{ provider: 'google', email: 'me@gmail.com' }]);
+    (registerPasskey as jest.Mock).mockResolvedValue({ ok: true });
+    renderFresh(<LinkedAccounts returnTo="/settings/house" />);
+
+    const linkPasskey = await screen.findByRole('button', { name: 'Link Passkey' });
+    fireEvent.click(linkPasskey);
+
+    await waitFor(() => expect(registerPasskey).toHaveBeenCalled());
+    expect(signIn).not.toHaveBeenCalled();
+  });
+
+  it('shows an error when registering a passkey fails', async () => {
+    mockIdentities([{ provider: 'google', email: 'me@gmail.com' }]);
+    (registerPasskey as jest.Mock).mockResolvedValue({ ok: false, error: 'Passkey creation was cancelled or failed.' });
+    renderFresh(<LinkedAccounts returnTo="/settings/house" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Link Passkey' }));
+
+    expect(await screen.findByText('Passkey creation was cancelled or failed.')).toBeInTheDocument();
   });
 });
