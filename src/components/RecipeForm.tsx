@@ -78,7 +78,7 @@ function IngredientRow({
           aria-label={`Measure ${number}`}
           value={effectiveMeasureId}
           onChange={(e) => onMeasure(e.target.value)}
-          className="w-32 p-2 text-base border border-[#ccc] rounded"
+          className="w-32 p-2 text-base border border-[#ccc] rounded bg-white text-gray-900"
         >
           {(measures ?? []).map((m) => (
             <option key={m.measureId} value={m.measureId}>
