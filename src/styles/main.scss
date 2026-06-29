@@ -144,8 +144,11 @@ html.theme-dark {
   color-scheme: dark;
   background: black;
 
-  select {
+  select,
+  select option {
     color-scheme: dark;
+    background-color: #1a1a1a;
+    color: white;
   }
 }
 
