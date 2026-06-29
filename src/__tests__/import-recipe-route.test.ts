@@ -227,12 +227,11 @@ describe('POST /api/import-recipe', () => {
       });
     });
 
-    it('strips "ounce" from ingredient names', async () => {
+    it('maps "ounce" to the oz measureId', async () => {
       mockHtml(hellofreshBulletsHtml);
       const { ingredients } = await (await post({ url: 'https://www.hellofresh.com/recipes/creamy-herb-chicken' })).json();
       const chicken = ingredients.find((i: { name: string }) => i.name.includes('chicken'));
-      expect(chicken.name).toBe('chicken cutlets');
-      expect(chicken.amount).toBe(10);
+      expect(chicken).toMatchObject({ name: 'chicken cutlets', measureId: 'oz', amount: 10 });
     });
 
     it('parses unicode fraction ½ in ingredient amounts', async () => {
@@ -242,11 +241,11 @@ describe('POST /api/import-recipe', () => {
       expect(sourCream).toMatchObject({ measureId: 'tbsp', amount: 1.5 });
     });
 
-    it('parses unicode fraction ¼ in ingredient amounts', async () => {
+    it('parses unicode fraction ¼ and maps cup measureId', async () => {
       mockHtml(hellofreshBulletsHtml);
       const { ingredients } = await (await post({ url: 'https://www.hellofresh.com/recipes/creamy-herb-chicken' })).json();
       const stock = ingredients.find((i: { name: string }) => i.name.includes('stock'));
-      expect(stock).toMatchObject({ measureId: 'item', amount: 0.25 });
+      expect(stock).toMatchObject({ measureId: 'cup', amount: 0.25 });
     });
   });
 

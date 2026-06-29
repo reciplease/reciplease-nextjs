@@ -74,15 +74,15 @@ describe('parseIngredient', () => {
     expect(parseIngredient('Pepper').name).toBe('pepper');
   });
 
-  describe('HelloFresh US units (oz, cup, lb) — stripped from name, measureId falls back to item', () => {
+  describe('HelloFresh US units (oz, cup, lb)', () => {
     it.each([
-      ['10 oz Chicken Cutlets', { name: 'chicken cutlets', measureId: 'item', amount: 10 }],
-      ['3 ounce Cream Cheese', { name: 'cream cheese', measureId: 'item', amount: 3 }],
-      ['4 ounces Sour Cream', { name: 'sour cream', measureId: 'item', amount: 4 }],
-      ['1 cup Chicken Stock', { name: 'chicken stock', measureId: 'item', amount: 1 }],
-      ['2 cups flour', { name: 'flour', measureId: 'item', amount: 2 }],
-      ['1 lb ground beef', { name: 'ground beef', measureId: 'item', amount: 1 }],
-      ['0.5 lbs bacon', { name: 'bacon', measureId: 'item', amount: 0.5 }],
+      ['10 oz Chicken Cutlets', { name: 'chicken cutlets', measureId: 'oz', amount: 10 }],
+      ['3 ounce Cream Cheese', { name: 'cream cheese', measureId: 'oz', amount: 3 }],
+      ['4 ounces Sour Cream', { name: 'sour cream', measureId: 'oz', amount: 4 }],
+      ['1 cup Chicken Stock', { name: 'chicken stock', measureId: 'cup', amount: 1 }],
+      ['2 cups flour', { name: 'flour', measureId: 'cup', amount: 2 }],
+      ['1 lb ground beef', { name: 'ground beef', measureId: 'lb', amount: 1 }],
+      ['0.5 lbs bacon', { name: 'bacon', measureId: 'lb', amount: 0.5 }],
     ])('parses "%s"', (input, expected) => {
       expect(parseIngredient(input)).toEqual(expected);
     });
@@ -91,9 +91,9 @@ describe('parseIngredient', () => {
   describe('Unicode fraction characters', () => {
     it.each([
       ['½ tsp salt', { name: 'salt', measureId: 'tsp', amount: 0.5 }],
-      ['¼ cup cream', { name: 'cream', measureId: 'item', amount: 0.25 }],
+      ['¼ cup cream', { name: 'cream', measureId: 'cup', amount: 0.25 }],
       ['¾ tsp pepper', { name: 'pepper', measureId: 'tsp', amount: 0.75 }],
-      ['⅓ cup milk', { name: 'milk', measureId: 'item', amount: 1 / 3 }],
+      ['⅓ cup milk', { name: 'milk', measureId: 'cup', amount: 1 / 3 }],
       ['1½ tbsp butter', { name: 'butter', measureId: 'tbsp', amount: 1.5 }],
       ['2¼ tsp yeast', { name: 'yeast', measureId: 'tsp', amount: 2.25 }],
     ])('parses "%s"', (input, { name, measureId, amount }) => {

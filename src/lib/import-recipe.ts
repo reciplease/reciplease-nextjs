@@ -14,12 +14,11 @@ const MEASURE_ALIASES: Record<string, string> = {
   tbsp: 'tbsp', tablespoon: 'tbsp', tablespoons: 'tbsp',
   item: 'item', items: 'item', unit: 'item', units: 'item',
   pc: 'pc', piece: 'pc', pieces: 'pc',
-  // HelloFresh US units — not native to the app but recognised so the word is
-  // stripped from the name (amount is kept, measureId falls back to 'item').
-  oz: 'item', ounce: 'item', ounces: 'item',
-  cup: 'item', cups: 'item',
-  lb: 'item', lbs: 'item', pound: 'item', pounds: 'item',
-  floz: 'item',
+  // HelloFresh US units, now supported as first-class measures in the backend.
+  oz: 'oz', ounce: 'oz', ounces: 'oz',
+  cup: 'cup', cups: 'cup',
+  lb: 'lb', lbs: 'lb', pound: 'lb', pounds: 'lb',
+  floz: 'oz',
 };
 
 // Common Unicode vulgar fractions used in recipe quantities.
