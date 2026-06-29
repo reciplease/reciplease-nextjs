@@ -182,7 +182,7 @@ export default function HouseSettingsPage() {
         <fieldset className="mb-8">
           <legend className="text-lg font-medium">Invite someone</legend>
           <p className="mb-3 text-sm opacity-70">
-            Generate a one-time invite link. The link is copied to your clipboard.
+            Generate a one-time invite link. The link will be copied to your clipboard.
           </p>
           <div className="flex items-center gap-3">
             <RoleSelect value={newInviteRole} onChange={setNewInviteRole} disabled={generating} />
