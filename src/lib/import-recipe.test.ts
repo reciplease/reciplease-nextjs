@@ -67,6 +67,46 @@ describe('parseIngredient', () => {
   it('falls back gracefully for an empty string', () => {
     expect(parseIngredient('')).toEqual({ name: 'unknown', measureId: 'item', amount: 1 });
   });
+
+  it('lowercases ingredient names', () => {
+    expect(parseIngredient('2 tbsp Cream Cheese').name).toBe('cream cheese');
+    expect(parseIngredient('1 Lemon').name).toBe('lemon');
+    expect(parseIngredient('Pepper').name).toBe('pepper');
+  });
+
+  describe('HelloFresh US units (oz, cup, lb) — stripped from name, measureId falls back to item', () => {
+    it.each([
+      ['10 oz Chicken Cutlets', { name: 'chicken cutlets', measureId: 'item', amount: 10 }],
+      ['3 ounce Cream Cheese', { name: 'cream cheese', measureId: 'item', amount: 3 }],
+      ['4 ounces Sour Cream', { name: 'sour cream', measureId: 'item', amount: 4 }],
+      ['1 cup Chicken Stock', { name: 'chicken stock', measureId: 'item', amount: 1 }],
+      ['2 cups flour', { name: 'flour', measureId: 'item', amount: 2 }],
+      ['1 lb ground beef', { name: 'ground beef', measureId: 'item', amount: 1 }],
+      ['0.5 lbs bacon', { name: 'bacon', measureId: 'item', amount: 0.5 }],
+    ])('parses "%s"', (input, expected) => {
+      expect(parseIngredient(input)).toEqual(expected);
+    });
+  });
+
+  describe('Unicode fraction characters', () => {
+    it.each([
+      ['½ tsp salt', { name: 'salt', measureId: 'tsp', amount: 0.5 }],
+      ['¼ cup cream', { name: 'cream', measureId: 'item', amount: 0.25 }],
+      ['¾ tsp pepper', { name: 'pepper', measureId: 'tsp', amount: 0.75 }],
+      ['⅓ cup milk', { name: 'milk', measureId: 'item', amount: 1 / 3 }],
+      ['1½ tbsp butter', { name: 'butter', measureId: 'tbsp', amount: 1.5 }],
+      ['2¼ tsp yeast', { name: 'yeast', measureId: 'tsp', amount: 2.25 }],
+    ])('parses "%s"', (input, { name, measureId, amount }) => {
+      const result = parseIngredient(input);
+      expect(result.name).toBe(name);
+      expect(result.measureId).toBe(measureId);
+      expect(result.amount).toBeCloseTo(amount);
+    });
+  });
+
+  it('strips optional (s) suffix from unit words', () => {
+    expect(parseIngredient('1 unit(s) Lemon')).toMatchObject({ name: 'lemon', measureId: 'item', amount: 1 });
+  });
 });
 
 describe('extractRecipeFromJsonLd', () => {
@@ -222,5 +262,64 @@ describe('parseImportedRecipe', () => {
   it('handles @type as an array containing Recipe', () => {
     const schema = { '@type': ['Recipe', 'Thing'], name: 'Stew' } as SchemaOrgRecipe;
     expect(extractRecipeFromJsonLd(schema)).toBe(schema);
+  });
+
+  describe('HelloFresh multi-bullet step format', () => {
+    it('splits one HowToStep with two bullet points into two steps', () => {
+      const schema: SchemaOrgRecipe = {
+        '@type': 'Recipe',
+        name: 'Test',
+        recipeInstructions: [
+          { '@type': 'HowToStep', text: '• Preheat oven to 425°.\n• Wash and dry produce.' },
+        ],
+      };
+      expect(parseImportedRecipe(schema).steps).toEqual([
+        'Preheat oven to 425°.',
+        'Wash and dry produce.',
+      ]);
+    });
+
+    it('collapses soft-wrapped newlines within a bullet into a single line', () => {
+      const schema: SchemaOrgRecipe = {
+        '@type': 'Recipe',
+        name: 'Test',
+        recipeInstructions: [
+          { '@type': 'HowToStep', text: '• Pat chicken dry with paper\ntowels; season all over\nwith salt and pepper.' },
+        ],
+      };
+      expect(parseImportedRecipe(schema).steps).toEqual([
+        'Pat chicken dry with paper towels; season all over with salt and pepper.',
+      ]);
+    });
+
+    it('strips *** markers from footnotes while keeping the text', () => {
+      const schema: SchemaOrgRecipe = {
+        '@type': 'Recipe',
+        name: 'Test',
+        recipeInstructions: [
+          { '@type': 'HowToStep', text: '• Slice chicken crosswise.\n\n***Chicken is fully cooked at 165°.***' },
+        ],
+      };
+      const { steps } = parseImportedRecipe(schema);
+      expect(steps.join(' ')).toContain('Slice chicken crosswise.');
+      expect(steps.join(' ')).toContain('Chicken is fully cooked at 165°.');
+      expect(steps.join(' ')).not.toContain('***');
+    });
+
+    it('handles a mix of bulleted and non-bulleted steps', () => {
+      const schema: SchemaOrgRecipe = {
+        '@type': 'Recipe',
+        name: 'Test',
+        recipeInstructions: [
+          { '@type': 'HowToStep', text: 'Boil water.' },
+          { '@type': 'HowToStep', text: '• Cook pasta.\n• Drain and serve.' },
+        ],
+      };
+      expect(parseImportedRecipe(schema).steps).toEqual([
+        'Boil water.',
+        'Cook pasta.',
+        'Drain and serve.',
+      ]);
+    });
   });
 });

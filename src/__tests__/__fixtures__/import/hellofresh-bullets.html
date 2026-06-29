@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Creamy Herb Chicken - HelloFresh</title>
+  <!--
+    Anonymised HelloFresh fixture — real-world multi-bullet step format.
+    Based on actual HelloFresh JSON-LD observed in production (2026-06-29).
+
+    Key characteristics this fixture exercises:
+    - Each HowToStep text contains MULTIPLE sub-steps joined by "\n• "
+    - Soft line-wraps within each sub-step (lines broken with "\n", no bullet)
+    - A ***footnote*** safety note at the end of the last step
+    - Ingredient amounts use Unicode fractions (½, ¼)
+    - US units (oz, ounce) and unit-less counts
+    - Title-cased ingredient names that should be lowercased on import
+  -->
+  <script type="application/ld+json">
+  {
+    "@context": "http://schema.org",
+    "@type": "Recipe",
+    "name": "Creamy Herb Chicken",
+    "description": "Tender chicken seared with ranch spice and finished with a quick cream sauce.",
+    "recipeIngredient": [
+      "10 ounce Chicken Cutlets",
+      "1 unit Lemon",
+      "1 clove Garlic",
+      "2 tbsp Cream Cheese",
+      "1½ tbsp Sour Cream",
+      "¼ cup Chicken Stock",
+      "4 tsp Cooking Oil",
+      "1 tbsp Butter",
+      "Salt",
+      "Pepper"
+    ],
+    "recipeInstructions": [
+      {
+        "@type": "HowToStep",
+        "text": "• Adjust rack to top position and\npreheat oven to 425 degrees. Wash\nand dry all produce.\n• Zest and quarter lemon. Peel\nand mince garlic."
+      },
+      {
+        "@type": "HowToStep",
+        "text": "• Pat chicken dry with paper\ntowels; season all over with salt\nand pepper.\n• Heat 2 tsp oil in a large pan over\nmedium heat. Add chicken and cook\nuntil browned, 6–8 minutes per side.\n• Transfer chicken to a cutting board\nto rest. Wipe out pan."
+      },
+      {
+        "@type": "HowToStep",
+        "text": "• Heat remaining oil in pan over\nmedium heat. Add garlic and cook,\nstirring, until fragrant, 30 seconds.\n• Whisk in stock, cream cheese, and a\nsqueeze of lemon juice. Cook, whisking,\nuntil thickened, 2–3 minutes.\n• Remove from heat. Whisk in sour cream,\nbutter, and a pinch of lemon zest.\n\n***Chicken is fully cooked when internal temperature reaches 165°.***"
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <h1>Creamy Herb Chicken</h1>
+</body>
+</html>

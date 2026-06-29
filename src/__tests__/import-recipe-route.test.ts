@@ -20,6 +20,10 @@ const bbcPlainStringHtml = fs.readFileSync(
   path.join(__dirname, '__fixtures__/import/bbc-plain-string-instructions.html'),
   'utf-8',
 );
+const hellofreshBulletsHtml = fs.readFileSync(
+  path.join(__dirname, '__fixtures__/import/hellofresh-bullets.html'),
+  'utf-8',
+);
 
 global.fetch = jest.fn();
 
@@ -191,6 +195,58 @@ describe('POST /api/import-recipe', () => {
       expect(ingredients).toHaveLength(5);
       const pinch = ingredients.find((i: { name: string }) => i.name === 'pinch of sugar');
       expect(pinch).toMatchObject({ measureId: 'item', amount: 1 });
+    });
+  });
+
+  describe('HelloFresh real-world multi-bullet format', () => {
+    it('splits bullet-separated sub-steps into individual steps', async () => {
+      mockHtml(hellofreshBulletsHtml);
+      const { steps } = await (await post({ url: 'https://www.hellofresh.com/recipes/creamy-herb-chicken' })).json();
+      // 3 HowToStep objects, each with 2–4 bullet sub-steps → should expand to 8 steps total
+      expect(steps.length).toBeGreaterThan(3);
+      expect(steps.every((s: string) => !s.startsWith('•'))).toBe(true);
+    });
+
+    it('collapses soft-wrapped newlines inside each step', async () => {
+      mockHtml(hellofreshBulletsHtml);
+      const { steps } = await (await post({ url: 'https://www.hellofresh.com/recipes/creamy-herb-chicken' })).json();
+      expect(steps.every((s: string) => !s.includes('\n'))).toBe(true);
+    });
+
+    it('strips ***footnote*** markers', async () => {
+      mockHtml(hellofreshBulletsHtml);
+      const { steps } = await (await post({ url: 'https://www.hellofresh.com/recipes/creamy-herb-chicken' })).json();
+      expect(steps.join(' ')).not.toContain('***');
+    });
+
+    it('lowercases ingredient names', async () => {
+      mockHtml(hellofreshBulletsHtml);
+      const { ingredients } = await (await post({ url: 'https://www.hellofresh.com/recipes/creamy-herb-chicken' })).json();
+      ingredients.forEach((i: { name: string }) => {
+        expect(i.name).toBe(i.name.toLowerCase());
+      });
+    });
+
+    it('strips "ounce" from ingredient names', async () => {
+      mockHtml(hellofreshBulletsHtml);
+      const { ingredients } = await (await post({ url: 'https://www.hellofresh.com/recipes/creamy-herb-chicken' })).json();
+      const chicken = ingredients.find((i: { name: string }) => i.name.includes('chicken'));
+      expect(chicken.name).toBe('chicken cutlets');
+      expect(chicken.amount).toBe(10);
+    });
+
+    it('parses unicode fraction ½ in ingredient amounts', async () => {
+      mockHtml(hellofreshBulletsHtml);
+      const { ingredients } = await (await post({ url: 'https://www.hellofresh.com/recipes/creamy-herb-chicken' })).json();
+      const sourCream = ingredients.find((i: { name: string }) => i.name === 'sour cream');
+      expect(sourCream).toMatchObject({ measureId: 'tbsp', amount: 1.5 });
+    });
+
+    it('parses unicode fraction ¼ in ingredient amounts', async () => {
+      mockHtml(hellofreshBulletsHtml);
+      const { ingredients } = await (await post({ url: 'https://www.hellofresh.com/recipes/creamy-herb-chicken' })).json();
+      const stock = ingredients.find((i: { name: string }) => i.name.includes('stock'));
+      expect(stock).toMatchObject({ measureId: 'item', amount: 0.25 });
     });
   });
 

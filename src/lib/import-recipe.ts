@@ -2,6 +2,8 @@ import type { RecipeFormIngredient, RecipeFormInitial } from '@/components/Recip
 
 // Maps text forms of units found in schema.org recipeIngredient strings to the
 // app's stable measureIds. Covers BBC Good Food and HelloFresh conventions.
+// Units the app doesn't support (oz, cup, lb) map to 'item' so their word is
+// still stripped from the ingredient name rather than left in it.
 const MEASURE_ALIASES: Record<string, string> = {
   g: 'g', gram: 'g', grams: 'g',
   kg: 'kg', kilogram: 'kg', kilograms: 'kg', kilo: 'kg', kilos: 'kg',
@@ -10,9 +12,34 @@ const MEASURE_ALIASES: Record<string, string> = {
   l: 'l', litre: 'l', litres: 'l', liter: 'l', liters: 'l',
   tsp: 'tsp', teaspoon: 'tsp', teaspoons: 'tsp',
   tbsp: 'tbsp', tablespoon: 'tbsp', tablespoons: 'tbsp',
-  item: 'item', items: 'item',
+  item: 'item', items: 'item', unit: 'item', units: 'item',
   pc: 'pc', piece: 'pc', pieces: 'pc',
+  // HelloFresh US units — not native to the app but recognised so the word is
+  // stripped from the name (amount is kept, measureId falls back to 'item').
+  oz: 'item', ounce: 'item', ounces: 'item',
+  cup: 'item', cups: 'item',
+  lb: 'item', lbs: 'item', pound: 'item', pounds: 'item',
+  floz: 'item',
 };
+
+// Common Unicode vulgar fractions used in recipe quantities.
+const UNICODE_FRACTIONS: Record<string, string> = {
+  '½': '1/2', '⅓': '1/3', '⅔': '2/3',
+  '¼': '1/4', '¾': '3/4',
+  '⅛': '1/8', '⅜': '3/8', '⅝': '5/8', '⅞': '7/8',
+  '⅙': '1/6', '⅚': '5/6',
+};
+
+// Replaces Unicode fraction characters with their ASCII equivalents, inserting
+// a space between a preceding digit and the fraction ("1½" → "1 1/2").
+function normalizeFractions(str: string): string {
+  let result = str;
+  for (const [char, ascii] of Object.entries(UNICODE_FRACTIONS)) {
+    result = result.replace(new RegExp(`(\\d)${char}`, 'g'), `$1 ${ascii}`);
+    result = result.replace(new RegExp(char, 'g'), ascii);
+  }
+  return result;
+}
 
 // Evaluates numeric strings including fractions ("1/2") and mixed numbers ("1 1/2").
 function parseAmount(str: string): number {
@@ -25,31 +52,32 @@ function parseAmount(str: string): number {
 
 // Parses one schema.org recipeIngredient string into a structured ingredient.
 // Handles patterns like "200g plain flour", "2 tbsp olive oil", "3 large eggs",
-// "1/2 tsp salt", "1 1/2 litres stock", "pinch of salt".
+// "1/2 tsp salt", "1 1/2 litres stock", "¼ cup cream", "pinch of salt".
 export function parseIngredient(str: string): RecipeFormIngredient {
-  const trimmed = str.trim();
+  const normalized = normalizeFractions(str.trim());
 
   // Match a leading number: integer, decimal (dot or comma), fraction, or mixed number.
-  const numMatch = trimmed.match(/^(\d+(?:\s+\d+\/\d+|\.\d+|,\d+|\/\d+)?)\s*/);
+  const numMatch = normalized.match(/^(\d+(?:\s+\d+\/\d+|\.\d+|,\d+|\/\d+)?)\s*/);
   if (!numMatch) {
-    return { name: trimmed || 'unknown', measureId: 'item', amount: 1 };
+    return { name: normalized.toLowerCase() || 'unknown', measureId: 'item', amount: 1 };
   }
 
   const amount = parseAmount(numMatch[1]);
-  const remainder = trimmed.slice(numMatch[0].length);
+  const remainder = normalized.slice(numMatch[0].length);
 
   // Try to match a known unit word immediately after the number.
-  const unitMatch = remainder.match(/^([a-zA-Z]+)\.?\s*/);
+  // Handle optional "(s)" suffix used by some sites ("1 unit(s) Lemon").
+  const unitMatch = remainder.match(/^([a-zA-Z]+)(?:\([^)]*\))?\.?\s*/);
   if (unitMatch) {
     const measureId = MEASURE_ALIASES[unitMatch[1].toLowerCase()];
     if (measureId) {
-      const name = remainder.slice(unitMatch[0].length).trim();
-      return { name: name || unitMatch[1], measureId, amount };
+      const name = remainder.slice(unitMatch[0].length).trim().toLowerCase();
+      return { name: name || unitMatch[1].toLowerCase(), measureId, amount };
     }
   }
 
   // No known unit — everything after the number is the name.
-  return { name: remainder.trim() || trimmed, measureId: 'item', amount };
+  return { name: remainder.trim().toLowerCase() || normalized.toLowerCase(), measureId: 'item', amount };
 }
 
 export interface SchemaOrgRecipe {
@@ -82,17 +110,33 @@ export function extractRecipeFromJsonLd(jsonLd: unknown): SchemaOrgRecipe | null
   return null;
 }
 
+// Cleans one raw step string:
+// - Splits on newline + bullet (HelloFresh packs multiple sub-steps into one block)
+// - Strips leading bullets and ***footnote*** markers
+// - Collapses soft-wrapped newlines to spaces
+function cleanStepText(raw: string): string[] {
+  return raw
+    .split(/\n\s*•/)
+    .map((part) =>
+      part
+        .replace(/^[•]\s*/, '')
+        .replace(/\*{2,}([^*]+)\*{2,}/g, '$1')
+        .replace(/\n/g, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim(),
+    )
+    .filter(Boolean);
+}
+
 function extractStepTexts(instructions: unknown[]): string[] {
   const texts: string[] = [];
   for (const item of instructions) {
     if (typeof item === 'string') {
-      const t = item.trim();
-      if (t) texts.push(t);
+      texts.push(...cleanStepText(item));
     } else if (item && typeof item === 'object') {
       const node = item as Record<string, unknown>;
       if (node['@type'] === 'HowToStep' && typeof node.text === 'string') {
-        const t = node.text.trim();
-        if (t) texts.push(t);
+        texts.push(...cleanStepText(node.text));
       } else if (node['@type'] === 'HowToSection' && Array.isArray(node.itemListElement)) {
         // Sectioned recipes (e.g. "For the sauce" / "For the pasta") — flatten steps.
         texts.push(...extractStepTexts(node.itemListElement as unknown[]));
