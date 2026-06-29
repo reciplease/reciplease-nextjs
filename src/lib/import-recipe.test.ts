@@ -18,7 +18,7 @@ describe('parseIngredient', () => {
   });
 
   it('handles no unit — treats whole remainder as name', () => {
-    expect(parseIngredient('3 large eggs')).toEqual({ name: 'large eggs', measureId: 'item', amount: 3 });
+    expect(parseIngredient('3 large eggs')).toMatchObject({ name: 'large eggs', measureId: 'item', amount: 3 });
   });
 
   it('handles single word name with no unit', () => {

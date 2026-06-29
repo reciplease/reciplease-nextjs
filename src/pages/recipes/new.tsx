@@ -80,7 +80,7 @@ export default function NewRecipe() {
       <Metadata title="New Recipe" description="Create a new recipe" />
 
       <section className="grid gap-y-6">
-        <div className="grid gap-2">
+        <div className={`grid gap-2${formInitial?.sourceUrl ? ' hidden' : ''}`}>
           <label htmlFor="import-url" className="font-medium text-sm">
             Import from BBC Good Food or HelloFresh
           </label>
@@ -111,7 +111,7 @@ export default function NewRecipe() {
           )}
         </div>
 
-        <div className="relative my-6 flex items-center gap-4">
+        <div className={`relative my-6 flex items-center gap-4${formInitial?.sourceUrl ? ' hidden' : ''}`}>
           <div className="flex-1 border-t border-[#333]" />
           <span className="text-sm text-[#666]">or</span>
           <div className="flex-1 border-t border-[#333]" />

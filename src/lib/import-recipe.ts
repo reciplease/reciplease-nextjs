@@ -76,7 +76,11 @@ export function parseIngredient(str: string): RecipeFormIngredient {
   }
 
   // No known unit — everything after the number is the name.
-  return { name: remainder.trim().toLowerCase() || normalized.toLowerCase(), measureId: 'item', amount };
+  // Only record originalUnit when the unrecognised word is followed by a space and more text
+  // (i.e. it was acting as a unit/modifier like "cloves garlic", not "shallot" or "lemon, zested").
+  const nameAfterWord = unitMatch ? remainder.slice(unitMatch[0].length).trim() : '';
+  const originalUnit = unitMatch && /^[a-zA-Z]/.test(nameAfterWord) ? unitMatch[1].toLowerCase() : undefined;
+  return { name: remainder.trim().toLowerCase() || normalized.toLowerCase(), measureId: 'item', amount, ...(originalUnit ? { originalUnit } : {}) };
 }
 
 export interface SchemaOrgRecipe {

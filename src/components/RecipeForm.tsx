@@ -7,12 +7,14 @@ type IngredientRowState = {
   name: string;
   measureId: MeasureId;
   amount: string;
+  originalUnit?: string;
 };
 
 export type RecipeFormIngredient = {
   name: string;
   measureId: MeasureId;
   amount: number;
+  originalUnit?: string;
 };
 
 export type RecipeFormValues = {
@@ -44,6 +46,7 @@ function IngredientRow({
   name,
   measureId,
   amount,
+  originalUnit,
   measures,
   onName,
   onMeasure,
@@ -55,6 +58,7 @@ function IngredientRow({
   name: string;
   measureId: MeasureId;
   amount: string;
+  originalUnit?: string;
   measures: Measure[] | undefined;
   onName: (name: string) => void;
   onMeasure: (measureId: MeasureId) => void;
@@ -76,18 +80,23 @@ function IngredientRow({
           placeholder="Add an ingredient…"
           className="flex-1 min-w-[12rem] p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
         />
-        <select
-          aria-label={`Measure ${number}`}
-          value={effectiveMeasureId}
-          onChange={(e) => onMeasure(e.target.value)}
-          className="w-32 p-2 text-base border border-[#ccc] rounded"
-        >
-          {(measures ?? []).map((m) => (
-            <option key={m.measureId} value={m.measureId}>
-              {m.plural}
-            </option>
-          ))}
-        </select>
+        <div className="grid gap-0.5">
+          <select
+            aria-label={`Measure ${number}`}
+            value={effectiveMeasureId}
+            onChange={(e) => onMeasure(e.target.value)}
+            className="w-32 p-2 text-base border border-[#ccc] rounded"
+          >
+            {(measures ?? []).map((m) => (
+              <option key={m.measureId} value={m.measureId}>
+                {m.plural}
+              </option>
+            ))}
+          </select>
+          {originalUnit && effectiveMeasureId === 'item' && (
+            <span className="text-xs text-[#888] px-1">was: {originalUnit}</span>
+          )}
+        </div>
         <input
           type="number"
           min="0"
@@ -121,6 +130,7 @@ function initialRows(ingredients: RecipeFormIngredient[]): IngredientRowState[] 
     name: ingredient.name,
     measureId: ingredient.measureId,
     amount: String(ingredient.amount),
+    originalUnit: ingredient.originalUnit,
   }));
   rows.push({ key: rows.length, name: '', measureId: '', amount: '' });
   return rows;
@@ -291,6 +301,7 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
               name={row.name}
               measureId={row.measureId}
               amount={row.amount}
+              originalUnit={row.originalUnit}
               measures={measures}
               onName={(value) => setRowName(row.key, value)}
               onMeasure={(m) => setRowMeasure(row.key, m)}
