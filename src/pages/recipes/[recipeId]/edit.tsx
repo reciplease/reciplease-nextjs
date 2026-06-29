@@ -32,7 +32,7 @@ export default function EditRecipe() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   async function handleDelete() {
-    if (!window.confirm(`Delete "${recipe.name}"? This can't be undone.`)) return;
+    if (!window.confirm(`Delete "${recipe?.name}"? This can't be undone.`)) return;
     setDeleteError(null);
     setDeleting(true);
     try {

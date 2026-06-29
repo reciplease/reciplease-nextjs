@@ -1,4 +1,4 @@
-import { FormEvent, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useMeasures } from '@/lib/measures';
 
@@ -70,56 +70,52 @@ function IngredientRow({
   const effectiveMeasureId = measureId || measures?.[0]?.measureId || '';
 
   return (
-    <li className="grid gap-2">
-      <div className="flex flex-wrap items-start gap-2">
-        <input
-          type="text"
-          aria-label={`Ingredient ${number}`}
-          value={name}
-          onChange={(e) => onName(e.target.value)}
-          placeholder="Add an ingredient…"
-          className="flex-1 min-w-[12rem] p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
-        />
-        <div className="grid gap-0.5">
-          <select
-            aria-label={`Measure ${number}`}
-            value={effectiveMeasureId}
-            onChange={(e) => onMeasure(e.target.value)}
-            className="w-32 p-2 text-base border border-[#ccc] rounded"
+    <li className="grid grid-cols-[1fr_8rem_7rem_2rem] gap-x-2 gap-y-0.5">
+      <input
+        type="text"
+        aria-label={`Ingredient ${number}`}
+        value={name}
+        onChange={(e) => onName(e.target.value)}
+        placeholder="Add an ingredient…"
+        className="p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
+      />
+      <select
+        aria-label={`Measure ${number}`}
+        value={effectiveMeasureId}
+        onChange={(e) => onMeasure(e.target.value)}
+        className="w-full p-2 text-base border border-[#ccc] rounded"
+      >
+        {(measures ?? []).map((m) => (
+          <option key={m.measureId} value={m.measureId}>
+            {m.plural}
+          </option>
+        ))}
+      </select>
+      <input
+        type="number"
+        min="0"
+        step="any"
+        aria-label={`Amount ${number}`}
+        value={amount}
+        onChange={(e) => onAmount(e.target.value)}
+        placeholder="Amount"
+        className="w-full p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
+      />
+      <span className="flex items-center justify-center">
+        {removable && (
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`Remove ingredient ${number}`}
           >
-            {(measures ?? []).map((m) => (
-              <option key={m.measureId} value={m.measureId}>
-                {m.plural}
-              </option>
-            ))}
-          </select>
-          {originalUnit && effectiveMeasureId === 'item' && (
-            <span className="text-xs text-[#888] px-1">was: {originalUnit}</span>
-          )}
-        </div>
-        <input
-          type="number"
-          min="0"
-          step="any"
-          aria-label={`Amount ${number}`}
-          value={amount}
-          onChange={(e) => onAmount(e.target.value)}
-          placeholder="Amount"
-          className="w-28 p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
-        />
-        {/* Reserve the column so the row keeps a constant width. */}
-        <span className="w-4 mt-1 shrink-0">
-          {removable && (
-            <button
-              type="button"
-              onClick={onRemove}
-              aria-label={`Remove ingredient ${number}`}
-            >
-              ×
-            </button>
-          )}
-        </span>
-      </div>
+            ×
+          </button>
+        )}
+      </span>
+      {/* Row 2: hint beneath the measure column only */}
+      <span className="col-start-2 h-4 text-xs text-[#888] px-1">
+        {originalUnit && effectiveMeasureId === 'item' ? `was: ${originalUnit}` : ''}
+      </span>
     </li>
   );
 }
@@ -132,7 +128,7 @@ function initialRows(ingredients: RecipeFormIngredient[]): IngredientRowState[] 
     amount: String(ingredient.amount),
     originalUnit: ingredient.originalUnit,
   }));
-  rows.push({ key: rows.length, name: '', measureId: '', amount: '' });
+  rows.push({ key: rows.length, name: '', measureId: '', amount: '', originalUnit: undefined });
   return rows;
 }
 
@@ -172,7 +168,7 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
       const updated = prev.map((r) => (r.key === key ? { ...r, name: value } : r));
       const last = updated[updated.length - 1];
       // Naming the last row reveals a fresh empty row.
-      if (value.trim() && last.key === key) {
+      if (last.key === key && value.trim()) {
         updated.push({ key: nextKey.current++, name: '', measureId: '', amount: '' });
       }
       return updated;
@@ -183,35 +179,28 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, measureId } : r)));
   }
 
-  function setAmount(key: number, amount: string) {
-    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, amount } : r)));
+  function setAmount(key: number, value: string) {
+    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, amount: value } : r)));
   }
 
   function removeRow(key: number) {
-    setRows((prev) => prev.filter((r) => r.key !== key));
-  }
-
-  function updateStep(index: number, value: string) {
-    setSteps((prev) => {
-      const updated = prev.map((s, i) => (i === index ? value : s));
-      // Typing into the trailing empty step reveals the next one.
-      if (index === updated.length - 1 && value.trim() !== '') {
-        updated.push('');
+    setRows((prev) => {
+      const updated = prev.filter((r) => r.key !== key);
+      // Always keep at least one empty trailing row.
+      if (!updated.length || updated[updated.length - 1].name.trim()) {
+        updated.push({ key: nextKey.current++, name: '', measureId: '', amount: '' });
       }
       return updated;
     });
   }
 
-  function removeStep(index: number) {
-    setSteps((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
     const filledRows = rows.filter((r) => r.name.trim());
-    if (filledRows.some((r) => Number.isNaN(parseFloat(r.amount)) || parseFloat(r.amount) <= 0)) {
+    const invalidAmounts = filledRows.filter((r) => !r.amount || parseFloat(r.amount) <= 0);
+    if (invalidAmounts.length) {
       setError('Enter an amount greater than 0 for each ingredient.');
       return;
     }
@@ -245,8 +234,7 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-y-6">
-      {/* Basics */}
+    <form onSubmit={handleSubmit} className="grid gap-6">
       <div className="grid gap-2">
         <input
           id="name"
@@ -291,9 +279,9 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
       </div>
 
       {/* Ingredients */}
-      <div className="grid gap-2">
-        <h4 className="font-medium">Ingredients</h4>
-        <ul className="list-none p-0 m-0 grid gap-2">
+      <div>
+        <h4 className="mb-2">Ingredients</h4>
+        <ul className="grid gap-2 list-none">
           {rows.map((row, index) => (
             <IngredientRow
               key={row.key}
@@ -314,33 +302,39 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
       </div>
 
       {/* Method */}
-      <div className="grid gap-2">
-        <h4 className="font-medium">Method</h4>
-        <ol className="list-none p-0 m-0 grid gap-2">
-          {steps.map((step, i) => (
-            <li key={i} className="flex items-start gap-2">
-              <span className="mt-2 w-5 text-right text-[#666]">{i + 1}.</span>
+      <div>
+        <h4 className="mb-2">Method</h4>
+        <ol className="grid gap-2 list-none">
+          {steps.map((step, index) => (
+            <li key={index} className="flex items-start gap-2">
+              <span className="mt-3 text-sm text-[#666] shrink-0">{index + 1}.</span>
               <textarea
                 value={step}
-                aria-label={`Step ${i + 1}`}
-                onChange={(e) => updateStep(i, e.target.value)}
-                rows={2}
+                onChange={(e) => {
+                  const updated = [...steps];
+                  updated[index] = e.target.value;
+                  // Typing in the last step spawns a new empty one.
+                  if (index === steps.length - 1 && e.target.value.trim()) {
+                    updated.push('');
+                  }
+                  setSteps(updated);
+                }}
                 placeholder="Describe this step"
+                rows={2}
                 className="flex-1 p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
               />
-              {/* Reserve the column even on the trailing row so every
-                  textarea is the same width whether or not the × shows. */}
-              <span className="w-4 mt-1 shrink-0">
-                {i < steps.length - 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeStep(i)}
-                    aria-label={`Remove step ${i + 1}`}
-                  >
-                    ×
-                  </button>
-                )}
-              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const updated = steps.filter((_, i) => i !== index);
+                  if (!updated.length || updated[updated.length - 1].trim()) updated.push('');
+                  setSteps(updated);
+                }}
+                aria-label={`Remove step ${index + 1}`}
+                className="mt-1 shrink-0"
+              >
+                ×
+              </button>
             </li>
           ))}
         </ol>

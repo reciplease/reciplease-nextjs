@@ -89,6 +89,16 @@ export default function Recipe() {
           </p>
         )}
         <p className="my-4">{recipe.description}</p>
+        {recipe.sourceUrl && (
+          <a
+            href={recipe.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-[#666] hover:underline truncate block mb-4"
+          >
+            Source: {recipe.sourceUrl}
+          </a>
+        )}
         <h4 className="mt-12">Ingredients</h4>
         <ul className="ms-16 list-disc">
           {recipe.ingredients.map((ingredient, index) => (
