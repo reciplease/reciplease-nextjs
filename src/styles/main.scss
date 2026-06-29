@@ -108,6 +108,12 @@ dialog {
     border: 2px solid var(--color-secondary, #383e56);
     border-radius: 0.375rem;
   }
+
+  // Without this, browsers may render selects inconsistently when color-scheme: dark
+  // is set on <html> — e.g. white background with white text on some OS/browser combos.
+  select {
+    color-scheme: inherit;
+  }
 }
 
 // In @layer base so a `list-disc` / `list-decimal` utility can opt back in
