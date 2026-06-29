@@ -45,7 +45,7 @@ export default function Recipes() {
       <Metadata title={'Recipes'} description={'View recipes'} />
 
       <section className="grid">
-        <ul className="my-8 grid list-none grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
+        <ul className="my-8 flex list-none flex-col gap-3">
           {recipes.map((recipe, index) => (
             <li
               key={recipe.recipeId}
