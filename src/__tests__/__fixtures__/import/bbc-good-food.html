@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Lemon drizzle cake - BBC Good Food</title>
+  <!--
+    Anonymised BBC Good Food fixture.
+    Real BBC Good Food pages embed one JSON-LD block whose root is @graph.
+    The graph contains a WebPage node, a BreadcrumbList, and the Recipe itself.
+    This fixture preserves that structure while using fictional data.
+  -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": "https://www.bbcgoodfood.com/recipes/lemon-drizzle-cake",
+        "name": "Lemon drizzle cake",
+        "url": "https://www.bbcgoodfood.com/recipes/lemon-drizzle-cake"
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Recipes" },
+          { "@type": "ListItem", "position": 2, "name": "Cakes" }
+        ]
+      },
+      {
+        "@type": "Recipe",
+        "name": "Lemon drizzle cake",
+        "description": "A foolproof sponge with a sharp citrus drizzle topping.",
+        "recipeIngredient": [
+          "225g softened butter, plus extra for greasing",
+          "225g caster sugar",
+          "4 large eggs",
+          "225g self-raising flour",
+          "1 lemon, zested",
+          "2 tbsp milk",
+          "100g icing sugar, sifted",
+          "1 lemon, juiced"
+        ],
+        "recipeInstructions": [
+          {
+            "@type": "HowToStep",
+            "text": "Heat oven to 180C/160C fan/gas 4. Grease a 900g loaf tin and line the base and sides with baking parchment."
+          },
+          {
+            "@type": "HowToStep",
+            "text": "Beat together the butter and caster sugar until pale and creamy, then add the eggs one at a time, slowly mixing through."
+          },
+          {
+            "@type": "HowToStep",
+            "text": "Sift in the self-raising flour, then add the lemon zest and milk, and mix until well combined."
+          },
+          {
+            "@type": "HowToStep",
+            "text": "Pour the mixture into the tin and bake for 45-50 mins until a thin skewer inserted into the centre of the cake comes out clean."
+          },
+          {
+            "@type": "HowToStep",
+            "text": "While the cake is still warm, mix together the icing sugar and lemon juice to make the drizzle. Prick the top of the warm cake all over with a skewer or fork, then pour over the drizzle."
+          }
+        ],
+        "recipeYield": "10 servings",
+        "prepTime": "PT20M",
+        "cookTime": "PT50M"
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <h1>Lemon drizzle cake</h1>
+</body>
+</html>

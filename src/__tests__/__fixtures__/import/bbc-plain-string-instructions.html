@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Classic Vinaigrette - BBC Good Food</title>
+  <!--
+    Anonymised BBC Good Food fixture — plain-string instructions variant.
+    Older BBC Good Food recipes occasionally use recipeInstructions as a plain
+    string (all steps in one block) rather than an array of HowToStep objects.
+    Also includes the @graph wrapper to verify both shapes work together.
+  -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": "https://www.bbcgoodfood.com/recipes/classic-vinaigrette"
+      },
+      {
+        "@type": "Recipe",
+        "name": "Classic vinaigrette",
+        "description": "A simple French dressing with a perfect balance of acidity and richness.",
+        "recipeIngredient": [
+          "3 tbsp extra virgin olive oil",
+          "1 tbsp red wine vinegar",
+          "1 tsp Dijon mustard",
+          "1 garlic clove, crushed",
+          "pinch of sugar"
+        ],
+        "recipeInstructions": "Whisk together the oil, vinegar, mustard and garlic in a small bowl or jug. Season well with salt, pepper and a pinch of sugar. Use straight away or store in a sealed jar in the fridge for up to a week."
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <h1>Classic vinaigrette</h1>
+</body>
+</html>

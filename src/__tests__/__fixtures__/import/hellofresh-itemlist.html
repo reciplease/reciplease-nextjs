@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Spiced Chickpea Stew - HelloFresh</title>
+  <!--
+    Anonymised HelloFresh fixture — "ItemList" instruction variant.
+    Some HelloFresh pages wrap recipeInstructions in an ItemList object instead of
+    a plain array, and use @type as an array containing "Recipe".
+    This fixture exercises both of those schema variations.
+    Also includes a plain-string fallback ingredient and a mixed-number quantity.
+  -->
+  <script type="application/ld+json">
+  {
+    "@context": "http://schema.org",
+    "@type": ["Recipe", "Thing"],
+    "name": "Spiced Chickpea Stew",
+    "description": "A hearty plant-based stew packed with warming spices and tender chickpeas.",
+    "recipeIngredient": [
+      "400g tinned chickpeas, drained",
+      "200g chopped tomatoes",
+      "1 onion",
+      "2 garlic cloves",
+      "1 1/2 tsp ground cumin",
+      "1 tsp smoked paprika",
+      "200ml vegetable stock",
+      "15g fresh coriander",
+      "salt and pepper"
+    ],
+    "recipeInstructions": {
+      "@type": "ItemList",
+      "itemListElement": [
+        {
+          "@type": "HowToStep",
+          "position": 1,
+          "text": "Finely dice the onion and garlic."
+        },
+        {
+          "@type": "HowToStep",
+          "position": 2,
+          "text": "Heat oil in a deep pan over medium heat. Cook the onion for 5 mins until soft, then add the garlic and spices and cook for 1 min more."
+        },
+        {
+          "@type": "HowToStep",
+          "position": 3,
+          "text": "Tip in the chickpeas and tomatoes, pour over the stock and bring to a simmer. Cook for 15 mins until slightly thickened."
+        },
+        {
+          "@type": "HowToStep",
+          "position": 4,
+          "text": "Season generously, then scatter over the fresh coriander to serve."
+        }
+      ]
+    },
+    "recipeYield": "2 servings"
+  }
+  </script>
+</head>
+<body>
+  <h1>Spiced Chickpea Stew</h1>
+</body>
+</html>

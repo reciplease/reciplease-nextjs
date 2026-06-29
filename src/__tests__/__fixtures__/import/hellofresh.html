@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Creamy Mushroom Pasta - HelloFresh</title>
+  <!--
+    Anonymised HelloFresh fixture.
+    Real HelloFresh pages embed JSON-LD with a top-level @type: Recipe (no @graph wrapper).
+    Instructions are HowToStep objects. Ingredients use various formats including
+    unit-less quantities ("2 garlic cloves") and gram weights ("200g pasta").
+    A second JSON-LD block (Organisation) is included to verify we skip non-Recipe blocks.
+  -->
+  <script type="application/ld+json">
+  {
+    "@context": "http://schema.org",
+    "@type": "Organization",
+    "name": "HelloFresh",
+    "url": "https://www.hellofresh.com"
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "http://schema.org",
+    "@type": "Recipe",
+    "name": "Creamy Mushroom Pasta",
+    "description": "A comforting weeknight pasta with a rich and garlicky cream sauce.",
+    "recipeIngredient": [
+      "200g spaghetti",
+      "250g chestnut mushrooms",
+      "1 shallot",
+      "2 garlic cloves",
+      "150ml double cream",
+      "1 tbsp olive oil",
+      "30g parmesan",
+      "5g fresh thyme",
+      "1/2 tsp dried chilli flakes",
+      "salt and pepper to taste"
+    ],
+    "recipeInstructions": [
+      {
+        "@type": "HowToStep",
+        "text": "Bring a large pot of salted water to the boil. Cook the spaghetti according to packet instructions, then drain, reserving 50ml pasta water."
+      },
+      {
+        "@type": "HowToStep",
+        "text": "Meanwhile, finely dice the shallot and garlic. Slice the mushrooms. Pick the thyme leaves."
+      },
+      {
+        "@type": "HowToStep",
+        "text": "Heat the olive oil in a large frying pan over medium-high heat. Add the mushrooms and cook for 4-5 mins until golden. Add the shallot and garlic and cook for 2 mins more."
+      },
+      {
+        "@type": "HowToStep",
+        "text": "Pour in the double cream and a splash of pasta water. Simmer for 3-4 mins until slightly thickened. Season with salt, pepper and chilli flakes."
+      },
+      {
+        "@type": "HowToStep",
+        "text": "Toss the drained pasta through the sauce. Serve topped with grated parmesan and thyme leaves."
+      }
+    ],
+    "recipeYield": "2 servings",
+    "prepTime": "PT5M",
+    "cookTime": "PT20M"
+  }
+  </script>
+</head>
+<body>
+  <h1>Creamy Mushroom Pasta</h1>
+</body>
+</html>
