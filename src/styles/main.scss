@@ -125,8 +125,6 @@ dialog {
     }
   }
 
-  // Without this, browsers may render selects inconsistently when color-scheme: dark
-  // is set on <html> — e.g. white background with white text on some OS/browser combos.
   select {
     color-scheme: inherit;
   }
@@ -145,6 +143,10 @@ dialog {
 html.theme-dark {
   color-scheme: dark;
   background: black;
+
+  select {
+    color-scheme: dark;
+  }
 }
 
 // Reduced animations. Driven by the .reduce-motion class the SettingsProvider
