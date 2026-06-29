@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Metadata from '@/components/Metadata';
 import RecipeForm, { RecipeFormValues } from '@/components/RecipeForm';
 import Link from 'next/link';
@@ -27,6 +28,27 @@ export default function EditRecipe() {
     activeHouse?.role === 'OWNER' &&
     activeHouse.id === recipe.houseId;
 
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function handleDelete() {
+    if (!window.confirm(`Delete "${recipe.name}"? This can't be undone.`)) return;
+    setDeleteError(null);
+    setDeleting(true);
+    try {
+      const res = await apiFetch(`/api/recipes/${recipeId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        setDeleteError('Failed to delete recipe. Please try again.');
+        return;
+      }
+      router.push('/recipes');
+    } catch {
+      setDeleteError('An unexpected error occurred.');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   async function handleSubmit(values: RecipeFormValues) {
     const res = await apiFetch(`/api/recipes/${recipeId}`, {
       method: 'PUT',
@@ -36,6 +58,7 @@ export default function EditRecipe() {
         description: values.description,
         steps: values.steps,
         isPublic: values.isPublic,
+        sourceUrl: values.sourceUrl,
         ingredients: values.ingredients.map((ingredient) => ({
           name: ingredient.name,
           measure: ingredient.measureId,
@@ -92,14 +115,17 @@ export default function EditRecipe() {
       <Metadata title={`Edit ${recipe.name}`} description="Edit recipe" />
 
       <section>
+        {deleteError && <p role="alert" className="mb-2 text-red-600">{deleteError}</p>}
         <RecipeForm
           submitLabel="Save changes"
           onSubmit={handleSubmit}
+          onDelete={handleDelete}
           initial={{
             name: recipe.name,
             description: recipe.description,
             steps: recipe.steps,
             isPublic: recipe.isPublic,
+            sourceUrl: recipe.sourceUrl,
             ingredients: recipe.ingredients.map((ingredient) => ({
               name: ingredient.name,
               measureId: ingredient.measure,

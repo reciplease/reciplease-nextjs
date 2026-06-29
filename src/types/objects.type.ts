@@ -5,6 +5,7 @@ type Recipe = {
   isPublic: boolean;
   name: string;
   description: string | null;
+  sourceUrl?: string | null;
   ingredients: RecipeIngredient[];
   steps: string[];
   updatedAt?: string;

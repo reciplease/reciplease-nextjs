@@ -12,6 +12,7 @@ export type BackendRecipe = {
   isPublic: boolean;
   name: string;
   description: string | null;
+  sourceUrl?: string | null;
   steps: string[] | null;
   ingredients: BackendIngredient[];
   updatedAt?: string;
@@ -30,6 +31,7 @@ export function toRecipe(b: BackendRecipe): Recipe {
     isPublic: b.isPublic ?? false,
     name: b.name,
     description: b.description ?? null,
+    sourceUrl: b.sourceUrl ?? null,
     steps: b.steps ?? [],
     ingredients: (b.ingredients ?? []).map((i) => ({
       name: i.name,

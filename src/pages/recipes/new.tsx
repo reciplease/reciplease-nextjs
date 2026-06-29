@@ -29,7 +29,7 @@ export default function NewRecipe() {
         return;
       }
       const imported: RecipeFormInitial = await res.json();
-      setFormInitial(imported);
+      setFormInitial({ ...imported, sourceUrl: importUrl });
       setFormKey((k) => k + 1);
     } catch {
       setImportError('Failed to import. Please check the URL and try again.');
@@ -47,6 +47,7 @@ export default function NewRecipe() {
         description: values.description,
         steps: values.steps,
         isPublic: values.isPublic,
+        sourceUrl: values.sourceUrl,
       }),
     });
     if (!createRes.ok) {
@@ -108,6 +109,12 @@ export default function NewRecipe() {
               {importError}
             </p>
           )}
+        </div>
+
+        <div className="relative my-6 flex items-center gap-4">
+          <div className="flex-1 border-t border-[#333]" />
+          <span className="text-sm text-[#666]">or</span>
+          <div className="flex-1 border-t border-[#333]" />
         </div>
 
         <RecipeForm key={formKey} initial={formInitial} submitLabel="Save recipe" onSubmit={handleSubmit} />

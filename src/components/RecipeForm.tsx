@@ -21,6 +21,7 @@ export type RecipeFormValues = {
   steps: string[];
   ingredients: RecipeFormIngredient[];
   isPublic: boolean;
+  sourceUrl?: string | null;
 };
 
 export type RecipeFormInitial = {
@@ -29,6 +30,7 @@ export type RecipeFormInitial = {
   steps: string[];
   ingredients: RecipeFormIngredient[];
   isPublic: boolean;
+  sourceUrl?: string | null;
 };
 
 /**
@@ -128,9 +130,10 @@ interface Props {
   initial?: RecipeFormInitial;
   submitLabel: string;
   onSubmit: (values: RecipeFormValues) => Promise<string | void>;
+  onDelete?: () => void;
 }
 
-export default function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
+export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }: Props) {
   const router = useRouter();
 
   const [name, setName] = useState(initial?.name ?? '');
@@ -218,6 +221,7 @@ export default function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
         steps: cleanedSteps,
         ingredients,
         isPublic,
+        sourceUrl: initial?.sourceUrl ?? null,
       });
 
       if (errorMessage) {
@@ -254,6 +258,17 @@ export default function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
           rows={2}
           className="p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
         />
+
+        {initial?.sourceUrl && (
+          <a
+            href={initial.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-[#666] hover:underline truncate"
+          >
+            Source: {initial.sourceUrl}
+          </a>
+        )}
 
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -322,13 +337,25 @@ export default function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
 
       {error && <p role="alert" className="text-red-600">{error}</p>}
 
-      <div className="flex justify-end gap-3">
-        <button type="button" onClick={() => router.back()} disabled={submitting}>
-          Cancel
-        </button>
-        <button type="submit" disabled={submitting || !name.trim()}>
-          {submitting ? 'Saving…' : submitLabel}
-        </button>
+      <div className="flex items-center justify-between gap-3">
+        {onDelete ? (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={submitting}
+            className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
+          >
+            Delete recipe
+          </button>
+        ) : <span />}
+        <div className="flex gap-3">
+          <button type="button" onClick={() => router.back()} disabled={submitting}>
+            Cancel
+          </button>
+          <button type="submit" disabled={submitting || !name.trim()}>
+            {submitting ? 'Saving…' : submitLabel}
+          </button>
+        </div>
       </div>
     </form>
   );
