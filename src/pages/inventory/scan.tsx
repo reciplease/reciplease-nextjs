@@ -156,7 +156,7 @@ export default function ScanPage() {
     try {
       const body: CreateInventoryItem = {
         name: name.trim(),
-        measureId: measure.measureId,
+        measure: measure.measureId,
         amount: parseFloat(amount),
         expiration,
         ...(barcode ? { barcode } : {}),

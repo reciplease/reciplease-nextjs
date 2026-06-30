@@ -83,7 +83,7 @@ describe('EditInventoryItem page', () => {
           method: 'PUT',
           body: JSON.stringify({
             name: 'Sourdough',
-            measureId: 'ITEMS',
+            measure: 'ITEMS',
             amount: 2,
             expiration: '2099-12-31',
             barcode: '0123456789012',

@@ -44,7 +44,7 @@ type InventoryItem = {
 
 type CreateInventoryItem = {
   name: string;
-  measureId: MeasureId;
+  measure: MeasureId;
   amount: number;
   expiration: string;
   barcode?: string;

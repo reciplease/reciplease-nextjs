@@ -326,7 +326,7 @@ describe('ScanPage', () => {
             method: 'POST',
             body: JSON.stringify({
               name: 'Oat Milk',
-              measureId: 'g',
+              measure: 'g',
               amount: 250,
               expiration: '2027-06-01',
               barcode: '1234567890123',

@@ -107,7 +107,7 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
     try {
       const body: CreateInventoryItem = {
         name: name.trim(),
-        measureId: effectiveMeasureId,
+        measure: effectiveMeasureId,
         amount: parseFloat(amount),
         expiration,
         ...(barcode.trim() ? { barcode: barcode.trim() } : {}),
