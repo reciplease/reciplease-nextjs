@@ -74,12 +74,16 @@ export function useActiveHouse(): House | undefined {
     houses && houses.length > 0
       ? houses.find((house) => house.id === readHouseCookie()) ?? houses[0]
       : undefined;
+  // `resolved` is a fresh object every render (re-derived from `houses` above),
+  // so depending on it directly would re-run this effect every render even
+  // when the same house is still selected — depend on the primitive id instead.
+  const resolvedId = resolved?.id;
 
   useEffect(() => {
-    if (!resolved) return;
-    activeHouse.id = resolved.id;
-    if (resolved.id !== readHouseCookie()) writeHouseCookie(resolved.id);
-  }, [resolved?.id]);
+    if (!resolvedId) return;
+    activeHouse.id = resolvedId;
+    if (resolvedId !== readHouseCookie()) writeHouseCookie(resolvedId);
+  }, [resolvedId]);
 
   return resolved;
 }

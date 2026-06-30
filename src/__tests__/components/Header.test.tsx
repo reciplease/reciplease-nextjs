@@ -1,9 +1,13 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { createElement } from 'react';
 import Header from '@/components/Header';
 
+// next/image is mocked down to a plain <img> for jsdom — built via
+// createElement (not JSX) so the next/next/no-img-element rule, which only
+// flags real production <img> JSX, doesn't fire on this test-only stand-in.
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ alt }: { alt: string }) => <img alt={alt} />,
+  default: ({ alt }: { alt: string }) => createElement('img', { alt }),
 }));
 jest.mock('next/link', () => ({
   __esModule: true,

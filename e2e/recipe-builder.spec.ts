@@ -13,9 +13,11 @@ test.describe('Recipe builder', () => {
 
   test('steps auto-grow as you type', async ({ page }) => {
     await page.goto('/recipes/new');
-    await expect(page.getByLabel('Step 2')).toHaveCount(0);
-    await page.getByLabel('Step 1').fill('Chop the onions');
-    await expect(page.getByLabel('Step 2')).toBeVisible();
+    // exact: true — "Step 1" is otherwise a substring match of the row's
+    // "Remove step 1" button label too.
+    await expect(page.getByLabel('Step 2', { exact: true })).toHaveCount(0);
+    await page.getByLabel('Step 1', { exact: true }).fill('Chop the onions');
+    await expect(page.getByLabel('Step 2', { exact: true })).toBeVisible();
   });
 
   test('ingredient rows auto-grow once one is picked', async ({ page }) => {

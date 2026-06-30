@@ -154,6 +154,7 @@ describe('EditRecipe page', () => {
             description: 'Tasty tacos',
             steps: ['Brown the beef', 'Warm the tortillas'],
             isPublic: false,
+            sourceUrl: null,
             ingredients: [
               { name: 'Beef', measure: 'GRAMS', amount: 500 },
               { name: 'Tortilla', measure: 'ITEMS', amount: 1 },

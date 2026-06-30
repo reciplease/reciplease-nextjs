@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
 import Metadata from '@/components/Metadata';
+import MdyDateInput from '@/components/MdyDateInput';
 import MeasureCombobox from '@/components/scanner/MeasureCombobox';
 import { lookupProduct } from '@/lib/openfoodfacts';
 import { compressToBase64, toDataUrl } from '@/lib/imageCapture';
@@ -402,15 +403,14 @@ export default function ScanPage() {
         {/* Expiration date entry */}
         {phase === 'expiration' && (
           <div className="bg-zinc-900 px-6 py-4 flex flex-col gap-2">
-            <label htmlFor="scan-expiration" className="text-xs text-zinc-400">
+            <label htmlFor="scan-expiration-day" className="text-xs text-zinc-400">
               Expiration date
             </label>
-            <input
-              id="scan-expiration"
-              type="date"
+            <MdyDateInput
+              idPrefix="scan-expiration"
               value={expiration}
-              onChange={(e) => setExpiration(e.target.value)}
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-600 rounded-lg text-white focus:outline-none focus:border-highlight"
+              onChange={setExpiration}
+              inputClassName="px-3 py-2 bg-zinc-800 border border-zinc-600 rounded-lg text-white focus:outline-none focus:border-highlight"
             />
             {expiration && (
               <button

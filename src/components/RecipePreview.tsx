@@ -32,7 +32,7 @@ export default function RecipePreview({ recipe }: Props) {
       >
         {recipe.name}
       </h4>
-      <p className="line-clamp-2 grow basis-64 text-sm">{recipe.description ?? 'No description'}</p>
+      <p className="line-clamp-2 grow basis-64 text-sm">{recipe.description ?? 'No description found'}</p>
     </Link>
   );
 }

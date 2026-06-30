@@ -63,7 +63,9 @@ describe('EditInventoryItem page', () => {
     render(<EditInventoryItem />);
     expect(screen.getByLabelText('Name')).toHaveValue('Bread');
     expect(screen.getByLabelText('Amount')).toHaveValue(1);
-    expect(screen.getByLabelText('Expiration date')).toHaveValue('2099-12-31');
+    expect(screen.getByLabelText('Day')).toHaveValue('31');
+    expect(screen.getByLabelText('Month')).toHaveValue('12');
+    expect(screen.getByLabelText('Year')).toHaveValue('2099');
     expect(screen.getByLabelText(/Barcode/)).toHaveValue('0123456789012');
   });
 

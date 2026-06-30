@@ -281,8 +281,10 @@ describe('ScanPage', () => {
 
   describe('details → expiration → amount → save', () => {
     function enterExpirationDate(date: string) {
-      const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
-      fireEvent.change(dateInput, { target: { value: date } });
+      const [year, month, day] = date.split('-');
+      fireEvent.change(screen.getByLabelText('Day'), { target: { value: day } });
+      fireEvent.change(screen.getByLabelText('Month'), { target: { value: month } });
+      fireEvent.change(screen.getByLabelText('Year'), { target: { value: year } });
       fireEvent.click(screen.getByText('Continue →'));
     }
 

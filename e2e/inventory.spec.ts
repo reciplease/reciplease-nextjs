@@ -1,15 +1,17 @@
 import { test, expect } from '@playwright/test';
 
 const mockMeasures = [
-  { measureId: 'ML', singular: 'millilitre', plural: 'millilitres' },
-  { measureId: 'ITEMS', singular: 'item', plural: 'items' },
+  { measureId: 'ML', singular: 'millilitre', plural: 'millilitres', short: 'ml' },
+  { measureId: 'ITEMS', singular: 'item', plural: 'items', short: 'item' },
 ];
 
+// `measure` is the raw measureId string on the wire, not an expanded object —
+// components needing the display name look it up via mockMeasures above.
 const mockInventoryItems = [
   {
     uuid: 'item-1',
     name: 'Milk',
-    measure: { measureId: 'ML', singular: 'millilitre', plural: 'millilitres' },
+    measure: 'ML',
     amount: 500,
     expiration: '2099-12-31',
     barcode: '5012345678900',
@@ -18,6 +20,19 @@ const mockInventoryItems = [
 
 test.describe('Inventory (auth disabled)', () => {
   test.beforeEach(async ({ page }) => {
+    // useActiveHouse() requires a real "authenticated" session and a resolved
+    // house before any house-scoped fetch fires — fake both (see house-settings.spec.ts).
+    await page.route('**/api/auth/session', (route) =>
+      route.fulfill({
+        json: {
+          user: { name: 'Owner', email: 'owner@example.com' },
+          expires: '2099-01-01T00:00:00.000Z',
+        },
+      }),
+    );
+    await page.route('/api/houses', (route) =>
+      route.fulfill({ json: [{ id: 'house-1', name: 'Home', role: 'OWNER' }] }),
+    );
     // Intercept BFF API calls with stable test data
     await page.route('/api/inventory', (route) => {
       if (route.request().method() === 'GET') {

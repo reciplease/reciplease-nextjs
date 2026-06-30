@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
+import MdyDateInput from '@/components/MdyDateInput';
 import { compressToBase64, toDataUrl } from '@/lib/imageCapture';
 import { apiFetch, useActiveHouse } from '@/lib/houses';
 
@@ -181,14 +182,13 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
             className="p-2 text-base"
           />
 
-          <label htmlFor="expiration">Expiration date</label>
-          <input
-            id="expiration"
-            type="date"
+          <label htmlFor="expiration-day">Expiration date</label>
+          <MdyDateInput
+            idPrefix="expiration"
             value={expiration}
-            onChange={(e) => setExpiration(e.target.value)}
+            onChange={setExpiration}
             required
-            className="p-2 text-base"
+            inputClassName="p-2 text-base"
           />
 
           <label htmlFor="barcode">Barcode (optional)</label>

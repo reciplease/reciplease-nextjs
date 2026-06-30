@@ -21,8 +21,8 @@ const houses = [
 ];
 
 const members = [
-  { userId: 'owner-1', email: 'owner@example.com', role: 'OWNER' },
-  { userId: 'member-1', email: 'member@example.com', role: 'READ_ONLY' },
+  { userId: 'owner-1', handle: 'owner-handle', role: 'OWNER' },
+  { userId: 'member-1', handle: 'member-handle', role: 'READ_ONLY' },
 ];
 
 const pendingInvites = [
@@ -53,8 +53,8 @@ test.describe('House settings page', () => {
   test('lists members and their roles for the active (owned) house', async ({ page }) => {
     await page.goto('/settings/house');
     const main = page.getByRole('main');
-    await expect(main.getByText('owner@example.com')).toBeVisible();
-    await expect(main.getByText('member@example.com')).toBeVisible();
+    await expect(main.getByText('owner-handle')).toBeVisible();
+    await expect(main.getByText('member-handle')).toBeVisible();
   });
 
   test('shows the pending invite code, truncated', async ({ page }) => {
@@ -121,7 +121,9 @@ test.describe('Invite landing page', () => {
 
     const main = page.getByRole('main');
     await expect(main.getByRole('heading', { name: /invited to Test House/ })).toBeVisible();
-    await expect(main.getByRole('button', { name: /sign in with google/i })).toBeVisible();
+    // Unauthenticated visitors are sent to /login (which has the real Google
+    // button) rather than this page rendering its own sign-in control.
+    await expect(main.getByRole('link', { name: 'Sign in' })).toBeVisible();
   });
 
   test('shows an invalid-invite message for an unknown code', async ({ page }) => {

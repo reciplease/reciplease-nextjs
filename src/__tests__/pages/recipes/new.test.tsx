@@ -108,7 +108,13 @@ describe('NewRecipe builder', () => {
         '/api/recipes',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ name: 'Tacos', description: null, steps: ['Brown the beef'], isPublic: false }),
+          body: JSON.stringify({
+            name: 'Tacos',
+            description: null,
+            steps: ['Brown the beef'],
+            isPublic: false,
+            sourceUrl: null,
+          }),
         }),
       );
       expect(fetch).toHaveBeenCalledWith(
