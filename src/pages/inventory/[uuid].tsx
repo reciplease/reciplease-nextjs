@@ -2,8 +2,8 @@ import useSWR from 'swr';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Metadata from '@/components/Metadata';
+import InventoryImage from '@/components/InventoryImage';
 import { formatDate, formatTimestamp } from '@/lib/formatDate';
-import { toDataUrl } from '@/lib/imageCapture';
 import { useMeasures, findMeasure } from '@/lib/measures';
 import { apiFetch, useActiveHouse } from '@/lib/houses';
 
@@ -72,14 +72,10 @@ export default function InventoryItemPage() {
             space-y-3 replaces the `gap` spacing those layouts would have given
             us for free. */}
         <div className="space-y-3 overflow-hidden">
-          {item.image && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={toDataUrl(item.image)}
-              alt=""
-              className="float-right ml-4 w-32 h-32 object-cover rounded-lg border border-[#ccc]"
-            />
-          )}
+          <InventoryImage
+            item={item}
+            className="float-right ml-4 w-32 h-32 object-cover rounded-lg border border-[#ccc]"
+          />
           <p>
             Amount: {item.amount}{' '}
             {displayMeasure(item, measures)}

@@ -1,7 +1,7 @@
 import useSWR from 'swr';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
-import { toDataUrl } from '@/lib/imageCapture';
+import InventoryImage from '@/components/InventoryImage';
 import { useMeasures, findMeasure } from '@/lib/measures';
 import { apiFetch, useActiveHouse } from '@/lib/houses';
 
@@ -59,14 +59,7 @@ function ExpirationSection({
             <li key={item.uuid}>
               <Link href={`/inventory/${item.uuid}`}>
                 <article className={`p-4 border border-[#ccc] rounded cursor-pointer${item.daysLeft < 0 ? ' opacity-60' : ''}`}>
-                  {item.image && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={toDataUrl(item.image)}
-                      alt={item.name}
-                      className="w-full aspect-square object-cover rounded mb-2"
-                    />
-                  )}
+                  <InventoryImage item={item} className="w-full aspect-square object-cover rounded mb-2" />
                   <h5 className="font-medium">{item.name}</h5>
                   <p>
                     {item.amount}{' '}

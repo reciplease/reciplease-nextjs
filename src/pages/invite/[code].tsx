@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
 import useSWR from 'swr';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { hardNavigate } from '@/lib/navigate';
 import type { components } from '@/types/generated/api';
 
@@ -37,7 +37,9 @@ export default function InvitePage({ code, initialPreview }: Props) {
   // clicks Accept explicitly instead.
   const autoAccept = router.query.autoaccept === 'true';
 
-  async function acceptInvite() {
+  // useCallback (not a plain function) so the effect below can depend on it
+  // honestly — code is the only reactive value it closes over.
+  const acceptInvite = useCallback(async () => {
     setAccepting(true);
     setAcceptError(null);
     try {
@@ -61,17 +63,24 @@ export default function InvitePage({ code, initialPreview }: Props) {
     } finally {
       setAccepting(false);
     }
-  }
+  }, [code]);
 
   // Auto-accept only when arriving back from sign-in (autoaccept flag set),
-  // never for a visitor who was already logged in.
+  // never for a visitor who was already logged in. accepting/acceptError are
+  // genuinely read here (they gate against re-firing mid-flight or after a
+  // failure) even though the effect never needs to re-run on their account —
+  // acceptInvite's own guard prevents that, so they belong in the deps array
+  // honestly rather than being omitted.
   useEffect(() => {
     if (autoAccept && status === 'authenticated' && preview && !accepting && !acceptError) {
+      // Kicking off this network request is the entire reason for this effect
+      // (reacting to autoAccept/status/preview becoming ready) — the setState
+      // calls at the top of acceptInvite are an unavoidable part of that, not
+      // state that could instead be derived during render.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       acceptInvite();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoAccept, status, preview]);
+  }, [autoAccept, status, preview, accepting, acceptError, acceptInvite]);
 
   if (isLoading || status === 'loading') {
     return (

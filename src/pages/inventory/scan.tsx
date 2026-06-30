@@ -4,8 +4,9 @@ import dynamic from 'next/dynamic';
 import Metadata from '@/components/Metadata';
 import MdyDateInput from '@/components/MdyDateInput';
 import MeasureCombobox from '@/components/scanner/MeasureCombobox';
+import InventoryImage from '@/components/InventoryImage';
 import { lookupProduct } from '@/lib/openfoodfacts';
-import { compressToBase64, toDataUrl } from '@/lib/imageCapture';
+import { compressToBase64 } from '@/lib/imageCapture';
 import { formatDate } from '@/lib/formatDate';
 import { apiFetch } from '@/lib/houses';
 import { useMeasures } from '@/lib/measures';
@@ -307,14 +308,10 @@ export default function ScanPage() {
 
             {/* Photo preview — from OpenFoodFacts if found, or taken manually. */}
             <div className="flex items-center gap-4">
-              {image && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={toDataUrl(image)}
-                  alt=""
-                  className="w-20 h-20 object-cover rounded-lg border border-zinc-700"
-                />
-              )}
+              <InventoryImage
+                item={{ image: image ?? undefined, name: '' }}
+                className="w-20 h-20 object-cover rounded-lg border border-zinc-700"
+              />
               <label className="flex flex-col gap-1">
                 <span className="text-xs text-zinc-400">
                   {image ? 'Take your own photo' : 'Take a photo (optional)'}

@@ -1,7 +1,7 @@
 import useSWR from 'swr';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
-import { toDataUrl } from '@/lib/imageCapture';
+import InventoryImage from '@/components/InventoryImage';
 import { apiFetch, useActiveHouse } from '@/lib/houses';
 
 const fetcher = (url: string): Promise<InventoryItem[]> =>
@@ -72,10 +72,8 @@ export default function InventoryList() {
               <li key={item.uuid}>
                 <Link href={`/inventory/${item.uuid}`} className="grid gap-2">
                   {item.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={toDataUrl(item.image)}
-                      alt={item.name}
+                    <InventoryImage
+                      item={item}
                       className="w-full aspect-square object-cover rounded border border-[#ccc]"
                     />
                   ) : (

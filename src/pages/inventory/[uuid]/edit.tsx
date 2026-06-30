@@ -4,7 +4,8 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
 import MdyDateInput from '@/components/MdyDateInput';
-import { compressToBase64, toDataUrl } from '@/lib/imageCapture';
+import InventoryImage from '@/components/InventoryImage';
+import { compressToBase64 } from '@/lib/imageCapture';
 import { apiFetch, useActiveHouse } from '@/lib/houses';
 
 const itemFetcher = (url: string): Promise<InventoryItem> =>
@@ -204,10 +205,7 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
 
           <label htmlFor="photo">Photo (optional)</label>
           <div className="flex items-center gap-4">
-            {image && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={toDataUrl(image)} alt="" className="w-16 h-16 object-cover rounded" />
-            )}
+            <InventoryImage item={{ image: image ?? undefined, name: '' }} className="w-16 h-16 object-cover rounded" />
             <input
               id="photo"
               type="file"
