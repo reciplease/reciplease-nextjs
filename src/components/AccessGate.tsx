@@ -4,9 +4,12 @@ import { useEffect } from 'react';
 import useSWR from 'swr';
 import type { ReactNode } from 'react';
 import styles from '@/components/AccessGate.module.scss';
+import type { components } from '@/types/generated/api';
 
 type Access = { status: number };
-type Me = { status: number; handle: string | null };
+// Augments the backend's Me shape with the fetch status code, so the gate can
+// tell apart "no handle yet" (200) from "this token's user no longer exists" (404).
+type Me = { status: number; handle: components['schemas']['Me']['handle'] };
 
 // Distinct SWR key so this access probe does NOT share a cache entry with
 // useHouses() (which also fetches /api/houses, in the Header on every page). If
@@ -25,7 +28,7 @@ const probe = async (): Promise<Access> => {
 const meFetcher = async (url: string): Promise<Me> => {
   const res = await fetch(url);
   if (res.status === 200) {
-    const body = await res.json();
+    const body: components['schemas']['Me'] = await res.json();
     return { status: 200, handle: body.handle ?? null };
   }
   return { status: res.status, handle: null };

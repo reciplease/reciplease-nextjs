@@ -1,10 +1,14 @@
 import { useEffect } from 'react';
 import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
+import type { components } from '@/types/generated/api';
 
-export type House = { id: string; name: string; role: 'OWNER' | 'READ_ONLY' };
-export type HouseMember = { userId: string; handle: string | null; role: 'OWNER' | 'READ_ONLY' };
-export type PendingInvite = { id: string; code: string; role: 'OWNER' | 'READ_ONLY'; createdAt: string };
+// The backend always returns these fields for a house/member/invite — `Required`
+// strips the optionality the generated schema carries (springdoc doesn't mark
+// any field as always-present), while still tying the shape to the live spec.
+export type House = Required<components['schemas']['House']>;
+export type HouseMember = Required<components['schemas']['HouseMember']>;
+export type PendingInvite = Required<components['schemas']['HouseInvite']>;
 
 export const HOUSE_COOKIE = 'reciplease-house-id';
 // Mirrors org.reciplease.configuration.HouseAccess.HOUSE_HEADER on the backend.

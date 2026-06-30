@@ -27,6 +27,11 @@ jobs:
             ${{ runner.os }}-node24-modules-
       - if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: yarn install --frozen-lockfile
+      # Generates src/types/generated/api.ts from the live backend's OpenAPI
+      # spec, so typecheck/lint/test run against the current production DTOs.
+      - run: yarn run codegen:types
+        env:
+          BACKEND_URL: https://app.reciplease.org
       # `yarn run check` (not `yarn check`, which is Yarn's lockfile verifier).
       - run: yarn run check
       - run: yarn test
@@ -50,6 +55,12 @@ jobs:
             ${{ runner.os }}-node24-modules-
       - if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: yarn install --frozen-lockfile
+      # Generates src/types/generated/api.ts, which application code imports
+      # from — needed before `next dev` (booted by playwright.config.ts) can
+      # resolve it.
+      - run: yarn run codegen:types
+        env:
+          BACKEND_URL: https://app.reciplease.org
       - run: npx playwright install --with-deps chromium
       # playwright.config.ts boots `npm run dev` with the env it needs
       # (auth disabled, BACKEND_URL pointing at the production API).

@@ -5,6 +5,9 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import type { JWT } from 'next-auth/jwt';
 import { BACKEND_URL } from '@/lib/backend-url';
 import { accessToken } from '@/lib/backend';
+import type { components } from '@/types/generated/api';
+
+type ExchangeResponseBody = components['schemas']['ExchangeResponse'];
 
 // On sign-in, we exchange the OAuth provider's identity for a Reciplease JWT,
 // which is what we forward to the backend as a bearer token from then on (the
@@ -64,8 +67,8 @@ export async function exchangeIdentity(
       };
     }
 
-    const body = await response.json();
-    return { ok: true, token: body.token, userId: body.userId, handle: body.handle ?? null };
+    const body: ExchangeResponseBody = await response.json();
+    return { ok: true, token: body.token ?? '', userId: body.userId ?? '', handle: body.handle ?? null };
   } catch {
     return { ok: false, error: 'ExchangeError' };
   }
@@ -86,8 +89,8 @@ async function authorizePasskey(mode: 'signup' | 'login', challenge: string, cre
     });
     if (!response.ok) return null;
 
-    const body = await response.json();
-    return { id: body.userId, recipleaseToken: body.token, handle: body.handle ?? null };
+    const body: ExchangeResponseBody = await response.json();
+    return { id: body.userId ?? '', recipleaseToken: body.token, handle: body.handle ?? null };
   } catch {
     return null;
   }

@@ -2,9 +2,10 @@ import { useSession, signIn } from 'next-auth/react';
 import { useState } from 'react';
 import useSWR from 'swr';
 import { registerPasskey } from '@/lib/passkey';
+import type { components } from '@/types/generated/api';
 
-type LinkedIdentity = { provider: string; email: string | null };
-type Identities = { identities: LinkedIdentity[] };
+type LinkedIdentity = components['schemas']['LinkedIdentity'];
+type Identities = components['schemas']['Identities'];
 
 const ALL_PROVIDERS: { id: 'google' | 'github' | 'passkey'; label: string }[] = [
   { id: 'google', label: 'Google' },

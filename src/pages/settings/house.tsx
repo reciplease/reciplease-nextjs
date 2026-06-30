@@ -1,6 +1,6 @@
 import Metadata from '@/components/Metadata';
 import HouseSwitcher from '@/components/HouseSwitcher';
-import { useActiveHouse, useHouseMembers, usePendingInvites, apiFetch } from '@/lib/houses';
+import { useActiveHouse, useHouseMembers, usePendingInvites, apiFetch, type PendingInvite } from '@/lib/houses';
 import { useState } from 'react';
 import useSWR from 'swr';
 
@@ -96,7 +96,7 @@ export default function HouseSettingsPage() {
         setError('Could not generate an invite. Please try again.');
         return;
       }
-      const invite: { id: string; code: string } = await res.json();
+      const invite: PendingInvite = await res.json();
       const link = `${window.location.origin}/invite/${invite.code}`;
       await navigator.clipboard.writeText(link);
       setCopiedInviteId(invite.id);

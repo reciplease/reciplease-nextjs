@@ -37,6 +37,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# generated API types
+/src/types/generated/
+
 # netlify
 .netlify
 

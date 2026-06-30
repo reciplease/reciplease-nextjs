@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { toRecipe, BackendRecipe } from '@/lib/recipes';
+import { toRecipe, type BackendRecipe } from '@/lib/recipes';
 import { shorten } from '@/lib/recipe-id';
 
 const recipeId = '5f1d8a2b3c4d5e6f70819203';
@@ -13,6 +13,7 @@ describe('toRecipe', () => {
       isPublic: true,
       name: 'Tacos',
       description: 'Tasty tacos',
+      sourceUrl: 'https://example.com/tacos',
       steps: ['Brown the beef'],
       ingredients: [{ name: 'Beef', measure: 'GRAMS', amount: 500 }],
       updatedAt: '2026-06-10T12:00:00.000Z',
@@ -25,19 +26,20 @@ describe('toRecipe', () => {
       isPublic: true,
       name: 'Tacos',
       description: 'Tasty tacos',
+      sourceUrl: 'https://example.com/tacos',
       steps: ['Brown the beef'],
       ingredients: [{ name: 'Beef', measure: 'GRAMS', amount: 500 }],
       updatedAt: '2026-06-10T12:00:00.000Z',
     });
   });
 
-  it('defaults missing description, steps, ingredients, houseId and isPublic', () => {
-    const backend = {
+  it('defaults missing description, sourceUrl, steps, ingredients, houseId and isPublic', () => {
+    const backend: BackendRecipe = {
       recipeId,
       name: 'Tacos',
-      description: null,
-      steps: null,
-    } as unknown as BackendRecipe;
+      description: undefined,
+      steps: undefined,
+    };
 
     expect(toRecipe(backend)).toEqual({
       recipeId,
@@ -46,6 +48,7 @@ describe('toRecipe', () => {
       isPublic: false,
       name: 'Tacos',
       description: null,
+      sourceUrl: null,
       steps: [],
       ingredients: [],
       updatedAt: undefined,
