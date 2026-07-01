@@ -25,7 +25,10 @@ describe('EditRecipe data fetching', () => {
     const recipe: Recipe = {
       recipeId: full(RECIPE_SHORT_ID),
       recipeShortId: RECIPE_SHORT_ID,
+      owned: true,
       houseId: 'house-1',
+      createdBy: null,
+      updatedBy: null,
       isPublic: false,
       name: 'Tacos',
       description: 'Tasty tacos',

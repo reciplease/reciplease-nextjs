@@ -5,10 +5,12 @@ import type { components } from '@/types/generated/api';
 // directly-wire-mirroring ones (InventoryItem/CreateInventoryItem/Measure)
 // to the generated OpenAPI schema.
 declare global {
-  type Recipe = {
+  // Fields common to both recipe views — never includes house or user info, since
+  // PublicRecipe (returned to anonymous/public browsing and to callers outside the
+  // recipe's own house) must never carry them.
+  type BaseRecipe = {
     recipeId: RecipeId;
     recipeShortId: RecipeShortId;
-    houseId: string | null;
     isPublic: boolean;
     name: string;
     description: string | null;
@@ -16,6 +18,26 @@ declare global {
     ingredients: RecipeIngredient[];
     steps: string[];
     updatedAt?: string;
+  };
+
+  type PublicRecipe = BaseRecipe & { owned: false };
+
+  // Only returned to an authenticated caller who is a member of the recipe's own
+  // house — carries houseId and who created/last updated it.
+  type OwnedRecipe = BaseRecipe & {
+    owned: true;
+    houseId: string;
+    createdBy: UserSummary | null;
+    updatedBy: UserSummary | null;
+  };
+
+  // Discriminated on `owned` — narrow with `if (recipe.owned) { ... recipe.houseId ... }`.
+  type Recipe = PublicRecipe | OwnedRecipe;
+
+  // Public-safe subset of a user for display — no email or provider identity.
+  type UserSummary = {
+    userId: string;
+    handle: string | null;
   };
 
   // A recipe ingredient is a self-contained spec: it is not linked to any inventory

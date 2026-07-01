@@ -19,7 +19,10 @@ const items: Measure = { measureId: 'item', singular: 'item', plural: 'items', s
 const mockRecipe: Recipe = {
   recipeId: 'recipe-1',
   recipeShortId: 'r1',
+  owned: true,
   houseId: 'h1',
+  createdBy: null,
+  updatedBy: null,
   isPublic: false,
   name: 'Toast',
   description: null,

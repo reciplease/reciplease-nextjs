@@ -17,7 +17,7 @@ const recipes: Recipe[] = [
     description: 'Tasty tacos',
     ingredients: [],
     steps: [],
-    houseId: null,
+    owned: false,
     isPublic: false,
   },
   {
@@ -27,7 +27,7 @@ const recipes: Recipe[] = [
     description: null,
     ingredients: [],
     steps: [],
-    houseId: null,
+    owned: false,
     isPublic: false,
   },
 ];

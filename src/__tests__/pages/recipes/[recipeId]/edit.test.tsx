@@ -27,7 +27,10 @@ const recipeId = full(recipeShortId);
 const recipe: Recipe = {
   recipeId,
   recipeShortId,
+  owned: true,
   houseId: 'house-1',
+  createdBy: null,
+  updatedBy: null,
   isPublic: false,
   name: 'Tacos',
   description: 'Tasty tacos',

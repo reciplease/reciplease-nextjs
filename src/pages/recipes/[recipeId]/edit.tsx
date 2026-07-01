@@ -24,7 +24,7 @@ export default function EditRecipe() {
   } = useSWR(recipeId ? `/api/recipes/${recipeId}` : null, fetcher);
   const activeHouse = useActiveHouse();
   const editable =
-    !!recipe?.houseId &&
+    !!recipe?.owned &&
     activeHouse?.role === 'OWNER' &&
     activeHouse.id === recipe.houseId;
 
