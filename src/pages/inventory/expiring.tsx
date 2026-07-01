@@ -31,6 +31,14 @@ function formatDaysLeft(daysLeft: number): string {
   return `Expired ${Math.abs(daysLeft)} days ago`;
 }
 
+// Red/amber/green by urgency: already-expired-or-expiring-imminently, due
+// within the week, or comfortably further out.
+function daysLeftColor(daysLeft: number): string {
+  if (daysLeft <= 2) return 'text-red-600';
+  if (daysLeft <= 7) return 'text-amber-600';
+  return 'text-green-600';
+}
+
 type ItemWithDaysLeft = InventoryItem & { daysLeft: number };
 
 function displayMeasure(item: InventoryItem, measures: Measure[]): string {
@@ -69,7 +77,9 @@ function ExpirationSection({
                 <p className="text-center text-xs text-[#666] -mt-1">
                   {item.amount} {displayMeasure(item, measures)}
                 </p>
-                <p className="text-center text-xs text-[#666] -mt-1">{formatDaysLeft(item.daysLeft)}</p>
+                <p className={`text-center text-xs font-medium -mt-1 ${daysLeftColor(item.daysLeft)}`}>
+                  {formatDaysLeft(item.daysLeft)}
+                </p>
               </Link>
             </li>
           ))}
