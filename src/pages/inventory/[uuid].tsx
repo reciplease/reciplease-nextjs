@@ -1,3 +1,4 @@
+import { FormEvent, useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -21,10 +22,8 @@ export default function InventoryItemPage() {
   const router = useRouter();
   const uuid = router.query.uuid as string | undefined;
   const activeHouse = useActiveHouse();
-  const { data: item, error, isLoading } = useSWR(
-    uuid && activeHouse ? [`/api/inventory/${uuid}`, activeHouse.id] : null,
-    () => fetcher(`/api/inventory/${uuid}`),
-  );
+  const swrKey = uuid && activeHouse ? [`/api/inventory/${uuid}`, activeHouse.id] : null;
+  const { data: item, error, isLoading, mutate } = useSWR(swrKey, () => fetcher(`/api/inventory/${uuid}`));
   const measures = useMeasures();
 
   if (!router.isReady || !activeHouse || isLoading) {
@@ -36,7 +35,7 @@ export default function InventoryItemPage() {
     );
   }
 
-  if (error || !item) {
+  if (error || !item || !uuid) {
     return (
       <>
         <Metadata title="Not Found" description="Inventory item not found" />
@@ -77,9 +76,9 @@ export default function InventoryItemPage() {
             className="float-right ml-4 w-32 h-32 object-cover rounded-lg border border-[#ccc]"
           />
           <p>
-            Amount: {item.amount}{' '}
-            {displayMeasure(item, measures)}
+            Amount: {item.remaining} of {item.amount} {displayMeasure(item, measures)}
           </p>
+          <AdjustRemainingForm uuid={uuid} item={item} onSaved={mutate} />
           <p className={expired ? 'opacity-60' : ''}>
             Expires: {formatDate(item.expiration)}
             {expired && ' — expired'}
@@ -102,4 +101,86 @@ function displayMeasure(item: InventoryItem, measures: Measure[]): string {
   const measure = findMeasure(item.measure, measures);
   if (!measure) return item.measure;
   return item.amount === 1 ? measure.singular : measure.plural;
+}
+
+interface AdjustRemainingFormProps {
+  uuid: string;
+  item: InventoryItem;
+  onSaved: () => void;
+}
+
+// Lets a user record how much of an item is left without going through the
+// full edit form. Setting it to 0 removes the item entirely rather than
+// leaving a zero-remaining zombie in the list.
+function AdjustRemainingForm({ uuid, item, onSaved }: AdjustRemainingFormProps) {
+  const router = useRouter();
+  const [remaining, setRemaining] = useState(String(item.remaining));
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const parsedRemaining = parseFloat(remaining);
+  const unchanged = !remaining || parsedRemaining === item.remaining;
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      if (parsedRemaining <= 0) {
+        if (!window.confirm(`Mark ${item.name} as fully used? It will be removed from your inventory.`)) {
+          return;
+        }
+        const res = await apiFetch(`/api/inventory/${uuid}`, { method: 'DELETE' });
+        if (!res.ok) {
+          setError('Failed to remove item. Please try again.');
+          return;
+        }
+        router.push('/inventory');
+        return;
+      }
+
+      const body: CreateInventoryItem & { remaining: number } = {
+        name: item.name,
+        measure: item.measure,
+        amount: item.amount,
+        remaining: parsedRemaining,
+        expiration: item.expiration,
+        ...(item.barcode ? { barcode: item.barcode } : {}),
+        ...(item.image ? { image: item.image } : {}),
+      };
+      const res = await apiFetch(`/api/inventory/${uuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        setError('Failed to update amount. Please try again.');
+        return;
+      }
+      onSaved();
+    } catch {
+      setError('An unexpected error occurred.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex items-center gap-2">
+      <label htmlFor="remaining" className="sr-only">Amount remaining</label>
+      <input
+        id="remaining"
+        type="number"
+        min="0"
+        step="any"
+        value={remaining}
+        onChange={(e) => setRemaining(e.target.value)}
+        className="w-24 p-2 text-base"
+      />
+      <button type="submit" disabled={submitting || unchanged} className="px-2 py-1 text-sm">
+        {submitting ? 'Saving...' : 'Update'}
+      </button>
+      {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+    </form>
+  );
 }

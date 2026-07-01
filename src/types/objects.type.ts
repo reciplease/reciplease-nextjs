@@ -33,7 +33,7 @@ declare global {
   // `measure` is the raw measureId as returned by the backend. Omits the backend's
   // `houseId` (unused by the UI) — picked rather than `Required<...>`'d wholesale.
   type InventoryItem = Required<
-    Pick<components['schemas']['InventoryItem'], 'uuid' | 'name' | 'measure' | 'amount' | 'expiration'>
+    Pick<components['schemas']['InventoryItem'], 'uuid' | 'name' | 'measure' | 'amount' | 'remaining' | 'expiration'>
   > &
     Pick<components['schemas']['InventoryItem'], 'barcode' | 'image' | 'updatedAt'>;
 

@@ -26,6 +26,7 @@ const item: InventoryItem = {
   name: 'Bread',
   measure: items.measureId,
   amount: 1,
+  remaining: 1,
   expiration: '2099-12-31',
   barcode: '0123456789012',
 };
@@ -87,6 +88,7 @@ describe('EditInventoryItem page', () => {
             name: 'Sourdough',
             measure: 'ITEMS',
             amount: 2,
+            remaining: 1,
             expiration: '2099-12-31',
             barcode: '0123456789012',
           }),

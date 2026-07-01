@@ -22,6 +22,7 @@ const mockItems: InventoryItem[] = [
     name: 'Bread',
     measure: items.measureId,
     amount: 2,
+    remaining: 2,
     expiration: '2099-12-31',
   },
   {
@@ -29,6 +30,7 @@ const mockItems: InventoryItem[] = [
     name: 'Avocado',
     measure: items.measureId,
     amount: 3,
+    remaining: 3,
     expiration: '2099-06-30',
     image: 'ZmFrZS1pbWFnZQ==',
   },
@@ -37,6 +39,7 @@ const mockItems: InventoryItem[] = [
     name: 'Flour',
     measure: grams.measureId,
     amount: 500,
+    remaining: 500,
     expiration: '2020-01-01',
   },
 ];

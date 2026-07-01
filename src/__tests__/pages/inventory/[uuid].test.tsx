@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import InventoryItemPage from '@/pages/inventory/[uuid]';
 
 jest.mock('swr');
@@ -6,15 +6,15 @@ jest.mock('@/lib/houses', () => ({
   useActiveHouse: () => ({ id: 'h1', name: 'Home', role: 'OWNER' }),
   apiFetch: (url: string, init?: RequestInit) => fetch(url, init),
 }));
-jest.mock('next/router', () => ({
-  useRouter: () => ({ isReady: true, query: { uuid: 'uuid-1' } }),
-}));
+jest.mock('next/router', () => ({ useRouter: jest.fn() }));
 jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; href: string }) => (
   <a href={href}>{children}</a>
 ));
 jest.mock('@/components/Metadata', () => () => null);
 
 const useSWR = require('swr').default;
+const useRouter = require('next/router').useRouter as jest.Mock;
+global.fetch = jest.fn();
 
 const ML: Measure = { measureId: 'ml', singular: 'millilitre', plural: 'millilitres', short: 'ml' };
 
@@ -23,17 +23,29 @@ const item: InventoryItem = {
   name: 'Milk',
   measure: 'ml',
   amount: 500,
+  remaining: 500,
   expiration: '2099-12-31',
 };
+
+const mutate = jest.fn();
 
 function mockItem(state: { isLoading?: boolean; data?: InventoryItem; error?: unknown }) {
   useSWR.mockImplementation((key: string) => {
     if (key === '/api/measures') return { data: [ML], isLoading: false };
-    return { isLoading: false, data: undefined, error: undefined, ...state };
+    return { isLoading: false, data: undefined, error: undefined, mutate, ...state };
   });
 }
 
 describe('InventoryItemPage', () => {
+  const push = jest.fn();
+
+  beforeEach(() => {
+    (fetch as jest.Mock).mockReset();
+    push.mockReset();
+    mutate.mockReset();
+    useRouter.mockReturnValue({ push, isReady: true, query: { uuid: 'uuid-1' } });
+  });
+
   it('shows loading state', () => {
     mockItem({ isLoading: true });
     render(<InventoryItemPage />);
@@ -46,17 +58,17 @@ describe('InventoryItemPage', () => {
     expect(screen.getByText('Item not found')).toBeInTheDocument();
   });
 
-  it('renders item name and amount', () => {
+  it('renders item name and amount remaining out of the full amount', () => {
     mockItem({ data: item });
     render(<InventoryItemPage />);
     expect(screen.getByText('Milk')).toBeInTheDocument();
-    expect(screen.getByText(/500 millilitres/)).toBeInTheDocument();
+    expect(screen.getByText(/500 of 500 millilitres/)).toBeInTheDocument();
   });
 
   it('shows singular measure when amount is 1', () => {
-    mockItem({ data: { ...item, amount: 1 } });
+    mockItem({ data: { ...item, amount: 1, remaining: 1 } });
     render(<InventoryItemPage />);
-    expect(screen.getByText(/1 millilitre/)).toBeInTheDocument();
+    expect(screen.getByText(/1 of 1 millilitre\b/)).toBeInTheDocument();
   });
 
   it('shows the expiration date localized, not as a raw ISO string', () => {
@@ -70,5 +82,81 @@ describe('InventoryItemPage', () => {
     mockItem({ data: { ...item, expiration: '2000-01-01' } });
     render(<InventoryItemPage />);
     expect(screen.getByText(/— expired/)).toBeInTheDocument();
+  });
+
+  describe('adjusting the amount remaining', () => {
+    it('disables the update button until the value changes', () => {
+      mockItem({ data: item });
+      render(<InventoryItemPage />);
+      expect(screen.getByRole('button', { name: /update/i })).toBeDisabled();
+    });
+
+    it('PUTs the reduced amount, preserving the other fields, and refreshes on success', async () => {
+      mockItem({ data: { ...item, barcode: '0123456789012' } });
+      (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+
+      render(<InventoryItemPage />);
+      fireEvent.change(screen.getByLabelText(/amount remaining/i), { target: { value: '300' } });
+      fireEvent.click(screen.getByRole('button', { name: /update/i }));
+
+      await waitFor(() => {
+        expect(fetch).toHaveBeenCalledWith(
+          '/api/inventory/uuid-1',
+          expect.objectContaining({
+            method: 'PUT',
+            body: JSON.stringify({
+              name: 'Milk',
+              measure: 'ml',
+              amount: 500,
+              remaining: 300,
+              expiration: '2099-12-31',
+              barcode: '0123456789012',
+            }),
+          }),
+        );
+        expect(mutate).toHaveBeenCalled();
+      });
+    });
+
+    it('shows an error when the update fails', async () => {
+      mockItem({ data: item });
+      (fetch as jest.Mock).mockResolvedValue({ ok: false });
+
+      render(<InventoryItemPage />);
+      fireEvent.change(screen.getByLabelText(/amount remaining/i), { target: { value: '300' } });
+      fireEvent.click(screen.getByRole('button', { name: /update/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent('Failed to update amount. Please try again.');
+      });
+    });
+
+    it('asks for confirmation and does nothing if declined when reducing to 0', () => {
+      const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false);
+      mockItem({ data: item });
+
+      render(<InventoryItemPage />);
+      fireEvent.change(screen.getByLabelText(/amount remaining/i), { target: { value: '0' } });
+      fireEvent.click(screen.getByRole('button', { name: /update/i }));
+
+      expect(fetch).not.toHaveBeenCalled();
+      confirmSpy.mockRestore();
+    });
+
+    it('deletes the item and redirects to the inventory list when reduced to 0 and confirmed', async () => {
+      const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
+      mockItem({ data: item });
+      (fetch as jest.Mock).mockResolvedValue({ ok: true });
+
+      render(<InventoryItemPage />);
+      fireEvent.change(screen.getByLabelText(/amount remaining/i), { target: { value: '0' } });
+      fireEvent.click(screen.getByRole('button', { name: /update/i }));
+
+      await waitFor(() => {
+        expect(fetch).toHaveBeenCalledWith('/api/inventory/uuid-1', expect.objectContaining({ method: 'DELETE' }));
+        expect(push).toHaveBeenCalledWith('/inventory');
+      });
+      confirmSpy.mockRestore();
+    });
   });
 });

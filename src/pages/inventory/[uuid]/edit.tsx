@@ -107,10 +107,14 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
     setError(null);
     setSubmitting(true);
     try {
-      const body: CreateInventoryItem = {
+      // `remaining` must be resent as-is — the backend defaults a missing
+      // `remaining` to the new `amount`, which would wipe out how much of
+      // the item has already been used.
+      const body: CreateInventoryItem & { remaining: number } = {
         name: name.trim(),
         measure: effectiveMeasureId,
         amount: parseFloat(amount),
+        remaining: item.remaining,
         expiration,
         ...(barcode.trim() ? { barcode: barcode.trim() } : {}),
         ...(image ? { image } : {}),

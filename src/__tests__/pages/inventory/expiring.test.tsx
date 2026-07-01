@@ -36,10 +36,10 @@ function daysFromNow(days: number): string {
 }
 
 const mockItems: InventoryItem[] = [
-  { uuid: 'uuid-1', name: 'Bread', measure: measure.measureId, amount: 2, expiration: daysFromNow(20) },
-  { uuid: 'uuid-2', name: 'Milk', measure: measure.measureId, amount: 1, expiration: daysFromNow(-3) },
-  { uuid: 'uuid-3', name: 'Eggs', measure: measure.measureId, amount: 6, expiration: daysFromNow(3) },
-  { uuid: 'uuid-4', name: 'Flour', measure: measure.measureId, amount: 1, expiration: daysFromNow(90) },
+  { uuid: 'uuid-1', name: 'Bread', measure: measure.measureId, amount: 2, remaining: 2, expiration: daysFromNow(20) },
+  { uuid: 'uuid-2', name: 'Milk', measure: measure.measureId, amount: 1, remaining: 1, expiration: daysFromNow(-3) },
+  { uuid: 'uuid-3', name: 'Eggs', measure: measure.measureId, amount: 6, remaining: 6, expiration: daysFromNow(3) },
+  { uuid: 'uuid-4', name: 'Flour', measure: measure.measureId, amount: 1, remaining: 1, expiration: daysFromNow(90) },
 ];
 
 describe('ExpiringInventory', () => {
@@ -75,7 +75,7 @@ describe('ExpiringInventory', () => {
   it('greys out a section heading when nothing falls into it', () => {
     mockInventory({
       isLoading: false,
-      data: [{ uuid: 'uuid-1', name: 'Eggs', measure: measure.measureId, amount: 6, expiration: daysFromNow(3) }],
+      data: [{ uuid: 'uuid-1', name: 'Eggs', measure: measure.measureId, amount: 6, remaining: 6, expiration: daysFromNow(3) }],
       error: undefined,
     });
     render(<ExpiringInventory />);

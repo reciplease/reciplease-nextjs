@@ -26,6 +26,7 @@ const item: InventoryItem = {
   name: 'Milk',
   measure: 'ml',
   amount: 500,
+  remaining: 500,
   expiration: '2099-12-31',
 };
 
