@@ -11,7 +11,7 @@
     "lint": "eslint src e2e",
     "codegen:types": "openapi-typescript ${BACKEND_URL:-http://localhost:8080}/openapi -o src/types/generated/api.ts",
     "check": "npm run typecheck && npm run lint",
-    "build": "node scripts/set-version.mjs && npm run check && next build",
+    "build": "node scripts/set-version.mjs && npm run codegen:types && npm run check && next build",
     "start": "next start",
     "test": "jest",
     "test:watch": "jest --watch",

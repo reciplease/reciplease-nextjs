@@ -54,19 +54,18 @@ function ExpirationSection({
         {title}
       </h4>
       {items.length > 0 && (
-        <ul className="list-none p-0 grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4 my-4">
+        <ul className="list-none p-0 grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-4 my-4">
           {items.map((item) => (
             <li key={item.uuid}>
-              <Link href={`/inventory/${item.uuid}`}>
-                <article className={`p-4 border border-[#ccc] rounded cursor-pointer${item.daysLeft < 0 ? ' opacity-60' : ''}`}>
-                  <InventoryImage item={item} className="w-full aspect-square object-cover rounded mb-2" />
-                  <h5 className="font-medium">{item.name}</h5>
-                  <p>
-                    {item.amount}{' '}
-                    {displayMeasure(item, measures)}
-                  </p>
-                  <p className="text-sm text-[#666]">{formatDaysLeft(item.daysLeft)}</p>
-                </article>
+              <Link
+                href={`/inventory/${item.uuid}`}
+                className={`grid gap-2${item.daysLeft < 0 ? ' opacity-60' : ''}`}
+              >
+                <InventoryImage item={item} className="w-full aspect-square object-cover rounded border border-[#ccc]" />
+                <h4 className="font-medium text-center text-sm">{item.name}</h4>
+                <p className="text-center text-xs text-[#666] -mt-1">
+                  {item.amount} {displayMeasure(item, measures)} &middot; {formatDaysLeft(item.daysLeft)}
+                </p>
               </Link>
             </li>
           ))}
