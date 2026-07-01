@@ -14,6 +14,14 @@ function cookieStore(values: Record<string, string> = {}) {
   };
 }
 
+function jwtWithExp(exp: number | undefined): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256' })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify(exp === undefined ? {} : { exp })).toString('base64url');
+  return `${header}.${payload}.signature`;
+}
+
+const VALID_TOKEN = jwtWithExp(Math.floor(Date.now() / 1000) + 3600);
+
 const ORIGINAL_ENV = process.env;
 
 beforeEach(() => {
@@ -58,18 +66,18 @@ describe('accessToken', () => {
 
   it('returns the stored recipleaseToken', async () => {
     (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
-    (decode as jest.Mock).mockResolvedValue({ recipleaseToken: 'rcpls-jwt' });
+    (decode as jest.Mock).mockResolvedValue({ recipleaseToken: VALID_TOKEN });
 
-    expect(await accessToken()).toBe('rcpls-jwt');
+    expect(await accessToken()).toBe(VALID_TOKEN);
   });
 
   it('joins chunked session cookies before decoding', async () => {
     (cookies as jest.Mock).mockResolvedValue(
       cookieStore({ 'next-auth.session-token.0': 'part1', 'next-auth.session-token.1': 'part2' }),
     );
-    (decode as jest.Mock).mockResolvedValue({ recipleaseToken: 'rcpls-jwt' });
+    (decode as jest.Mock).mockResolvedValue({ recipleaseToken: VALID_TOKEN });
 
-    expect(await accessToken()).toBe('rcpls-jwt');
+    expect(await accessToken()).toBe(VALID_TOKEN);
     expect(decode).toHaveBeenCalledWith({ token: 'part1part2', secret: 'secret' });
   });
 
@@ -77,9 +85,34 @@ describe('accessToken', () => {
     (cookies as jest.Mock).mockResolvedValue(
       cookieStore({ '__Secure-next-auth.session-token': 'securetok' }),
     );
-    (decode as jest.Mock).mockResolvedValue({ recipleaseToken: 'rcpls-jwt' });
+    (decode as jest.Mock).mockResolvedValue({ recipleaseToken: VALID_TOKEN });
 
-    expect(await accessToken()).toBe('rcpls-jwt');
+    expect(await accessToken()).toBe(VALID_TOKEN);
     expect(decode).toHaveBeenCalledWith({ token: 'securetok', secret: 'secret' });
+  });
+
+  it('returns undefined for an expired recipleaseToken instead of forwarding it', async () => {
+    // A signed-out user can still have a lingering NextAuth session whose embedded Reciplease
+    // JWT (shorter-lived, minted at /api/auth/exchange) has since expired. Forwarding it anyway
+    // used to 401 even anonymous backend endpoints (see the proxy route), since the backend's
+    // resource server rejects an invalid bearer token before its own authorization runs.
+    (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
+    (decode as jest.Mock).mockResolvedValue({ recipleaseToken: jwtWithExp(Math.floor(Date.now() / 1000) - 60) });
+
+    expect(await accessToken()).toBeUndefined();
+  });
+
+  it('returns undefined for a recipleaseToken with no exp claim', async () => {
+    (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
+    (decode as jest.Mock).mockResolvedValue({ recipleaseToken: jwtWithExp(undefined) });
+
+    expect(await accessToken()).toBeUndefined();
+  });
+
+  it('returns undefined for a malformed recipleaseToken', async () => {
+    (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
+    (decode as jest.Mock).mockResolvedValue({ recipleaseToken: 'not-a-jwt' });
+
+    expect(await accessToken()).toBeUndefined();
   });
 });

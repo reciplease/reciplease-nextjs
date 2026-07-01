@@ -34,6 +34,23 @@ function sessionToken(store: CookieStore): string | undefined {
 }
 
 /**
+ * True if a JWT's `exp` claim is in the past (or unparseable). Doesn't verify
+ * the signature — the backend does that on every real use — this is purely a
+ * local "is it even worth sending" check, so a stale token never goes out on
+ * an otherwise-anonymous request and gets it wrongly rejected (the backend's
+ * resource server 401s on an invalid bearer token before its own endpoint
+ * authorization runs, even for endpoints that permit anonymous access).
+ */
+function isExpired(jwt: string): boolean {
+  try {
+    const payload = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64url').toString('utf8'));
+    return typeof payload.exp !== 'number' || payload.exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+}
+
+/**
  * Resolves the current user's Reciplease JWT (minted by POST
  * /api/auth/exchange during sign-in) from the NextAuth session cookie. Uses
  * `next/headers`, so it works ambiently inside any App Router server code
@@ -42,7 +59,10 @@ function sessionToken(store: CookieStore): string | undefined {
  * Unlike the old Google id_token this replaced, the Reciplease JWT's validity
  * window is controlled by our own backend, not Google — there is no refresh
  * dance here; if it's expired the backend will simply 401 and the user signs
- * in again.
+ * in again. That's fine for authenticated calls, but for a request that's
+ * only ever meant to be anonymous, sending a known-expired token is actively
+ * harmful (see isExpired), so it's filtered out here rather than left for
+ * every caller to reason about.
  */
 export async function accessToken(): Promise<string | undefined> {
   const raw = sessionToken(await cookies());
@@ -56,5 +76,6 @@ export async function accessToken(): Promise<string | undefined> {
     // Malformed session JWE — treat as not signed in rather than crash.
     return undefined;
   }
-  return token?.recipleaseToken as string | undefined;
+  const recipleaseToken = token?.recipleaseToken as string | undefined;
+  return recipleaseToken && !isExpired(recipleaseToken) ? recipleaseToken : undefined;
 }
