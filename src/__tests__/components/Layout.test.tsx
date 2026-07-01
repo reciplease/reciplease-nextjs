@@ -4,6 +4,7 @@ import Layout from '@/components/Layout';
 jest.mock('@/components/Header', () => () => <header>Header</header>);
 jest.mock('@/components/RecipeFab', () => () => <div>RecipeFab</div>);
 jest.mock('@/components/InventoryFab', () => () => <div>InventoryFab</div>);
+jest.mock('@/components/PlannerFab', () => () => <div>PlannerFab</div>);
 jest.mock('next/router', () => ({ useRouter: jest.fn() }));
 
 const useRouter = require('next/router').useRouter as jest.Mock;
@@ -49,5 +50,7 @@ describe('Layout', () => {
 
     expect(container.firstChild).toHaveClass('planner-theme');
     expect(container.firstChild).not.toHaveClass('inventory-theme');
+    expect(screen.getByText('PlannerFab')).toBeInTheDocument();
+    expect(screen.queryByText('RecipeFab')).not.toBeInTheDocument();
   });
 });

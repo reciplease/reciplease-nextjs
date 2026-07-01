@@ -1,6 +1,7 @@
 import Header from '@/components/Header';
 import RecipeFab from '@/components/RecipeFab';
 import InventoryFab from '@/components/InventoryFab';
+import PlannerFab from '@/components/PlannerFab';
 import { Inter } from 'next/font/google';
 import { useRouter } from 'next/router';
 import styles from '@/components/Layout.module.scss';
@@ -24,7 +25,7 @@ export default function Layout({ children }: { children: JSX.Element }) {
     <div className={`${font.className} content-grid${sectionTheme}`}>
       <Header />
       <main className={styles.main}>{children}</main>
-      {onInventory ? <InventoryFab /> : <RecipeFab />}
+      {onInventory ? <InventoryFab /> : onPlanner ? <PlannerFab /> : <RecipeFab />}
     </div>
   );
 }

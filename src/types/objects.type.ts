@@ -45,6 +45,38 @@ declare global {
   // Static reference data served from the backend (a Java enum). The short name
   // doubles as the measureId (e.g. "g", "kg", "cl").
   type Measure = Required<components['schemas']['Measure']>;
+
+  // What was drawn from a specific inventory item to (partially) satisfy a
+  // PlannedIngredient. `barcode` is snapshotted server-side, never client-supplied.
+  type InventoryAllocation = Required<
+    Pick<components['schemas']['InventoryAllocation'], 'inventoryItemId' | 'amount'>
+  > &
+    Pick<components['schemas']['InventoryAllocation'], 'barcode'>;
+
+  // A single ingredient placeholder within a planned meal. `allocations` may be
+  // empty, or not fully cover `ingredient.amount` — the remainder is exactly what
+  // shows up on the shopping list (see ShoppingList below).
+  type PlannedIngredient = {
+    ingredient: RecipeIngredient;
+    allocations: InventoryAllocation[];
+  };
+
+  // A timed placeholder for eating/using pantry items on a given date. `recipe` is
+  // optional context (only present when the meal was planned from a recipe) — the
+  // meal's own `name` is what's always shown and must be unique per day.
+  type PlannedMeal = {
+    houseId: string;
+    name: string;
+    recipe?: Recipe;
+    date: string;
+    items: PlannedIngredient[];
+  };
+
+  // The unmet gap between what's planned and what's already covered by inventory
+  // allocations, aggregated across every planned meal in a date range.
+  type ShoppingList = {
+    items: RecipeIngredient[];
+  };
 }
 
 export {};
