@@ -64,7 +64,6 @@ function ExpirationSection({
                 <InventoryImage
                   item={item}
                   className="w-full aspect-square object-cover rounded border border-[#ccc]"
-                  showPlaceholder
                 />
                 <h5 className="font-medium text-center text-sm">{item.name}</h5>
                 <p className="text-center text-xs text-[#666] -mt-1">

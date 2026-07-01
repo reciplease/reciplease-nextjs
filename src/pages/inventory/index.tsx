@@ -74,7 +74,6 @@ export default function InventoryList() {
                   <InventoryImage
                     item={item}
                     className="w-full aspect-square object-cover rounded border border-[#ccc]"
-                    showPlaceholder
                   />
                   <h4 className="font-medium text-center text-sm">{item.name}</h4>
                 </Link>
