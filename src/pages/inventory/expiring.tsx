@@ -61,11 +61,16 @@ function ExpirationSection({
                 href={`/inventory/${item.uuid}`}
                 className={`grid gap-2${item.daysLeft < 0 ? ' opacity-60' : ''}`}
               >
-                <InventoryImage item={item} className="w-full aspect-square object-cover rounded border border-[#ccc]" />
-                <h4 className="font-medium text-center text-sm">{item.name}</h4>
+                <InventoryImage
+                  item={item}
+                  className="w-full aspect-square object-cover rounded border border-[#ccc]"
+                  showPlaceholder
+                />
+                <h5 className="font-medium text-center text-sm">{item.name}</h5>
                 <p className="text-center text-xs text-[#666] -mt-1">
-                  {item.amount} {displayMeasure(item, measures)} &middot; {formatDaysLeft(item.daysLeft)}
+                  {item.amount} {displayMeasure(item, measures)}
                 </p>
+                <p className="text-center text-xs text-[#666] -mt-1">{formatDaysLeft(item.daysLeft)}</p>
               </Link>
             </li>
           ))}

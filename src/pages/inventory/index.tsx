@@ -71,16 +71,11 @@ export default function InventoryList() {
             {pantryItems.map((item) => (
               <li key={item.uuid}>
                 <Link href={`/inventory/${item.uuid}`} className="grid gap-2">
-                  {item.image ? (
-                    <InventoryImage
-                      item={item}
-                      className="w-full aspect-square object-cover rounded border border-[#ccc]"
-                    />
-                  ) : (
-                    <div className="w-full aspect-square rounded border border-[#ccc] bg-[#f4f4f4] flex items-center justify-center text-2xl">
-                      🥫
-                    </div>
-                  )}
+                  <InventoryImage
+                    item={item}
+                    className="w-full aspect-square object-cover rounded border border-[#ccc]"
+                    showPlaceholder
+                  />
                   <h4 className="font-medium text-center text-sm">{item.name}</h4>
                 </Link>
               </li>
