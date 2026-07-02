@@ -3,6 +3,7 @@ import SettingsPage from '@/pages/settings';
 
 jest.mock('@/components/Metadata', () => () => null);
 jest.mock('@/components/LinkedAccounts', () => () => <div data-testid="linked-accounts" />);
+jest.mock('@/components/FitbitConnection', () => () => <div data-testid="fitbit-connection" />);
 jest.mock('next-auth/react');
 
 const { signOut } = require('next-auth/react');
@@ -53,6 +54,11 @@ describe('Settings page', () => {
   it('shows linked accounts management', () => {
     renderPage();
     expect(screen.getByTestId('linked-accounts')).toBeInTheDocument();
+  });
+
+  it('shows Fitbit connection management', () => {
+    renderPage();
+    expect(screen.getByTestId('fitbit-connection')).toBeInTheDocument();
   });
 
   it('signs out when "Sign out" is clicked', () => {

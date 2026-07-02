@@ -1,5 +1,6 @@
 import Metadata from '@/components/Metadata';
 import LinkedAccounts from '@/components/LinkedAccounts';
+import FitbitConnection from '@/components/FitbitConnection';
 import { useSettings, type MotionSetting } from '@/lib/settings';
 import { signOut } from 'next-auth/react';
 
@@ -83,6 +84,8 @@ export default function SettingsPage() {
         </p>
 
         <LinkedAccounts returnTo="/settings" />
+
+        <FitbitConnection />
 
         <button type="button" className="cursor-pointer" onClick={() => signOut({ callbackUrl: '/' })}>
           Sign out

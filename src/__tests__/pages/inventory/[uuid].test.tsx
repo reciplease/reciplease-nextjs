@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import InventoryItemPage from '@/pages/inventory/[uuid]';
 
 jest.mock('swr');
@@ -11,6 +11,12 @@ jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; h
   <a href={href}>{children}</a>
 ));
 jest.mock('@/components/Metadata', () => () => null);
+// The eat flow (FAB + log-eaten panel, including Fitbit matching) is exercised
+// in its own test suite (src/__tests__/components/inventory/EatFlow.test.tsx);
+// stub it here so this page's tests stay about data fetching/display.
+jest.mock('@/components/inventory/EatFlow', () => ({ item }: { item: InventoryItem }) => (
+  <div data-testid="eat-flow">eat-flow for {item.name}</div>
+));
 
 const useSWR = require('swr').default;
 const useRouter = require('next/router').useRouter as jest.Mock;
@@ -84,79 +90,9 @@ describe('InventoryItemPage', () => {
     expect(screen.getByText(/— expired/)).toBeInTheDocument();
   });
 
-  describe('adjusting the amount remaining', () => {
-    it('disables the update button until the value changes', () => {
-      mockItem({ data: item });
-      render(<InventoryItemPage />);
-      expect(screen.getByRole('button', { name: /update/i })).toBeDisabled();
-    });
-
-    it('PUTs the reduced amount, preserving the other fields, and refreshes on success', async () => {
-      mockItem({ data: { ...item, barcode: '0123456789012' } });
-      (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
-
-      render(<InventoryItemPage />);
-      fireEvent.change(screen.getByLabelText(/amount remaining/i), { target: { value: '300' } });
-      fireEvent.click(screen.getByRole('button', { name: /update/i }));
-
-      await waitFor(() => {
-        expect(fetch).toHaveBeenCalledWith(
-          '/api/inventory/uuid-1',
-          expect.objectContaining({
-            method: 'PUT',
-            body: JSON.stringify({
-              name: 'Milk',
-              measure: 'ml',
-              amount: 500,
-              remaining: 300,
-              expiration: '2099-12-31',
-              barcode: '0123456789012',
-            }),
-          }),
-        );
-        expect(mutate).toHaveBeenCalled();
-      });
-    });
-
-    it('shows an error when the update fails', async () => {
-      mockItem({ data: item });
-      (fetch as jest.Mock).mockResolvedValue({ ok: false });
-
-      render(<InventoryItemPage />);
-      fireEvent.change(screen.getByLabelText(/amount remaining/i), { target: { value: '300' } });
-      fireEvent.click(screen.getByRole('button', { name: /update/i }));
-
-      await waitFor(() => {
-        expect(screen.getByRole('alert')).toHaveTextContent('Failed to update amount. Please try again.');
-      });
-    });
-
-    it('asks for confirmation and does nothing if declined when reducing to 0', () => {
-      const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false);
-      mockItem({ data: item });
-
-      render(<InventoryItemPage />);
-      fireEvent.change(screen.getByLabelText(/amount remaining/i), { target: { value: '0' } });
-      fireEvent.click(screen.getByRole('button', { name: /update/i }));
-
-      expect(fetch).not.toHaveBeenCalled();
-      confirmSpy.mockRestore();
-    });
-
-    it('deletes the item and redirects to the inventory list when reduced to 0 and confirmed', async () => {
-      const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
-      mockItem({ data: item });
-      (fetch as jest.Mock).mockResolvedValue({ ok: true });
-
-      render(<InventoryItemPage />);
-      fireEvent.change(screen.getByLabelText(/amount remaining/i), { target: { value: '0' } });
-      fireEvent.click(screen.getByRole('button', { name: /update/i }));
-
-      await waitFor(() => {
-        expect(fetch).toHaveBeenCalledWith('/api/inventory/uuid-1', expect.objectContaining({ method: 'DELETE' }));
-        expect(push).toHaveBeenCalledWith('/inventory');
-      });
-      confirmSpy.mockRestore();
-    });
+  it('renders the eat flow for the loaded item', () => {
+    mockItem({ data: item });
+    render(<InventoryItemPage />);
+    expect(screen.getByTestId('eat-flow')).toHaveTextContent('eat-flow for Milk');
   });
 });

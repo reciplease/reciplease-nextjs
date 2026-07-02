@@ -18,6 +18,7 @@ jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; h
   <a href={href}>{children}</a>
 ));
 jest.mock('@/components/Metadata', () => () => null);
+jest.mock('@/components/inventory/EatFlow', () => () => <div data-testid="eat-flow" />);
 
 global.fetch = jest.fn();
 
