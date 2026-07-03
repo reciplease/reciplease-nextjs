@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SWRConfig } from 'swr';
 import type { ReactNode } from 'react';
-import FitbitConnection from '@/components/FitbitConnection';
+import GoogleHealthConnection from '@/components/GoogleHealthConnection';
 
 jest.mock('next-auth/react');
 jest.mock('next/router', () => ({ useRouter: jest.fn() }));
@@ -20,18 +20,18 @@ beforeEach(() => {
   useRouter.mockReturnValue({ query: {} });
 });
 
-describe('FitbitConnection', () => {
-  it('offers to connect when not linked', async () => {
+describe('GoogleHealthConnection', () => {
+  it('offers to link when not connected', async () => {
     (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ connected: false }) });
-    renderFresh(<FitbitConnection />);
+    renderFresh(<GoogleHealthConnection />);
 
-    const link = await screen.findByRole('link', { name: 'Connect Fitbit' });
-    expect(link).toHaveAttribute('href', '/api/fitbit/authorize');
+    const link = await screen.findByRole('link', { name: 'Link Google Health' });
+    expect(link).toHaveAttribute('href', '/api/google-health/authorize');
   });
 
   it('shows connected state with a disconnect button', async () => {
     (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ connected: true }) });
-    renderFresh(<FitbitConnection />);
+    renderFresh(<GoogleHealthConnection />);
 
     expect(await screen.findByText('Connected')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Disconnect' })).toBeInTheDocument();
@@ -46,14 +46,17 @@ describe('FitbitConnection', () => {
       }
       return Promise.resolve({ ok: true, json: async () => ({ connected }) });
     });
-    renderFresh(<FitbitConnection />);
+    renderFresh(<GoogleHealthConnection />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Disconnect' }));
 
     await waitFor(() =>
-      expect(fetch).toHaveBeenCalledWith('/api/fitbit/connection', expect.objectContaining({ method: 'DELETE' })),
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/google-health/connection',
+        expect.objectContaining({ method: 'DELETE' }),
+      ),
     );
-    await screen.findByRole('link', { name: 'Connect Fitbit' });
+    await screen.findByRole('link', { name: 'Link Google Health' });
   });
 
   it('shows an error when disconnecting fails', async () => {
@@ -61,18 +64,18 @@ describe('FitbitConnection', () => {
       if (init?.method === 'DELETE') return Promise.resolve({ ok: false });
       return Promise.resolve({ ok: true, json: async () => ({ connected: true }) });
     });
-    renderFresh(<FitbitConnection />);
+    renderFresh(<GoogleHealthConnection />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Disconnect' }));
 
-    expect(await screen.findByText('Could not disconnect Fitbit. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('Could not disconnect Google Health. Please try again.')).toBeInTheDocument();
   });
 
   it('shows an error banner when the OAuth callback redirected back with an error', async () => {
-    useRouter.mockReturnValue({ query: { fitbit: 'error' } });
+    useRouter.mockReturnValue({ query: { googleHealth: 'error' } });
     (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ connected: false }) });
-    renderFresh(<FitbitConnection />);
+    renderFresh(<GoogleHealthConnection />);
 
-    expect(await screen.findByText('Could not connect Fitbit. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('Could not connect Google Health. Please try again.')).toBeInTheDocument();
   });
 });

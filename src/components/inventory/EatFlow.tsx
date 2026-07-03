@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { apiFetch } from '@/lib/houses';
-import { useFitbitConnection, MEAL_TYPES, type FitbitFood } from '@/lib/fitbit';
+import { useGoogleHealthConnection, MEAL_TYPES, type GoogleHealthFood } from '@/lib/googleHealth';
 
 const SEARCH_DEBOUNCE_MS = 400;
 
@@ -17,36 +17,35 @@ interface EatFlowProps {
 
 // Records eating some of an inventory item: always decrements `remaining`
 // (deleting the item outright if that drops to zero or below, mirroring the
-// inline AdjustRemainingForm this replaced), and — when Fitbit is linked —
-// optionally logs the same amount to Fitbit's food diary. The FAB and the
-// panel it opens live in the same component since neither is useful alone.
+// inline AdjustRemainingForm this replaced), and — when Google Health is
+// linked — optionally logs the same amount to Google Health's food diary. The
+// FAB and the panel it opens live in the same component since neither is
+// useful alone.
 export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
   const router = useRouter();
-  const { data: connection } = useFitbitConnection();
-  const fitbitConnected = connection?.connected ?? false;
+  const { data: connection } = useGoogleHealthConnection();
+  const googleHealthConnected = connection?.connected ?? false;
 
   const [open, setOpen] = useState(false);
   const [amountEaten, setAmountEaten] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fitbitError, setFitbitError] = useState<string | null>(null);
+  const [googleHealthError, setGoogleHealthError] = useState<string | null>(null);
 
   const [query, setQuery] = useState(item.name);
-  const [results, setResults] = useState<FitbitFood[]>([]);
-  const [selectedFood, setSelectedFood] = useState<FitbitFood | null>(null);
-  const [unitId, setUnitId] = useState<number | null>(null);
-  const [mealTypeId, setMealTypeId] = useState<number>(7);
+  const [results, setResults] = useState<GoogleHealthFood[]>([]);
+  const [selectedFood, setSelectedFood] = useState<GoogleHealthFood | null>(null);
+  const [mealType, setMealType] = useState<string>(MEAL_TYPES[0]?.value ?? 'SNACK');
   const [date, setDate] = useState(today());
 
   function openPanel() {
     setError(null);
-    setFitbitError(null);
+    setGoogleHealthError(null);
     setAmountEaten('');
     setQuery(item.name);
     setResults([]);
     setSelectedFood(null);
-    setUnitId(null);
-    setMealTypeId(7);
+    setMealType(MEAL_TYPES[0]?.value ?? 'SNACK');
     setDate(today());
     setOpen(true);
   }
@@ -55,54 +54,59 @@ export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
     setOpen(false);
   }
 
-  // Debounced Fitbit food search, only while the panel is open and Fitbit is
-  // linked — no point querying otherwise. Doesn't reset `results` itself when
-  // those conditions aren't met (that would be a synchronous setState in an
-  // effect body, triggering an extra cascading render) — searchable below
-  // instead derives whether to show stale results from the same conditions.
+  // Debounced Google Health food search, only while the panel is open and
+  // Google Health is linked — no point querying otherwise. Doesn't reset
+  // `results` itself when those conditions aren't met (that would be a
+  // synchronous setState in an effect body, triggering an extra cascading
+  // render) — searchable below instead derives whether to show stale results
+  // from the same conditions.
   useEffect(() => {
-    if (!open || !fitbitConnected || !query.trim()) return;
+    if (!open || !googleHealthConnected || !query.trim()) return;
     const handle = setTimeout(() => {
-      apiFetch(`/api/fitbit/foods/search?query=${encodeURIComponent(query)}`)
+      apiFetch(`/api/google-health/foods/search?query=${encodeURIComponent(query)}`)
         .then((res) => (res.ok ? res.json() : []))
-        .then((foods: FitbitFood[]) => setResults(Array.isArray(foods) ? foods : []))
+        .then((foods: GoogleHealthFood[]) => setResults(Array.isArray(foods) ? foods : []))
         .catch(() => setResults([]));
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(handle);
-  }, [open, fitbitConnected, query]);
+  }, [open, googleHealthConnected, query]);
 
-  const searchable = open && fitbitConnected && query.trim().length > 0;
+  const searchable = open && googleHealthConnected && query.trim().length > 0;
   const visibleResults = searchable ? results : [];
 
-  function selectFood(food: FitbitFood) {
+  function selectFood(food: GoogleHealthFood) {
     setSelectedFood(food);
-    setUnitId(food.units[0]?.id ?? null);
     setResults([]);
   }
 
   function clearSelectedFood() {
     setSelectedFood(null);
-    setUnitId(null);
   }
 
-  /** Logs to Fitbit if a food was matched and its fields are complete. Returns
-   * false only when a log was attempted and failed — the caller uses that to
-   * decide whether to leave the panel open with the error visible. */
-  async function maybeLogFitbit(amount: number): Promise<boolean> {
-    if (!selectedFood || unitId == null || !mealTypeId || !date) return true;
+  /** Logs to Google Health if a food was matched and its fields are complete.
+   * Returns false only when a log was attempted and failed — the caller uses
+   * that to decide whether to leave the panel open with the error visible. */
+  async function maybeLogGoogleHealth(amount: number): Promise<boolean> {
+    if (!selectedFood || !mealType || !date) return true;
     try {
-      const res = await apiFetch('/api/fitbit/foods/log', {
+      const res = await apiFetch('/api/google-health/foods/log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ foodId: selectedFood.foodId, unitId, amount, mealTypeId, date }),
+        body: JSON.stringify({
+          foodId: selectedFood.foodId,
+          foodDisplayName: selectedFood.displayName,
+          mealType,
+          date,
+          amount,
+        }),
       });
       if (!res.ok) {
-        setFitbitError('Your inventory was updated, but logging to Fitbit failed. Please try again.');
+        setGoogleHealthError('Your inventory was updated, but logging to Google Health failed. Please try again.');
         return false;
       }
       return true;
     } catch {
-      setFitbitError('Your inventory was updated, but logging to Fitbit failed. Please try again.');
+      setGoogleHealthError('Your inventory was updated, but logging to Google Health failed. Please try again.');
       return false;
     }
   }
@@ -110,7 +114,7 @@ export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    setFitbitError(null);
+    setGoogleHealthError(null);
     setSubmitting(true);
     try {
       const eaten = parseFloat(amountEaten);
@@ -125,7 +129,7 @@ export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
           setError('Failed to remove item. Please try again.');
           return;
         }
-        await maybeLogFitbit(eaten);
+        await maybeLogGoogleHealth(eaten);
         router.push('/inventory');
         return;
       }
@@ -150,8 +154,8 @@ export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
       }
 
       onSaved();
-      const fitbitOk = await maybeLogFitbit(eaten);
-      if (fitbitOk) {
+      const googleHealthOk = await maybeLogGoogleHealth(eaten);
+      if (googleHealthOk) {
         closePanel();
       }
     } catch {
@@ -205,13 +209,13 @@ export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
                 />
               </div>
 
-              {fitbitConnected && (
+              {googleHealthConnected && (
                 <div className="grid gap-2 border-t border-secondary pt-3">
-                  <label htmlFor="fitbit-search" className="text-sm">
-                    Match to a Fitbit food (optional)
+                  <label htmlFor="google-health-search" className="text-sm">
+                    Match to a Google Health food (optional)
                   </label>
                   <input
-                    id="fitbit-search"
+                    id="google-health-search"
                     type="text"
                     value={query}
                     onChange={(e) => {
@@ -230,7 +234,7 @@ export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
                             onClick={() => selectFood(food)}
                             className="w-full cursor-pointer px-2 py-1 text-left text-sm hover:bg-secondary"
                           >
-                            {food.name}
+                            {food.displayName}
                             {food.brand ? ` (${food.brand})` : ''}
                           </button>
                         </li>
@@ -241,43 +245,29 @@ export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
                   {selectedFood && (
                     <div className="grid gap-2 rounded border border-secondary p-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm">{selectedFood.name}</span>
+                        <span className="text-sm">{selectedFood.displayName}</span>
                         <button type="button" onClick={clearSelectedFood} className="cursor-pointer text-sm underline">
                           Change
                         </button>
                       </div>
 
-                      <label htmlFor="fitbit-unit" className="sr-only">Unit</label>
+                      <label htmlFor="google-health-meal-type" className="sr-only">Meal</label>
                       <select
-                        id="fitbit-unit"
-                        value={unitId ?? ''}
-                        onChange={(e) => setUnitId(Number(e.target.value))}
+                        id="google-health-meal-type"
+                        value={mealType}
+                        onChange={(e) => setMealType(e.target.value)}
                         className="rounded border-2 border-secondary bg-black p-2 text-sm text-white"
                       >
-                        {selectedFood.units.map((unit) => (
-                          <option key={unit.id} value={unit.id} className="bg-black text-white">
-                            {unit.name}
+                        {MEAL_TYPES.map((mt) => (
+                          <option key={mt.value} value={mt.value} className="bg-black text-white">
+                            {mt.label}
                           </option>
                         ))}
                       </select>
 
-                      <label htmlFor="fitbit-meal-type" className="sr-only">Meal</label>
-                      <select
-                        id="fitbit-meal-type"
-                        value={mealTypeId}
-                        onChange={(e) => setMealTypeId(Number(e.target.value))}
-                        className="rounded border-2 border-secondary bg-black p-2 text-sm text-white"
-                      >
-                        {MEAL_TYPES.map((mealType) => (
-                          <option key={mealType.id} value={mealType.id} className="bg-black text-white">
-                            {mealType.label}
-                          </option>
-                        ))}
-                      </select>
-
-                      <label htmlFor="fitbit-date" className="sr-only">Date</label>
+                      <label htmlFor="google-health-date" className="sr-only">Date</label>
                       <input
-                        id="fitbit-date"
+                        id="google-health-date"
                         type="date"
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
@@ -293,9 +283,9 @@ export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
                   {error}
                 </p>
               )}
-              {fitbitError && (
+              {googleHealthError && (
                 <p role="alert" className="text-sm text-red-600">
-                  {fitbitError}
+                  {googleHealthError}
                 </p>
               )}
 

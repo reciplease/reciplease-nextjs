@@ -11,7 +11,7 @@ jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; h
   <a href={href}>{children}</a>
 ));
 jest.mock('@/components/Metadata', () => () => null);
-// The eat flow (FAB + log-eaten panel, including Fitbit matching) is exercised
+// The eat flow (FAB + log-eaten panel, including Google Health matching) is exercised
 // in its own test suite (src/__tests__/components/inventory/EatFlow.test.tsx);
 // stub it here so this page's tests stay about data fetching/display.
 jest.mock('@/components/inventory/EatFlow', () => ({ item }: { item: InventoryItem }) => (

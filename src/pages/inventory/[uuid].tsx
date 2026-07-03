@@ -94,7 +94,7 @@ export default function InventoryItemPage() {
       </section>
 
       {/* Floating "log eaten" trigger + panel — see EatFlow for why it also
-          owns the (optional, only when Fitbit is linked) food-log step. */}
+          owns the (optional, only when Google Health is linked) food-log step. */}
       <EatFlow uuid={uuid} item={item} onSaved={mutate} />
     </>
   );

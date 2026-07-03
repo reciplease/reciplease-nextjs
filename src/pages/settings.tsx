@@ -1,6 +1,6 @@
 import Metadata from '@/components/Metadata';
 import LinkedAccounts from '@/components/LinkedAccounts';
-import FitbitConnection from '@/components/FitbitConnection';
+import GoogleHealthConnection from '@/components/GoogleHealthConnection';
 import { useSettings, type MotionSetting } from '@/lib/settings';
 import { signOut } from 'next-auth/react';
 
@@ -85,7 +85,7 @@ export default function SettingsPage() {
 
         <LinkedAccounts returnTo="/settings" />
 
-        <FitbitConnection />
+        <GoogleHealthConnection />
 
         <button type="button" className="cursor-pointer" onClick={() => signOut({ callbackUrl: '/' })}>
           Sign out

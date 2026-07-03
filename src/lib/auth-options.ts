@@ -103,7 +103,11 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
       authorization: {
         params: {
-          scope: 'openid email profile',
+          // Minimal login scope — no session.user.name/image are used anywhere in the
+          // app, so `profile` isn't requested. Google Health's nutrition scopes are
+          // requested separately via incremental authorization (see Settings > Google
+          // Health), not bundled into login, per Google's own incremental-auth guidance.
+          scope: 'openid email',
         },
       },
     }),

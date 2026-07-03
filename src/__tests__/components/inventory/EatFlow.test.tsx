@@ -32,7 +32,7 @@ const onSaved = jest.fn();
 
 function mockConnection(connected: boolean) {
   (fetch as jest.Mock).mockImplementation((url: string) => {
-    if (url === '/api/fitbit/connection') {
+    if (url === '/api/google-health/connection') {
       return Promise.resolve({ ok: true, json: async () => ({ connected }) });
     }
     return Promise.resolve({ ok: true, json: async () => ({}) });
@@ -52,20 +52,20 @@ beforeEach(() => {
 });
 
 describe('EatFlow', () => {
-  it('does not show the Fitbit matching section when Fitbit is not connected', async () => {
+  it('does not show the Google Health matching section when Google Health is not connected', async () => {
     mockConnection(false);
     renderFresh(<EatFlow uuid="uuid-1" item={item} onSaved={onSaved} />);
     openPanel();
 
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/fitbit/connection', undefined));
-    expect(screen.queryByLabelText(/match to a fitbit food/i)).not.toBeInTheDocument();
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/google-health/connection', undefined));
+    expect(screen.queryByLabelText(/match to a google health food/i)).not.toBeInTheDocument();
   });
 
-  it('plain remaining-decrement submit with no Fitbit connection', async () => {
+  it('plain remaining-decrement submit with no Google Health connection', async () => {
     mockConnection(false);
     renderFresh(<EatFlow uuid="uuid-1" item={item} onSaved={onSaved} />);
     openPanel();
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/fitbit/connection', undefined));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/google-health/connection', undefined));
 
     fireEvent.change(screen.getByLabelText('Amount eaten'), { target: { value: '100' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -86,19 +86,17 @@ describe('EatFlow', () => {
       );
       expect(onSaved).toHaveBeenCalled();
     });
-    // No Fitbit log call, since Fitbit isn't connected.
-    expect(fetch).not.toHaveBeenCalledWith('/api/fitbit/foods/log', expect.anything());
+    // No Google Health log call, since Google Health isn't connected.
+    expect(fetch).not.toHaveBeenCalledWith('/api/google-health/foods/log', expect.anything());
   });
 
-  it('full flow with search + match + Fitbit log call', async () => {
+  it('full flow with search + match + Google Health log call', async () => {
     jest.useFakeTimers();
-    const foods = [
-      { foodId: 1, name: 'Whole Milk', brand: 'Dairy Co', units: [{ id: 10, name: 'ml' }, { id: 11, name: 'cup' }] },
-    ];
+    const foods = [{ foodId: 'food-1', displayName: 'Whole Milk', brand: 'Dairy Co' }];
     (fetch as jest.Mock).mockImplementation((url: string, init?: RequestInit) => {
-      if (url === '/api/fitbit/connection') return Promise.resolve({ ok: true, json: async () => ({ connected: true }) });
-      if (url.startsWith('/api/fitbit/foods/search')) return Promise.resolve({ ok: true, json: async () => foods });
-      if (url === '/api/fitbit/foods/log') return Promise.resolve({ ok: true, json: async () => ({}) });
+      if (url === '/api/google-health/connection') return Promise.resolve({ ok: true, json: async () => ({ connected: true }) });
+      if (url.startsWith('/api/google-health/foods/search')) return Promise.resolve({ ok: true, json: async () => foods });
+      if (url === '/api/google-health/foods/log') return Promise.resolve({ ok: true, json: async () => ({}) });
       if (url === '/api/inventory/uuid-1') return Promise.resolve({ ok: true, json: async () => ({}) });
       return Promise.resolve({ ok: true, json: async () => ({}) });
     });
@@ -107,7 +105,7 @@ describe('EatFlow', () => {
     openPanel();
 
     // Pre-filled with the item's name, which should trigger a debounced search.
-    expect(await screen.findByLabelText(/match to a fitbit food/i)).toHaveValue('Milk');
+    expect(await screen.findByLabelText(/match to a google health food/i)).toHaveValue('Milk');
 
     await act(async () => {
       jest.advanceTimersByTime(400);
@@ -115,7 +113,7 @@ describe('EatFlow', () => {
     jest.useRealTimers();
 
     await waitFor(() =>
-      expect(fetch).toHaveBeenCalledWith('/api/fitbit/foods/search?query=Milk', undefined),
+      expect(fetch).toHaveBeenCalledWith('/api/google-health/foods/search?query=Milk', undefined),
     );
 
     fireEvent.click(await screen.findByRole('button', { name: /whole milk/i }));
@@ -126,10 +124,16 @@ describe('EatFlow', () => {
     const today = new Date().toISOString().slice(0, 10);
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
-        '/api/fitbit/foods/log',
+        '/api/google-health/foods/log',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ foodId: 1, unitId: 10, amount: 100, mealTypeId: 7, date: today }),
+          body: JSON.stringify({
+            foodId: 'food-1',
+            foodDisplayName: 'Whole Milk',
+            mealType: 'BREAKFAST',
+            date: today,
+            amount: 100,
+          }),
         }),
       );
     });
@@ -140,7 +144,7 @@ describe('EatFlow', () => {
     mockConnection(false);
     renderFresh(<EatFlow uuid="uuid-1" item={item} onSaved={onSaved} />);
     openPanel();
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/fitbit/connection', undefined));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/google-health/connection', undefined));
 
     fireEvent.change(screen.getByLabelText('Amount eaten'), { target: { value: '500' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -157,7 +161,7 @@ describe('EatFlow', () => {
     mockConnection(false);
     renderFresh(<EatFlow uuid="uuid-1" item={item} onSaved={onSaved} />);
     openPanel();
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/fitbit/connection', undefined));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/google-health/connection', undefined));
 
     fireEvent.change(screen.getByLabelText('Amount eaten'), { target: { value: '500' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
