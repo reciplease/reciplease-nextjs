@@ -1,5 +1,4 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
 import { apiFetch } from '@/lib/houses';
 import { useGoogleHealthConnection, MEAL_TYPES, type GoogleHealthFood } from '@/lib/googleHealth';
 
@@ -16,13 +15,13 @@ interface EatFlowProps {
 }
 
 // Records eating some of an inventory item: always decrements `remaining`
-// (deleting the item outright if that drops to zero or below, mirroring the
-// inline AdjustRemainingForm this replaced), and — when Google Health is
-// linked — optionally logs the same amount to Google Health's food diary. The
-// FAB and the panel it opens live in the same component since neither is
-// useful alone.
+// (clamped at zero, never below — a fully-consumed item stays around rather
+// than being deleted, so it can still show up greyed-out/sorted-last on the
+// pantry page, the same treatment expired items get), and — when Google
+// Health is linked — optionally logs the same amount to Google Health's food
+// diary. The FAB and the panel it opens live in the same component since
+// neither is useful alone.
 export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
-  const router = useRouter();
   const { data: connection } = useGoogleHealthConnection();
   const googleHealthConnected = connection?.connected ?? false;
 
@@ -118,21 +117,9 @@ export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
     setSubmitting(true);
     try {
       const eaten = parseFloat(amountEaten);
-      const newRemaining = item.remaining - (Number.isFinite(eaten) ? eaten : 0);
-
-      if (newRemaining <= 0) {
-        if (!window.confirm(`Mark ${item.name} as fully used? It will be removed from your inventory.`)) {
-          return;
-        }
-        const res = await apiFetch(`/api/inventory/${uuid}`, { method: 'DELETE' });
-        if (!res.ok) {
-          setError('Failed to remove item. Please try again.');
-          return;
-        }
-        await maybeLogGoogleHealth(eaten);
-        router.push('/inventory');
-        return;
-      }
+      // Clamped at zero rather than deleting the item — a fully-consumed item
+      // just sorts to the end and greys out on the pantry page instead.
+      const newRemaining = Math.max(0, item.remaining - (Number.isFinite(eaten) ? eaten : 0));
 
       const body: CreateInventoryItem & { remaining: number } = {
         name: item.name,

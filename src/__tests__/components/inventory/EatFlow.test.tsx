@@ -139,34 +139,33 @@ describe('EatFlow', () => {
     });
   });
 
-  it('asks for confirmation and deletes the item when the amount eaten empties it out', async () => {
-    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
+  it('clamps remaining to zero (never deletes) when the amount eaten empties it out', async () => {
     mockConnection(false);
     renderFresh(<EatFlow uuid="uuid-1" item={item} onSaved={onSaved} />);
     openPanel();
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/google-health/connection', undefined));
 
-    fireEvent.change(screen.getByLabelText('Amount eaten'), { target: { value: '500' } });
+    // More than what's left — should clamp to 0, not go negative.
+    fireEvent.change(screen.getByLabelText('Amount eaten'), { target: { value: '600' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('/api/inventory/uuid-1', expect.objectContaining({ method: 'DELETE' }));
-      expect(push).toHaveBeenCalledWith('/inventory');
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/inventory/uuid-1',
+        expect.objectContaining({
+          method: 'PUT',
+          body: JSON.stringify({
+            name: 'Milk',
+            measure: 'ml',
+            amount: 500,
+            remaining: 0,
+            expiration: '2099-12-31',
+          }),
+        }),
+      );
+      expect(onSaved).toHaveBeenCalled();
     });
-    confirmSpy.mockRestore();
-  });
-
-  it('does not delete when the confirmation is declined', async () => {
-    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false);
-    mockConnection(false);
-    renderFresh(<EatFlow uuid="uuid-1" item={item} onSaved={onSaved} />);
-    openPanel();
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/google-health/connection', undefined));
-
-    fireEvent.change(screen.getByLabelText('Amount eaten'), { target: { value: '500' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    expect(fetch).not.toHaveBeenCalledWith('/api/inventory/uuid-1', expect.anything());
-    confirmSpy.mockRestore();
+    expect(fetch).not.toHaveBeenCalledWith('/api/inventory/uuid-1', expect.objectContaining({ method: 'DELETE' }));
+    expect(push).not.toHaveBeenCalled();
   });
 });

@@ -57,17 +57,29 @@ describe('InventoryList', () => {
     expect(screen.getByText('Could not load inventory')).toBeInTheDocument();
   });
 
-  it('renders unexpired items sorted alphabetically by name', () => {
+  it('sorts active items alphabetically, with expired/fully-consumed ones after', () => {
     useSWR.mockReturnValue({ isLoading: false, data: mockItems, error: undefined });
     render(<InventoryList />);
     const names = screen.getAllByRole('heading', { level: 4 }).map((el) => el.textContent);
-    expect(names).toEqual(['Avocado', 'Bread']);
+    expect(names).toEqual(['Avocado', 'Bread', 'Flour']);
   });
 
-  it('hides expired items', () => {
+  it('shows expired items, greyed out, rather than hiding them', () => {
     useSWR.mockReturnValue({ isLoading: false, data: mockItems, error: undefined });
     render(<InventoryList />);
-    expect(screen.queryByText('Flour')).not.toBeInTheDocument();
+    const flourLink = screen.getByText('Flour').closest('a');
+    expect(flourLink).toHaveClass('opacity-60');
+  });
+
+  it('shows a fully-consumed (but unexpired) item greyed out and sorted last, not deleted', () => {
+    const eaten: InventoryItem = { ...mockItems[1], name: 'Zucchini', remaining: 0 };
+    useSWR.mockReturnValue({ isLoading: false, data: [mockItems[0], eaten], error: undefined });
+    render(<InventoryList />);
+
+    const names = screen.getAllByRole('heading', { level: 4 }).map((el) => el.textContent);
+    expect(names).toEqual(['Bread', 'Zucchini']);
+    expect(screen.getByText('Zucchini').closest('a')).toHaveClass('opacity-60');
+    expect(screen.getByText('Bread').closest('a')).not.toHaveClass('opacity-60');
   });
 
   it('renders a photo thumbnail when the item has an image', () => {
@@ -85,12 +97,6 @@ describe('InventoryList', () => {
 
   it('shows empty state message when no items', () => {
     useSWR.mockReturnValue({ isLoading: false, data: [], error: undefined });
-    render(<InventoryList />);
-    expect(screen.getByText('No items in inventory')).toBeInTheDocument();
-  });
-
-  it('shows empty state message when all items are expired', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: [mockItems[2]], error: undefined });
     render(<InventoryList />);
     expect(screen.getByText('No items in inventory')).toBeInTheDocument();
   });

@@ -11,6 +11,18 @@ function isExpired(expiration: string): boolean {
   return new Date(expiration) < new Date();
 }
 
+function isFullyConsumed(item: InventoryItem): boolean {
+  return (item.remaining ?? item.amount ?? 0) <= 0;
+}
+
+// Expired or fully-eaten items aren't hidden — they're still physically
+// absent/unusable, but the user may still want to see them (e.g. to restock)
+// — so they stay in the list, just greyed out and sorted after everything
+// still usable.
+function isInactive(item: InventoryItem): boolean {
+  return isExpired(item.expiration) || isFullyConsumed(item);
+}
+
 export default function InventoryList() {
   // Wait for the active house before fetching: house-scoped calls need the
   // X-RCPLS-House-Id header, which is only known once houses have loaded. Keying
@@ -39,11 +51,15 @@ export default function InventoryList() {
     );
   }
 
-  // The pantry is a quick-glance overview — expired stock and the amount/expiry
-  // detail live on the "Expiring soon" view instead.
-  const pantryItems = items
-    .filter((item) => !isExpired(item.expiration))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  // Active items first (alphabetically), then expired/fully-consumed ones
+  // (also alphabetically) — greyed out below, rather than hidden. Full
+  // amount/expiry detail still lives on the "Expiring soon" view.
+  const pantryItems = [...items].sort((a, b) => {
+    const aInactive = isInactive(a);
+    const bInactive = isInactive(b);
+    if (aInactive !== bInactive) return aInactive ? 1 : -1;
+    return a.name.localeCompare(b.name);
+  });
 
   return (
     <>
@@ -70,7 +86,10 @@ export default function InventoryList() {
           <ul className="list-none p-0 grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-4 my-8">
             {pantryItems.map((item) => (
               <li key={item.uuid}>
-                <Link href={`/inventory/${item.uuid}`} className="grid gap-2">
+                <Link
+                  href={`/inventory/${item.uuid}`}
+                  className={`grid gap-2${isInactive(item) ? ' opacity-60' : ''}`}
+                >
                   <InventoryImage
                     item={item}
                     className="w-full aspect-square object-cover rounded border border-[#ccc]"
