@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/houses';
-import { useGoogleHealthConnection, MEAL_TYPES, type GoogleHealthFood } from '@/lib/googleHealth';
+import { useGoogleHealthConnection, MEAL_TYPES } from '@/lib/googleHealth';
+import { searchFood, searchFoodByBarcode, type FoodSearchResult } from '@/lib/foodSearch';
+import BarcodeScanner from '@/components/scanner/BarcodeScanner';
 
 const SEARCH_DEBOUNCE_MS = 400;
 
@@ -21,6 +23,12 @@ interface EatFlowProps {
 // Health is linked — optionally logs the same amount to Google Health's food
 // diary. The FAB and the panel it opens live in the same component since
 // neither is useful alone.
+//
+// Food search merges two sources (see /api/food/search): the user's own
+// Google Health history (an "identified food" match — Google fills in
+// accurate nutrients itself) and Open Food Facts (an "anonymous" match —
+// nutrients travel along with the log request instead). Search works even
+// when Google Health isn't linked; only the history group is then empty.
 export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
   const { data: connection } = useGoogleHealthConnection();
   const googleHealthConnected = connection?.connected ?? false;
@@ -32,10 +40,11 @@ export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
   const [googleHealthError, setGoogleHealthError] = useState<string | null>(null);
 
   const [query, setQuery] = useState(item.name);
-  const [results, setResults] = useState<GoogleHealthFood[]>([]);
-  const [selectedFood, setSelectedFood] = useState<GoogleHealthFood | null>(null);
+  const [results, setResults] = useState<FoodSearchResult[]>([]);
+  const [selectedFood, setSelectedFood] = useState<FoodSearchResult | null>(null);
   const [mealType, setMealType] = useState<string>(MEAL_TYPES[0]?.value ?? 'SNACK');
   const [date, setDate] = useState(today());
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   function openPanel() {
     setError(null);
@@ -46,6 +55,7 @@ export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
     setSelectedFood(null);
     setMealType(MEAL_TYPES[0]?.value ?? 'SNACK');
     setDate(today());
+    setScannerOpen(false);
     setOpen(true);
   }
 
@@ -53,27 +63,25 @@ export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
     setOpen(false);
   }
 
-  // Debounced Google Health food search, only while the panel is open and
-  // Google Health is linked — no point querying otherwise. Doesn't reset
-  // `results` itself when those conditions aren't met (that would be a
-  // synchronous setState in an effect body, triggering an extra cascading
-  // render) — searchable below instead derives whether to show stale results
-  // from the same conditions.
+  // Debounced food search, only while the panel is open — no point querying
+  // otherwise. Doesn't reset `results` itself when those conditions aren't
+  // met (that would be a synchronous setState in an effect body, triggering
+  // an extra cascading render) — searchable below instead derives whether to
+  // show stale results from the same conditions.
   useEffect(() => {
-    if (!open || !googleHealthConnected || !query.trim()) return;
+    if (!open || !query.trim()) return;
     const handle = setTimeout(() => {
-      apiFetch(`/api/google-health/foods/search?query=${encodeURIComponent(query)}`)
-        .then((res) => (res.ok ? res.json() : []))
-        .then((foods: GoogleHealthFood[]) => setResults(Array.isArray(foods) ? foods : []))
-        .catch(() => setResults([]));
+      searchFood(query).then(setResults);
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(handle);
-  }, [open, googleHealthConnected, query]);
+  }, [open, query]);
 
-  const searchable = open && googleHealthConnected && query.trim().length > 0;
+  const searchable = open && query.trim().length > 0;
   const visibleResults = searchable ? results : [];
+  const historyResults = visibleResults.filter((r) => r.source === 'HISTORY');
+  const catalogResults = visibleResults.filter((r) => r.source === 'CATALOG');
 
-  function selectFood(food: GoogleHealthFood) {
+  function selectFood(food: FoodSearchResult) {
     setSelectedFood(food);
     setResults([]);
   }
@@ -82,21 +90,31 @@ export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
     setSelectedFood(null);
   }
 
-  /** Logs to Google Health if a food was matched and its fields are complete.
-   * Returns false only when a log was attempted and failed — the caller uses
-   * that to decide whether to leave the panel open with the error visible. */
+  async function onBarcodeDetected(barcode: string) {
+    setScannerOpen(false);
+    const found = await searchFoodByBarcode(barcode);
+    if (found) {
+      selectFood(found);
+    }
+  }
+
+  /** Logs to Google Health if a food was matched. Returns false only when a log was attempted
+   * and failed — the caller uses that to decide whether to leave the panel open with the error
+   * visible. Skipped entirely (returns true) when Google Health isn't linked, since there's
+   * nowhere to log to. */
   async function maybeLogGoogleHealth(amount: number): Promise<boolean> {
-    if (!selectedFood || !mealType || !date) return true;
+    if (!selectedFood || !googleHealthConnected || !mealType || !date) return true;
     try {
       const res = await apiFetch('/api/google-health/foods/log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          foodId: selectedFood.foodId,
+          foodId: selectedFood.identifiedFoodId ?? undefined,
           foodDisplayName: selectedFood.displayName,
           mealType,
           date,
           amount,
+          nutrients: selectedFood.identifiedFoodId ? undefined : (selectedFood.nutrients ?? undefined),
         }),
       });
       if (!res.ok) {
@@ -196,74 +214,118 @@ export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
                 />
               </div>
 
-              {googleHealthConnected && (
-                <div className="grid gap-2 border-t border-secondary pt-3">
-                  <label htmlFor="google-health-search" className="text-sm">
-                    Match to a Google Health food (optional)
+              <div className="grid gap-2 border-t border-secondary pt-3">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="food-search" className="text-sm">
+                    Match to a food (optional)
                   </label>
-                  <input
-                    id="google-health-search"
-                    type="text"
-                    value={query}
-                    onChange={(e) => {
-                      setQuery(e.target.value);
-                      clearSelectedFood();
-                    }}
-                    className="w-full p-2 text-base"
-                  />
-
-                  {!selectedFood && visibleResults.length > 0 && (
-                    <ul className="max-h-40 overflow-y-auto rounded border border-secondary">
-                      {visibleResults.map((food) => (
-                        <li key={food.foodId}>
-                          <button
-                            type="button"
-                            onClick={() => selectFood(food)}
-                            className="w-full cursor-pointer px-2 py-1 text-left text-sm hover:bg-secondary"
-                          >
-                            {food.displayName}
-                            {food.brand ? ` (${food.brand})` : ''}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {selectedFood && (
-                    <div className="grid gap-2 rounded border border-secondary p-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">{selectedFood.displayName}</span>
-                        <button type="button" onClick={clearSelectedFood} className="cursor-pointer text-sm underline">
-                          Change
-                        </button>
-                      </div>
-
-                      <label htmlFor="google-health-meal-type" className="sr-only">Meal</label>
-                      <select
-                        id="google-health-meal-type"
-                        value={mealType}
-                        onChange={(e) => setMealType(e.target.value)}
-                        className="rounded border-2 border-secondary bg-black p-2 text-sm text-white"
-                      >
-                        {MEAL_TYPES.map((mt) => (
-                          <option key={mt.value} value={mt.value} className="bg-black text-white">
-                            {mt.label}
-                          </option>
-                        ))}
-                      </select>
-
-                      <label htmlFor="google-health-date" className="sr-only">Date</label>
-                      <input
-                        id="google-health-date"
-                        type="date"
-                        value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                        className="rounded border-2 border-secondary bg-black p-2 text-sm text-white"
-                      />
-                    </div>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setScannerOpen((prev) => !prev)}
+                    className="cursor-pointer text-sm underline"
+                  >
+                    {scannerOpen ? 'Close scanner' : 'Scan barcode'}
+                  </button>
                 </div>
-              )}
+
+                {scannerOpen && (
+                  <div className="h-48 w-full overflow-hidden rounded border border-secondary">
+                    <BarcodeScanner active={scannerOpen} onDetected={onBarcodeDetected} />
+                  </div>
+                )}
+
+                <input
+                  id="food-search"
+                  type="text"
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    clearSelectedFood();
+                  }}
+                  className="w-full p-2 text-base"
+                />
+
+                {!selectedFood && (historyResults.length > 0 || catalogResults.length > 0) && (
+                  <div className="max-h-48 overflow-y-auto rounded border border-secondary">
+                    {historyResults.length > 0 && (
+                      <>
+                        <p className="px-2 pt-1 text-xs uppercase text-secondary">Recently eaten</p>
+                        <ul>
+                          {historyResults.map((food, i) => (
+                            <li key={`history-${food.identifiedFoodId ?? food.displayName}-${i}`}>
+                              <button
+                                type="button"
+                                onClick={() => selectFood(food)}
+                                className="w-full cursor-pointer px-2 py-1 text-left text-sm hover:bg-secondary"
+                              >
+                                {food.displayName}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                    {catalogResults.length > 0 && (
+                      <>
+                        <p className="px-2 pt-1 text-xs uppercase text-secondary">Search results</p>
+                        <ul>
+                          {catalogResults.map((food, i) => (
+                            <li key={`catalog-${food.displayName}-${i}`}>
+                              <button
+                                type="button"
+                                onClick={() => selectFood(food)}
+                                className="w-full cursor-pointer px-2 py-1 text-left text-sm hover:bg-secondary"
+                              >
+                                {food.displayName}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {selectedFood && (
+                  <div className="grid gap-2 rounded border border-secondary p-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">{selectedFood.displayName}</span>
+                      <button type="button" onClick={clearSelectedFood} className="cursor-pointer text-sm underline">
+                        Change
+                      </button>
+                    </div>
+
+                    {googleHealthConnected ? (
+                      <>
+                        <label htmlFor="google-health-meal-type" className="sr-only">Meal</label>
+                        <select
+                          id="google-health-meal-type"
+                          value={mealType}
+                          onChange={(e) => setMealType(e.target.value)}
+                          className="rounded border-2 border-secondary bg-black p-2 text-sm text-white"
+                        >
+                          {MEAL_TYPES.map((mt) => (
+                            <option key={mt.value} value={mt.value} className="bg-black text-white">
+                              {mt.label}
+                            </option>
+                          ))}
+                        </select>
+
+                        <label htmlFor="google-health-date" className="sr-only">Date</label>
+                        <input
+                          id="google-health-date"
+                          type="date"
+                          value={date}
+                          onChange={(e) => setDate(e.target.value)}
+                          className="rounded border-2 border-secondary bg-black p-2 text-sm text-white"
+                        />
+                      </>
+                    ) : (
+                      <p className="text-xs text-secondary">Link Google Health in settings to log this to your food diary.</p>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {error && (
                 <p role="alert" className="text-sm text-red-600">

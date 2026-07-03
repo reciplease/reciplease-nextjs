@@ -110,11 +110,14 @@ test.describe('Logging an inventory item as eaten', () => {
       }
     });
 
+    await page.route('**/api/food/search**', (route) => route.fulfill({ json: [] }));
+
     await page.goto('/inventory/item-1');
     await page.getByRole('button', { name: 'Log eaten' }).click();
 
-    // No Google Health match step when not linked.
-    await expect(page.getByLabel('Match to a Google Health food (optional)')).not.toBeVisible();
+    // The search section itself is shown regardless (catalog search still works
+    // when Google Health isn't linked) — but there's nothing to match to log.
+    await expect(page.getByLabel('Match to a food (optional)')).toBeVisible();
 
     await page.getByLabel('Amount eaten').fill('2');
     // The "Log eaten" FAB is always in the DOM, panel open or not, so waiting
@@ -126,10 +129,12 @@ test.describe('Logging an inventory item as eaten', () => {
     expect(putBody).toMatchObject({ remaining: 4 });
   });
 
-  test('with Google Health linked, matching a food logs it alongside the inventory update', async ({ page }) => {
+  test('with Google Health linked, matching a history result logs an identified food', async ({ page }) => {
     await page.route('/api/google-health/connection', (route) => route.fulfill({ json: { connected: true } }));
-    await page.route('**/api/google-health/foods/search**', (route) =>
-      route.fulfill({ json: [{ foodId: 'food-1', displayName: 'Banana, raw' }] }),
+    await page.route('**/api/food/search**', (route) =>
+      route.fulfill({
+        json: [{ source: 'HISTORY', displayName: 'Banana, raw', identifiedFoodId: 'food-1', nutrients: null }],
+      }),
     );
 
     let logBody: unknown;
@@ -150,14 +155,72 @@ test.describe('Logging an inventory item as eaten', () => {
 
     await page.getByLabel('Amount eaten').fill('1');
 
-    const search = page.getByLabel('Match to a Google Health food (optional)');
+    const search = page.getByLabel('Match to a food (optional)');
     await expect(search).toBeVisible();
     await search.fill('banana');
+    await expect(page.getByText('Recently eaten')).toBeVisible();
     await page.getByRole('button', { name: /Banana, raw/ }).click();
 
     await page.getByRole('button', { name: 'Save' }).click();
     await expect(page.getByRole('heading', { name: 'Log Bananas eaten' })).not.toBeVisible();
 
     expect(logBody).toMatchObject({ foodId: 'food-1', foodDisplayName: 'Banana, raw', amount: 1 });
+  });
+
+  test('with Google Health linked, matching a catalog result logs an anonymous food with macros', async ({ page }) => {
+    await page.route('/api/google-health/connection', (route) => route.fulfill({ json: { connected: true } }));
+    const nutrients = { energyKcal: 89, proteinG: 1.1, fatG: 0.3, carbohydrateG: 23 };
+    await page.route('**/api/food/search**', (route) =>
+      route.fulfill({
+        json: [{ source: 'CATALOG', displayName: 'Banana (Chiquita)', identifiedFoodId: null, nutrients }],
+      }),
+    );
+
+    let logBody: unknown;
+    await page.route('/api/google-health/foods/log', (route) => {
+      logBody = route.request().postDataJSON();
+      route.fulfill({ status: 200 });
+    });
+    await page.route('/api/inventory/item-1', (route) => {
+      if (route.request().method() === 'PUT') {
+        route.fulfill({ json: { ...inventoryItem, remaining: 5 } });
+      } else {
+        route.fulfill({ json: inventoryItem });
+      }
+    });
+
+    await page.goto('/inventory/item-1');
+    await page.getByRole('button', { name: 'Log eaten' }).click();
+
+    await page.getByLabel('Amount eaten').fill('1');
+
+    const search = page.getByLabel('Match to a food (optional)');
+    await expect(search).toBeVisible();
+    await search.fill('banana');
+    await expect(page.getByText('Search results')).toBeVisible();
+    await page.getByRole('button', { name: /Banana \(Chiquita\)/ }).click();
+
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByRole('heading', { name: 'Log Bananas eaten' })).not.toBeVisible();
+
+    expect(logBody).toMatchObject({ foodDisplayName: 'Banana (Chiquita)', amount: 1, nutrients });
+  });
+
+  test('scanning a barcode selects a catalog match', async ({ page }) => {
+    await page.route('/api/google-health/connection', (route) => route.fulfill({ json: { connected: false } }));
+    await page.route('**/api/food/search**', (route) => route.fulfill({ json: [] }));
+    await page.route('/api/food/barcode/012345', (route) =>
+      route.fulfill({ json: { source: 'CATALOG', displayName: 'Oat Milk', identifiedFoodId: null, nutrients: null } }),
+    );
+
+    await page.goto('/inventory/item-1');
+    await page.getByRole('button', { name: 'Log eaten' }).click();
+    await page.getByRole('button', { name: 'Scan barcode' }).click();
+
+    // BarcodeScanner needs a real camera to detect anything in a headless
+    // browser — this only asserts the scan button opens the panel without
+    // erroring; the detection callback itself is covered by the component
+    // unit test (EatFlow.test.tsx), which mocks BarcodeScanner directly.
+    await expect(page.getByRole('button', { name: 'Close scanner' })).toBeVisible();
   });
 });

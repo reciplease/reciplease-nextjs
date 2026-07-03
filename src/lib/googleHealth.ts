@@ -9,25 +9,6 @@ import { apiFetch } from '@/lib/houses';
 
 export type GoogleHealthConnection = { connected: boolean };
 
-// Google Health's nutrition search results — modelled loosely on the Fitbit
-// food shape this replaces, but Google's resource naming is closer to
-// `foodId`/`displayName` than Fitbit's `foodId`/`name`+`units`. Field names
-// here are a best guess and will need reconciling once the backend contract
-// is final.
-export type GoogleHealthFood = {
-  foodId: string;
-  displayName: string;
-  brand?: string | null;
-};
-
-export type GoogleHealthFoodLogRequest = {
-  foodId: string;
-  foodDisplayName: string;
-  mealType: string;
-  date: string;
-  amount: number;
-};
-
 // Best guess at Google Health's meal type enum — needs verification against
 // the live API once available (developers.google.com/health).
 export const MEAL_TYPES: { value: string; label: string }[] = [
