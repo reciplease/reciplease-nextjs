@@ -7,8 +7,17 @@ import { exchangeGoogleHealthCode, storeGoogleHealthTokens } from '@/lib/googleH
 // the Settings page reads `?googleHealth=connected|error` to show a banner.
 const SETTINGS_PATH = '/settings';
 
+// Built from NEXTAUTH_URL rather than req.url — behind Netlify's proxy, Next.js
+// API routes can see an internal deploy hostname (e.g. *.netlify.app) in the
+// request URL instead of the public domain. Redirecting there would land the
+// user on a host that doesn't share the session cookie's domain, making them
+// appear logged out even though linking succeeded.
+function siteUrl(req: NextRequest): string {
+  return process.env.NEXTAUTH_URL ?? req.url;
+}
+
 function redirectWithStatus(req: NextRequest, status: 'connected' | 'error'): NextResponse {
-  const url = new URL(SETTINGS_PATH, req.url);
+  const url = new URL(SETTINGS_PATH, siteUrl(req));
   url.searchParams.set('googleHealth', status);
   const res = NextResponse.redirect(url);
   res.cookies.delete(GOOGLE_HEALTH_OAUTH_COOKIE);
@@ -49,7 +58,7 @@ export async function GET(req: NextRequest) {
 
   const token = await accessToken();
   if (!token) {
-    return NextResponse.redirect(new URL('/login', req.url));
+    return NextResponse.redirect(new URL('/login', siteUrl(req)));
   }
 
   try {

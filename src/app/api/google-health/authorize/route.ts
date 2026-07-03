@@ -24,9 +24,16 @@ function base64url(input: Buffer): string {
 // pattern for requesting additional scopes from an already-signed-in user,
 // rather than registering a second app.
 export async function GET(req: NextRequest) {
+  // Built from NEXTAUTH_URL rather than req.url/req.nextUrl — behind Netlify's
+  // proxy, Next.js API routes can see an internal deploy hostname (e.g.
+  // *.netlify.app) in the request URL instead of the public domain. Redirecting
+  // there would land the user on a host that doesn't share the session cookie's
+  // domain, making them appear logged out.
+  const siteUrl = process.env.NEXTAUTH_URL ?? req.url;
+
   const token = await accessToken();
   if (!token) {
-    return NextResponse.redirect(new URL('/login', req.url));
+    return NextResponse.redirect(new URL('/login', siteUrl));
   }
 
   const state = base64url(randomBytes(16));
