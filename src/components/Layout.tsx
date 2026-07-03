@@ -18,6 +18,10 @@ export default function Layout({ children }: { children: JSX.Element }) {
   const onInventory = pathname.startsWith('/inventory');
   const onPlanner = pathname.startsWith('/planner');
   const sectionTheme = onInventory ? ' inventory-theme' : onPlanner ? ' planner-theme' : '';
+  // The item detail page renders its own "log eaten" FAB (see EatFlow) at the
+  // same fixed position — showing the section-wide "Scan item" FAB there too
+  // would stack on top of it and hide it.
+  const onInventoryItemDetail = pathname === '/inventory/[uuid]';
 
   return (
     // The whole page is one content grid: the header breaks out to full width
@@ -25,7 +29,7 @@ export default function Layout({ children }: { children: JSX.Element }) {
     <div className={`${font.className} content-grid${sectionTheme}`}>
       <Header />
       <main className={styles.main}>{children}</main>
-      {onInventory ? <InventoryFab /> : onPlanner ? <PlannerFab /> : <RecipeFab />}
+      {onInventoryItemDetail ? null : onInventory ? <InventoryFab /> : onPlanner ? <PlannerFab /> : <RecipeFab />}
     </div>
   );
 }

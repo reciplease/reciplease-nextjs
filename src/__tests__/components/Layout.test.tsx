@@ -39,6 +39,20 @@ describe('Layout', () => {
     expect(screen.queryByText('RecipeFab')).not.toBeInTheDocument();
   });
 
+  it('hides the inventory FAB on the item detail page, which has its own eat-flow FAB', () => {
+    useRouter.mockReturnValue({ pathname: '/inventory/[uuid]' });
+
+    const { container } = render(
+      <Layout>
+        <p>Page content</p>
+      </Layout>,
+    );
+
+    expect(container.firstChild).toHaveClass('inventory-theme');
+    expect(screen.queryByText('InventoryFab')).not.toBeInTheDocument();
+    expect(screen.queryByText('RecipeFab')).not.toBeInTheDocument();
+  });
+
   it('applies the planner theme (dark blue) on planner pages', () => {
     useRouter.mockReturnValue({ pathname: '/planner' });
 
