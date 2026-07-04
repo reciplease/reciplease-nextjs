@@ -8,9 +8,9 @@ export async function GET() {
       name: 'Reciplease',
       version,
       icons: [
-        { src: 'favicon.ico', sizes: '16x16 32x32 48x48', type: 'image/x-icon' },
-        { src: 'logo192.png', type: 'image/png', sizes: '192x192' },
-        { src: 'logo512.png', type: 'image/png', sizes: '512x512' },
+        { src: '/favicon.ico', sizes: '16x16 32x32 48x48', type: 'image/x-icon' },
+        { src: '/logo192.png', type: 'image/png', sizes: '192x192' },
+        { src: '/logo512.png', type: 'image/png', sizes: '512x512' },
       ],
       start_url: '/',
       display: 'standalone',
