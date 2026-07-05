@@ -51,15 +51,23 @@ describe('Planner', () => {
   });
 
   it('renders planned meals sorted by date', () => {
+    // mockMeals fall in the week of Mon 1 Jun 2026 — pin "today" there so the
+    // selected-week filter (see the filtering test below) doesn't drop them.
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
     useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined });
     render(<Planner />);
+    jest.useRealTimers();
+
     const names = screen.getAllByRole('heading', { level: 4 }).map((el) => el.textContent);
     expect(names).toEqual(['Leftover rice night', 'Dinner']);
   });
 
   it('flags ingredients with no inventory allocation as to buy', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
     useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined });
     render(<Planner />);
+    jest.useRealTimers();
+
     expect(screen.getByText(/butter/)).toHaveTextContent('(to buy)');
     expect(screen.getByText(/bread/)).not.toHaveTextContent('(to buy)');
   });
@@ -71,7 +79,9 @@ describe('Planner', () => {
     render(<Planner />);
     const firstKey = useSWR.mock.calls[useSWR.mock.calls.length - 1][0];
 
-    jest.setSystemTime(new Date('2026-07-05T12:00:00Z'));
+    // A different month (not just a different week), so the fetched grid
+    // range is guaranteed to differ too.
+    jest.setSystemTime(new Date('2026-08-05T12:00:00Z'));
     render(<Planner />);
     const secondKey = useSWR.mock.calls[useSWR.mock.calls.length - 1][0];
 
@@ -80,19 +90,53 @@ describe('Planner', () => {
     expect(secondKey).not.toEqual(firstKey);
   });
 
-  it('refetches for the selected week when a different week is picked on the calendar', () => {
+  it('fetches the whole visible month grid, not just the selected week, so the calendar can outline every planned day on screen', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
     useSWR.mockReturnValue({ isLoading: false, data: [], error: undefined });
     render(<Planner />);
     jest.useRealTimers();
 
-    const initialKey = useSWR.mock.calls[useSWR.mock.calls.length - 1][0];
-    expect(initialKey).toEqual(['/api/planned-meals', 'h1', '2026-06-01', '2026-06-07']);
+    // June 2026's grid runs Mon 1 Jun (no leading days) to Sun 5 Jul (trailing
+    // days needed to fill the last row) — a superset of the selected week.
+    const key = useSWR.mock.calls[useSWR.mock.calls.length - 1][0];
+    expect(key).toEqual(['/api/planned-meals', 'h1', '2026-06-01', '2026-07-05']);
+  });
 
-    // Thursday 18 June is in the week starting Monday 15 June.
-    fireEvent.click(screen.getByText('18'));
+  it('refetches for the visible grid when navigating to a different month', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
+    useSWR.mockReturnValue({ isLoading: false, data: [], error: undefined });
+    render(<Planner />);
+    jest.useRealTimers();
+
+    fireEvent.click(screen.getByLabelText('Next month'));
 
     const updatedKey = useSWR.mock.calls[useSWR.mock.calls.length - 1][0];
-    expect(updatedKey).toEqual(['/api/planned-meals', 'h1', '2026-06-15', '2026-06-21']);
+    expect(updatedKey).toEqual(['/api/planned-meals', 'h1', '2026-06-29', '2026-08-02']);
+  });
+
+  it('only lists meals from the selected week even though a wider range was fetched', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
+    useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined });
+    render(<Planner />);
+    jest.useRealTimers();
+
+    // mockMeals are 5/6 June, both inside the selected week (1-7 June).
+    expect(screen.getAllByRole('heading', { level: 4 })).toHaveLength(2);
+  });
+
+  it('outlines planned days on the calendar, including ones outside the selected week', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
+    useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined });
+    render(<Planner />);
+    jest.useRealTimers();
+
+    // All in the week-of-1-June row, so disambiguate by that aria-label
+    // rather than by day number (which repeats for trailing/leading days).
+    const weekOne = screen.getAllByLabelText('Select week of 2026-06-01');
+    const dayByText = (text: string) => weekOne.find((btn) => btn.textContent === text)!;
+
+    expect(dayByText('5').className).toEqual(expect.stringContaining('ring-highlight'));
+    expect(dayByText('6').className).toEqual(expect.stringContaining('ring-highlight'));
+    expect(dayByText('4').className).not.toEqual(expect.stringContaining('ring-highlight'));
   });
 });

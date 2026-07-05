@@ -18,14 +18,24 @@ const fetcher = async (url: string): Promise<PlannedMeal[]> => {
 export default function Planner() {
   const activeHouse = useActiveHouse();
   const [selectedMonday, setSelectedMonday] = useState(() => toIsoDate(mondayOf(new Date())));
+  // The calendar's visible month grid — always a superset of the selected
+  // week — reported by WeekCalendar so we can fetch enough data to outline
+  // every planned day on screen, not just the selected week.
+  const [visibleRange, setVisibleRange] = useState<{ start: string; end: string } | null>(null);
 
   const rangeStart = selectedMonday;
   const rangeEnd = toIsoDate(addDays(new Date(`${selectedMonday}T00:00:00`), 6));
 
+  const fetchStart = visibleRange?.start ?? rangeStart;
+  const fetchEnd = visibleRange?.end ?? rangeEnd;
+
   const { data: meals, error, isLoading } = useSWR(
-    activeHouse ? ['/api/planned-meals', activeHouse.id, rangeStart, rangeEnd] : null,
-    () => fetcher(`/api/planned-meals?start=${rangeStart}&end=${rangeEnd}`),
+    activeHouse ? ['/api/planned-meals', activeHouse.id, fetchStart, fetchEnd] : null,
+    () => fetcher(`/api/planned-meals?start=${fetchStart}&end=${fetchEnd}`),
   );
+
+  const plannedDates = new Set(meals?.map((meal) => meal.date));
+  const weekMeals = meals?.filter((meal) => meal.date >= rangeStart && meal.date <= rangeEnd);
 
   return (
     <>
@@ -37,7 +47,12 @@ export default function Planner() {
           <Link href="/planner/shopping-list" className="text-sm underline">Shopping list →</Link>
         </div>
 
-        <WeekCalendar selectedMonday={selectedMonday} onSelect={setSelectedMonday} />
+        <WeekCalendar
+          selectedMonday={selectedMonday}
+          onSelect={setSelectedMonday}
+          plannedDates={plannedDates}
+          onVisibleRangeChange={(start, end) => setVisibleRange({ start, end })}
+        />
 
         <p className="font-medium">
           {formatDate(rangeStart)} – {formatDate(rangeEnd)}
@@ -45,10 +60,10 @@ export default function Planner() {
 
         {!activeHouse || isLoading ? (
           <p>Loading...</p>
-        ) : error || !meals ? (
+        ) : error || !weekMeals ? (
           <p>Could not load planned meals</p>
         ) : (
-          renderMeals(meals)
+          renderMeals(weekMeals)
         )}
       </section>
     </>

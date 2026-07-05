@@ -20,3 +20,23 @@ export function mondayOf(date: Date): Date {
   const day = d.getDay();
   return addDays(d, day === 0 ? -6 : 1 - day);
 }
+
+export function firstOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+// Weeks (Monday-first) spanning the calendar month that contains `monthDate`,
+// including the leading/trailing days of neighbouring months needed to fill
+// each row.
+export function weeksInMonth(monthDate: Date): Date[][] {
+  const firstDay = firstOfMonth(monthDate);
+  const lastDay = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+  const gridStart = mondayOf(firstDay);
+  const weeks: Date[][] = [];
+  let cursor = gridStart;
+  while (cursor <= lastDay) {
+    weeks.push(Array.from({ length: 7 }, (_, i) => addDays(cursor, i)));
+    cursor = addDays(cursor, 7);
+  }
+  return weeks;
+}
