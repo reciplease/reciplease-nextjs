@@ -87,6 +87,8 @@ declare global {
   // optional context (only present when the meal was planned from a recipe) — the
   // meal's own `name` is what's always shown and must be unique per day.
   type PlannedMeal = {
+    plannedMealId: PlannedMealId;
+    plannedMealShortId: PlannedMealShortId;
     houseId: string;
     name: string;
     recipe?: Recipe;

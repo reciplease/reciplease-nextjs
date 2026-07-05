@@ -63,14 +63,14 @@ export default function Planner() {
         ) : error || !weekMeals ? (
           <p>Could not load planned meals</p>
         ) : (
-          renderMeals(weekMeals)
+          renderMeals(weekMeals, activeHouse.role === 'OWNER')
         )}
       </section>
     </>
   );
 }
 
-function renderMeals(meals: PlannedMeal[]) {
+function renderMeals(meals: PlannedMeal[], editable: boolean) {
   const sorted = [...meals].sort((a, b) => a.date.localeCompare(b.date));
 
   if (sorted.length === 0) return <p>No meals planned this week</p>;
@@ -78,15 +78,22 @@ function renderMeals(meals: PlannedMeal[]) {
   return (
     <ul className="list-none p-0 grid gap-3 my-8">
       {sorted.map((meal) => (
-        <li key={`${meal.date}-${meal.name}`} className="border border-[#ccc] rounded p-3">
+        <li key={meal.plannedMealId} className="border border-[#ccc] rounded p-3">
           <div className="flex items-baseline gap-3">
             <span className="text-sm text-[#666] shrink-0">{meal.date}</span>
             <h4 className="font-medium">{meal.name}</h4>
-            {meal.recipe && (
-              <Link href={`/recipes/${meal.recipe.recipeShortId}`} className="text-sm underline ml-auto">
-                {meal.recipe.name}
-              </Link>
-            )}
+            <div className="ml-auto flex items-baseline gap-3">
+              {meal.recipe && (
+                <Link href={`/recipes/${meal.recipe.recipeShortId}`} className="text-sm underline">
+                  {meal.recipe.name}
+                </Link>
+              )}
+              {editable && (
+                <Link href={`/planner/${meal.plannedMealShortId}/edit`} className="text-sm underline">
+                  Edit
+                </Link>
+              )}
+            </div>
           </div>
           {meal.items.length > 0 && (
             <ul className="list-none p-0 mt-2 text-sm text-[#666] grid gap-0.5">

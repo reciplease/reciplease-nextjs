@@ -15,6 +15,8 @@ const useSWR = require('swr').default;
 
 const mockMeals: PlannedMeal[] = [
   {
+    plannedMealId: 'meal-1',
+    plannedMealShortId: 'meal-1-short',
     houseId: 'h1',
     name: 'Dinner',
     date: '2026-06-06',
@@ -24,6 +26,8 @@ const mockMeals: PlannedMeal[] = [
     ],
   },
   {
+    plannedMealId: 'meal-2',
+    plannedMealShortId: 'meal-2-short',
     houseId: 'h1',
     name: 'Leftover rice night',
     date: '2026-06-05',
@@ -122,6 +126,16 @@ describe('Planner', () => {
 
     // mockMeals are 5/6 June, both inside the selected week (1-7 June).
     expect(screen.getAllByRole('heading', { level: 4 })).toHaveLength(2);
+  });
+
+  it('shows an edit link for house owners', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
+    useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined });
+    render(<Planner />);
+    jest.useRealTimers();
+
+    expect(screen.getAllByRole('link', { name: 'Edit' })).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: 'Edit' })[0]).toHaveAttribute('href', '/planner/meal-2-short/edit');
   });
 
   it('outlines planned days on the calendar, including ones outside the selected week', () => {
