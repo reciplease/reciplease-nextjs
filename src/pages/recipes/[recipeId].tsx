@@ -78,8 +78,12 @@ export default function Recipe() {
             <Link
               href={`/recipes/${recipeShortId}/edit`}
               className="w-fit shrink-0 rounded border-2 border-secondary px-2 py-1 text-sm whitespace-nowrap"
+              aria-label="Edit"
             >
-              Edit
+              <span className="md:hidden" aria-hidden="true">
+                ✏️
+              </span>
+              <span className="hidden md:inline">Edit</span>
             </Link>
           )}
         </div>

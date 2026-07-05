@@ -60,8 +60,12 @@ export default function InventoryItemPage() {
           <Link
             href={`/inventory/${uuid}/edit`}
             className="w-fit shrink-0 rounded border-2 border-secondary px-2 py-1 text-sm whitespace-nowrap"
+            aria-label="Edit"
           >
-            Edit
+            <span className="md:hidden" aria-hidden="true">
+              ✏️
+            </span>
+            <span className="hidden md:inline">Edit</span>
           </Link>
         </div>
         {/* Plain block flow (not grid/flex) so the float below actually wraps
