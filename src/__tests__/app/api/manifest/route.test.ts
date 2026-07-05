@@ -24,6 +24,7 @@ describe('GET /api/manifest', () => {
       version: '1.2.3',
       start_url: '/',
       display: 'standalone',
+      theme_color: '#000000',
     });
   });
 

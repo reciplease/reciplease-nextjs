@@ -14,7 +14,7 @@ export async function GET() {
       ],
       start_url: '/',
       display: 'standalone',
-      theme_color: '#383e56',
+      theme_color: '#000000',
       background_color: '#ffffff',
     },
     { headers: { 'Content-Type': 'application/manifest+json' } },
