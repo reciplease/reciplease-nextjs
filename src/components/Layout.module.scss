@@ -2,4 +2,8 @@
   // Horizontal spacing now comes from the content grid's gutters (see main.scss).
   // Keep a little breathing room above the content.
   padding-block-start: 1rem;
+  // The FAB is fixed at bottom-6 (1.5rem) and stands 3.5rem tall, so it can
+  // overlap the last ~5rem of scrolled content; pad the bottom so everything
+  // can scroll clear of it.
+  padding-block-end: 6rem;
 }
