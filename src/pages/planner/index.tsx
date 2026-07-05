@@ -119,7 +119,7 @@ function MealListItem({ meal, editable, onEaten }: { meal: PlannedMeal; editable
           )}
           {editable && meal.eatenAt && <span className="text-sm text-[#666]">Eaten</span>}
           {editable && !meal.eatenAt && hasAllocations && (
-            <button type="button" onClick={handleMarkEaten} disabled={markingEaten} className="text-sm underline">
+            <button type="button" onClick={handleMarkEaten} disabled={markingEaten} className="p-0 border-0 text-sm underline">
               {markingEaten ? 'Marking…' : 'Mark eaten'}
             </button>
           )}
