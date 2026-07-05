@@ -94,6 +94,7 @@ declare global {
     recipe?: Recipe;
     date: string;
     items: PlannedIngredient[];
+    eatenAt?: string;
   };
 
   // The unmet gap between what's planned and what's already covered by inventory

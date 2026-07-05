@@ -29,7 +29,7 @@ export default function Planner() {
   const fetchStart = visibleRange?.start ?? rangeStart;
   const fetchEnd = visibleRange?.end ?? rangeEnd;
 
-  const { data: meals, error, isLoading } = useSWR(
+  const { data: meals, error, isLoading, mutate } = useSWR(
     activeHouse ? ['/api/planned-meals', activeHouse.id, fetchStart, fetchEnd] : null,
     () => fetcher(`/api/planned-meals?start=${fetchStart}&end=${fetchEnd}`),
   );
@@ -63,14 +63,14 @@ export default function Planner() {
         ) : error || !weekMeals ? (
           <p>Could not load planned meals</p>
         ) : (
-          renderMeals(weekMeals, activeHouse.role === 'OWNER')
+          <MealList meals={weekMeals} editable={activeHouse.role === 'OWNER'} onEaten={() => mutate()} />
         )}
       </section>
     </>
   );
 }
 
-function renderMeals(meals: PlannedMeal[], editable: boolean) {
+function MealList({ meals, editable, onEaten }: { meals: PlannedMeal[]; editable: boolean; onEaten: () => void }) {
   const sorted = [...meals].sort((a, b) => a.date.localeCompare(b.date));
 
   if (sorted.length === 0) return <p>No meals planned this week</p>;
@@ -78,35 +78,69 @@ function renderMeals(meals: PlannedMeal[], editable: boolean) {
   return (
     <ul className="list-none p-0 grid gap-3 my-8">
       {sorted.map((meal) => (
-        <li key={meal.plannedMealId} className="border border-[#ccc] rounded p-3">
-          <div className="flex items-baseline gap-3">
-            <span className="text-sm text-[#666] shrink-0">{meal.date}</span>
-            <h4 className="font-medium">{meal.name}</h4>
-            <div className="ml-auto flex items-baseline gap-3">
-              {meal.recipe && (
-                <Link href={`/recipes/${meal.recipe.recipeShortId}`} className="text-sm underline">
-                  {meal.recipe.name}
-                </Link>
-              )}
-              {editable && (
-                <Link href={`/planner/${meal.plannedMealShortId}/edit`} className="text-sm underline">
-                  Edit
-                </Link>
-              )}
-            </div>
-          </div>
-          {meal.items.length > 0 && (
-            <ul className="list-none p-0 mt-2 text-sm text-[#666] grid gap-0.5">
-              {meal.items.map((item, itemIndex) => (
-                <li key={itemIndex}>
-                  {item.ingredient.amount} {item.ingredient.measure} {item.ingredient.name}
-                  {item.allocations.length === 0 && ' (to buy)'}
-                </li>
-              ))}
-            </ul>
-          )}
-        </li>
+        <MealListItem key={meal.plannedMealId} meal={meal} editable={editable} onEaten={onEaten} />
       ))}
     </ul>
+  );
+}
+
+function MealListItem({ meal, editable, onEaten }: { meal: PlannedMeal; editable: boolean; onEaten: () => void }) {
+  const [markingEaten, setMarkingEaten] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const hasAllocations = meal.items.some((item) => item.allocations.length > 0);
+
+  async function handleMarkEaten() {
+    setError(null);
+    setMarkingEaten(true);
+    try {
+      const res = await apiFetch(`/api/planned-meals/${meal.plannedMealId}/eaten`, { method: 'POST' });
+      if (!res.ok) {
+        setError('Failed to mark as eaten. Please try again.');
+        return;
+      }
+      onEaten();
+    } catch {
+      setError('An unexpected error occurred.');
+    } finally {
+      setMarkingEaten(false);
+    }
+  }
+
+  return (
+    <li className="border border-[#ccc] rounded p-3">
+      <div className="flex items-baseline gap-3">
+        <span className="text-sm text-[#666] shrink-0">{meal.date}</span>
+        <h4 className="font-medium">{meal.name}</h4>
+        <div className="ml-auto flex items-baseline gap-3">
+          {meal.recipe && (
+            <Link href={`/recipes/${meal.recipe.recipeShortId}`} className="text-sm underline">
+              {meal.recipe.name}
+            </Link>
+          )}
+          {editable && meal.eatenAt && <span className="text-sm text-[#666]">Eaten</span>}
+          {editable && !meal.eatenAt && hasAllocations && (
+            <button type="button" onClick={handleMarkEaten} disabled={markingEaten} className="text-sm underline">
+              {markingEaten ? 'Marking…' : 'Mark eaten'}
+            </button>
+          )}
+          {editable && (
+            <Link href={`/planner/${meal.plannedMealShortId}/edit`} className="text-sm underline">
+              Edit
+            </Link>
+          )}
+        </div>
+      </div>
+      {meal.items.length > 0 && (
+        <ul className="list-none p-0 mt-2 text-sm text-[#666] grid gap-0.5">
+          {meal.items.map((item, itemIndex) => (
+            <li key={itemIndex}>
+              {item.ingredient.amount} {item.ingredient.measure} {item.ingredient.name}
+              {item.allocations.length === 0 && ' (to buy)'}
+            </li>
+          ))}
+        </ul>
+      )}
+      {error && <p role="alert" className="text-sm text-red-600 mt-1">{error}</p>}
+    </li>
   );
 }

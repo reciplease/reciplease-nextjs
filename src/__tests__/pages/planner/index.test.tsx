@@ -12,6 +12,7 @@ jest.mock('next/link', () => ({ children, href, className }: { children: React.R
 jest.mock('@/components/Metadata', () => () => null);
 
 const useSWR = require('swr').default;
+global.fetch = jest.fn();
 
 const mockMeals: PlannedMeal[] = [
   {
@@ -36,6 +37,8 @@ const mockMeals: PlannedMeal[] = [
 ];
 
 describe('Planner', () => {
+  beforeEach(() => (fetch as jest.Mock).mockReset());
+
   it('shows loading state', () => {
     useSWR.mockReturnValue({ isLoading: true, data: undefined, error: undefined });
     render(<Planner />);
@@ -136,6 +139,54 @@ describe('Planner', () => {
 
     expect(screen.getAllByRole('link', { name: 'Edit' })).toHaveLength(2);
     expect(screen.getAllByRole('link', { name: 'Edit' })[0]).toHaveAttribute('href', '/planner/meal-2-short/edit');
+  });
+
+  it('shows a Mark eaten button only for meals with an allocated ingredient', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
+    useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined, mutate: jest.fn() });
+    render(<Planner />);
+    jest.useRealTimers();
+
+    // Only "Dinner" (meal-1) has an allocated ingredient; "Leftover rice night" has none.
+    expect(screen.getAllByRole('button', { name: 'Mark eaten' })).toHaveLength(1);
+  });
+
+  it('shows "Eaten" instead of the button once a meal has been marked eaten', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
+    const eatenMeals = [{ ...mockMeals[0], eatenAt: '2026-06-06T18:00:00Z' }, mockMeals[1]];
+    useSWR.mockReturnValue({ isLoading: false, data: eatenMeals, error: undefined, mutate: jest.fn() });
+    render(<Planner />);
+    jest.useRealTimers();
+
+    expect(screen.getByText('Eaten')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Mark eaten' })).not.toBeInTheDocument();
+  });
+
+  it('marks a meal as eaten and refreshes the list on success', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
+    const mutate = jest.fn();
+    useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined, mutate });
+    (fetch as jest.Mock).mockResolvedValue({ ok: true });
+    render(<Planner />);
+    jest.useRealTimers();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark eaten' }));
+
+    await screen.findByRole('button', { name: 'Mark eaten' });
+    expect(fetch).toHaveBeenCalledWith('/api/planned-meals/meal-1/eaten', expect.objectContaining({ method: 'POST' }));
+    expect(mutate).toHaveBeenCalled();
+  });
+
+  it('shows an error message when marking eaten fails', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
+    useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined, mutate: jest.fn() });
+    (fetch as jest.Mock).mockResolvedValue({ ok: false });
+    render(<Planner />);
+    jest.useRealTimers();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark eaten' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to mark as eaten. Please try again.');
   });
 
   it('outlines planned days on the calendar, including ones outside the selected week', () => {

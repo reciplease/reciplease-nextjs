@@ -18,6 +18,7 @@ export function toPlannedMeal(b: BackendPlannedMeal): PlannedMeal {
     recipe: b.recipe ? toRecipe(b.recipe as BackendRecipe) : undefined,
     date: b.date ?? '',
     items: (b.items ?? []).map(toPlannedIngredient),
+    eatenAt: b.eatenAt,
   };
 }
 
