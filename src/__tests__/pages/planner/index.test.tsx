@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import Planner from '@/pages/planner/index';
 
 jest.mock('swr');
@@ -62,5 +62,37 @@ describe('Planner', () => {
     render(<Planner />);
     expect(screen.getByText(/butter/)).toHaveTextContent('(to buy)');
     expect(screen.getByText(/bread/)).not.toHaveTextContent('(to buy)');
+  });
+
+  it('recomputes the requested week from the current date on every render, not just once', () => {
+    useSWR.mockReturnValue({ isLoading: false, data: [], error: undefined });
+
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
+    render(<Planner />);
+    const firstKey = useSWR.mock.calls[useSWR.mock.calls.length - 1][0];
+
+    jest.setSystemTime(new Date('2026-07-05T12:00:00Z'));
+    render(<Planner />);
+    const secondKey = useSWR.mock.calls[useSWR.mock.calls.length - 1][0];
+
+    jest.useRealTimers();
+
+    expect(secondKey).not.toEqual(firstKey);
+  });
+
+  it('refetches for the selected week when a different week is picked on the calendar', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
+    useSWR.mockReturnValue({ isLoading: false, data: [], error: undefined });
+    render(<Planner />);
+    jest.useRealTimers();
+
+    const initialKey = useSWR.mock.calls[useSWR.mock.calls.length - 1][0];
+    expect(initialKey).toEqual(['/api/planned-meals', 'h1', '2026-06-01', '2026-06-07']);
+
+    // Thursday 18 June is in the week starting Monday 15 June.
+    fireEvent.click(screen.getByText('18'));
+
+    const updatedKey = useSWR.mock.calls[useSWR.mock.calls.length - 1][0];
+    expect(updatedKey).toEqual(['/api/planned-meals', 'h1', '2026-06-15', '2026-06-21']);
   });
 });

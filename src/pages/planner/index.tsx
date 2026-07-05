@@ -1,22 +1,12 @@
+import { useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
+import WeekCalendar from '@/components/planner/WeekCalendar';
 import { apiFetch, useActiveHouse } from '@/lib/houses';
+import { formatDate } from '@/lib/formatDate';
 import { toPlannedMeal, type BackendPlannedMeal } from '@/lib/plannedMeals';
-
-function startOfWeek(date: Date): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() - d.getDay());
-  return d;
-}
-
-function toIsoDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
-const today = new Date();
-const rangeStart = toIsoDate(startOfWeek(today));
-const rangeEnd = toIsoDate(new Date(startOfWeek(today).getTime() + 6 * 24 * 60 * 60 * 1000));
+import { addDays, mondayOf, toIsoDate } from '@/lib/week';
 
 const fetcher = async (url: string): Promise<PlannedMeal[]> => {
   const res = await apiFetch(url);
@@ -27,30 +17,15 @@ const fetcher = async (url: string): Promise<PlannedMeal[]> => {
 
 export default function Planner() {
   const activeHouse = useActiveHouse();
+  const [selectedMonday, setSelectedMonday] = useState(() => toIsoDate(mondayOf(new Date())));
+
+  const rangeStart = selectedMonday;
+  const rangeEnd = toIsoDate(addDays(new Date(`${selectedMonday}T00:00:00`), 6));
+
   const { data: meals, error, isLoading } = useSWR(
     activeHouse ? ['/api/planned-meals', activeHouse.id, rangeStart, rangeEnd] : null,
     () => fetcher(`/api/planned-meals?start=${rangeStart}&end=${rangeEnd}`),
   );
-
-  if (!activeHouse || isLoading) {
-    return (
-      <>
-        <Metadata title="Loading Planner" description="Loading planned meals..." />
-        <p>Loading...</p>
-      </>
-    );
-  }
-
-  if (error || !meals) {
-    return (
-      <>
-        <Metadata title="Planner" description="Plan what you'll eat" />
-        <p>Could not load planned meals</p>
-      </>
-    );
-  }
-
-  const sorted = [...meals].sort((a, b) => a.date.localeCompare(b.date));
 
   return (
     <>
@@ -62,36 +37,54 @@ export default function Planner() {
           <Link href="/planner/shopping-list" className="text-sm underline">Shopping list →</Link>
         </div>
 
-        {sorted.length === 0 ? (
-          <p>No meals planned this week</p>
+        <WeekCalendar selectedMonday={selectedMonday} onSelect={setSelectedMonday} />
+
+        <p className="font-medium">
+          {formatDate(rangeStart)} – {formatDate(rangeEnd)}
+        </p>
+
+        {!activeHouse || isLoading ? (
+          <p>Loading...</p>
+        ) : error || !meals ? (
+          <p>Could not load planned meals</p>
         ) : (
-          <ul className="list-none p-0 grid gap-3 my-8">
-            {sorted.map((meal) => (
-              <li key={`${meal.date}-${meal.name}`} className="border border-[#ccc] rounded p-3">
-                <div className="flex items-baseline gap-3">
-                  <span className="text-sm text-[#666] shrink-0">{meal.date}</span>
-                  <h4 className="font-medium">{meal.name}</h4>
-                  {meal.recipe && (
-                    <Link href={`/recipes/${meal.recipe.recipeShortId}`} className="text-sm underline ml-auto">
-                      {meal.recipe.name}
-                    </Link>
-                  )}
-                </div>
-                {meal.items.length > 0 && (
-                  <ul className="list-none p-0 mt-2 text-sm text-[#666] grid gap-0.5">
-                    {meal.items.map((item, itemIndex) => (
-                      <li key={itemIndex}>
-                        {item.ingredient.amount} {item.ingredient.measure} {item.ingredient.name}
-                        {item.allocations.length === 0 && ' (to buy)'}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
-          </ul>
+          renderMeals(meals)
         )}
       </section>
     </>
+  );
+}
+
+function renderMeals(meals: PlannedMeal[]) {
+  const sorted = [...meals].sort((a, b) => a.date.localeCompare(b.date));
+
+  if (sorted.length === 0) return <p>No meals planned this week</p>;
+
+  return (
+    <ul className="list-none p-0 grid gap-3 my-8">
+      {sorted.map((meal) => (
+        <li key={`${meal.date}-${meal.name}`} className="border border-[#ccc] rounded p-3">
+          <div className="flex items-baseline gap-3">
+            <span className="text-sm text-[#666] shrink-0">{meal.date}</span>
+            <h4 className="font-medium">{meal.name}</h4>
+            {meal.recipe && (
+              <Link href={`/recipes/${meal.recipe.recipeShortId}`} className="text-sm underline ml-auto">
+                {meal.recipe.name}
+              </Link>
+            )}
+          </div>
+          {meal.items.length > 0 && (
+            <ul className="list-none p-0 mt-2 text-sm text-[#666] grid gap-0.5">
+              {meal.items.map((item, itemIndex) => (
+                <li key={itemIndex}>
+                  {item.ingredient.amount} {item.ingredient.measure} {item.ingredient.name}
+                  {item.allocations.length === 0 && ' (to buy)'}
+                </li>
+              ))}
+            </ul>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
