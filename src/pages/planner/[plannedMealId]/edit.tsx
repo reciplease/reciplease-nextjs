@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Metadata from '@/components/Metadata';
 import PlannedMealForm, { PlannedMealFormValues } from '@/components/PlannedMealForm';
 import Link from 'next/link';
@@ -26,6 +27,27 @@ export default function EditPlannedMeal() {
     !!meal &&
     activeHouse?.role === 'OWNER' &&
     activeHouse.id === meal.houseId;
+
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function handleDelete() {
+    if (!window.confirm(`Delete "${meal?.name}"? This can't be undone.`)) return;
+    setDeleteError(null);
+    setDeleting(true);
+    try {
+      const res = await apiFetch(`/api/planned-meals/${plannedMealId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        setDeleteError('Failed to delete meal. Please try again.');
+        return;
+      }
+      router.push('/planner');
+    } catch {
+      setDeleteError('An unexpected error occurred.');
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function handleSubmit(values: PlannedMealFormValues) {
     const items = values.items.map((item) => ({
@@ -101,9 +123,11 @@ export default function EditPlannedMeal() {
       <section className="grid gap-6">
         <h3 className="text-xl font-semibold">Edit meal</h3>
 
+        {deleteError && <p role="alert" className="text-red-600">{deleteError}</p>}
         <PlannedMealForm
           submitLabel="Save changes"
           onSubmit={handleSubmit}
+          onDelete={handleDelete}
           initial={{
             name: meal.name,
             date: meal.date,

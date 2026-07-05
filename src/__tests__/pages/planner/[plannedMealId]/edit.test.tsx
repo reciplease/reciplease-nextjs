@@ -114,4 +114,52 @@ describe('EditPlannedMeal page', () => {
     });
     expect(push).not.toHaveBeenCalled();
   });
+
+  describe('delete', () => {
+    let confirmSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      confirmSpy = jest.spyOn(window, 'confirm');
+    });
+
+    afterEach(() => confirmSpy.mockRestore());
+
+    it('does nothing when the confirm dialog is dismissed', () => {
+      confirmSpy.mockReturnValue(false);
+      mockMealSWR({ isLoading: false, data: meal, error: undefined });
+      render(<EditPlannedMeal />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Delete meal' }));
+
+      expect(fetch).not.toHaveBeenCalledWith(`/api/planned-meals/${plannedMealId}`, expect.objectContaining({ method: 'DELETE' }));
+    });
+
+    it('deletes the meal and redirects to the planner on confirm', async () => {
+      confirmSpy.mockReturnValue(true);
+      mockMealSWR({ isLoading: false, data: meal, error: undefined });
+      (fetch as jest.Mock).mockResolvedValue({ ok: true });
+      render(<EditPlannedMeal />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Delete meal' }));
+
+      await waitFor(() => {
+        expect(fetch).toHaveBeenCalledWith(`/api/planned-meals/${plannedMealId}`, expect.objectContaining({ method: 'DELETE' }));
+        expect(push).toHaveBeenCalledWith('/planner');
+      });
+    });
+
+    it('shows an error message when deletion fails', async () => {
+      confirmSpy.mockReturnValue(true);
+      mockMealSWR({ isLoading: false, data: meal, error: undefined });
+      (fetch as jest.Mock).mockResolvedValue({ ok: false });
+      render(<EditPlannedMeal />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Delete meal' }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent('Failed to delete meal. Please try again.');
+      });
+      expect(push).not.toHaveBeenCalled();
+    });
+  });
 });
