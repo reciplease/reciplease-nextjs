@@ -73,12 +73,9 @@ export default function InvitePage({ code, initialPreview }: Props) {
   // honestly rather than being omitted.
   useEffect(() => {
     if (autoAccept && status === 'authenticated' && preview && !accepting && !acceptError) {
-      // Kicking off this network request is the entire reason for this effect
-      // (reacting to autoAccept/status/preview becoming ready) — the setState
-      // calls at the top of acceptInvite are an unavoidable part of that, not
-      // state that could instead be derived during render.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      acceptInvite();
+      // Deferred to a microtask so acceptInvite's setState calls land in their
+      // own callback rather than synchronously within this effect's body.
+      void Promise.resolve().then(() => acceptInvite());
     }
   }, [autoAccept, status, preview, accepting, acceptError, acceptInvite]);
 
