@@ -17,6 +17,9 @@ jest.mock('@/components/Metadata', () => () => null);
 jest.mock('@/components/inventory/EatFlow', () => ({ item }: { item: InventoryItem }) => (
   <div data-testid="eat-flow">eat-flow for {item.name}</div>
 ));
+jest.mock('@/components/inventory/ThrowAwayFlow', () => ({ item }: { item: InventoryItem }) => (
+  <div data-testid="throw-away-flow">throw-away-flow for {item.name}</div>
+));
 
 const useSWR = require('swr').default;
 const useRouter = require('next/router').useRouter as jest.Mock;
@@ -94,5 +97,11 @@ describe('InventoryItemPage', () => {
     mockItem({ data: item });
     render(<InventoryItemPage />);
     expect(screen.getByTestId('eat-flow')).toHaveTextContent('eat-flow for Milk');
+  });
+
+  it('renders the throw-away flow for the loaded item', () => {
+    mockItem({ data: item });
+    render(<InventoryItemPage />);
+    expect(screen.getByTestId('throw-away-flow')).toHaveTextContent('throw-away-flow for Milk');
   });
 });

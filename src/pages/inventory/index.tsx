@@ -7,20 +7,13 @@ import { apiFetch, useActiveHouse } from '@/lib/houses';
 const fetcher = (url: string): Promise<InventoryItem[]> =>
   apiFetch(url).then((res) => res.json());
 
-function isExpired(expiration: string): boolean {
-  return new Date(expiration) < new Date();
-}
-
+// Fully-eaten items aren't hidden — they're physically gone, but the user may
+// still want to see them (e.g. to restock) — so they stay in the list, just
+// greyed out and sorted after everything else. Expired items get no such
+// treatment: they're still on the shelf and need to be eaten or thrown away,
+// so they present like any other item.
 function isFullyConsumed(item: InventoryItem): boolean {
   return (item.remaining ?? item.amount ?? 0) <= 0;
-}
-
-// Expired or fully-eaten items aren't hidden — they're still physically
-// absent/unusable, but the user may still want to see them (e.g. to restock)
-// — so they stay in the list, just greyed out and sorted after everything
-// still usable.
-function isInactive(item: InventoryItem): boolean {
-  return isExpired(item.expiration) || isFullyConsumed(item);
 }
 
 export default function InventoryList() {
@@ -51,12 +44,12 @@ export default function InventoryList() {
     );
   }
 
-  // Active items first (alphabetically), then expired/fully-consumed ones
-  // (also alphabetically) — greyed out below, rather than hidden. Full
+  // Items with something left first (alphabetically), then fully-consumed
+  // ones (also alphabetically) — greyed out below, rather than hidden. Full
   // amount/expiry detail still lives on the "Expiring soon" view.
   const pantryItems = [...items].sort((a, b) => {
-    const aInactive = isInactive(a);
-    const bInactive = isInactive(b);
+    const aInactive = isFullyConsumed(a);
+    const bInactive = isFullyConsumed(b);
     if (aInactive !== bInactive) return aInactive ? 1 : -1;
     return a.name.localeCompare(b.name);
   });
@@ -88,7 +81,7 @@ export default function InventoryList() {
               <li key={item.uuid}>
                 <Link
                   href={`/inventory/${item.uuid}`}
-                  className={`grid gap-2${isInactive(item) ? ' opacity-60' : ''}`}
+                  className={`grid gap-2${isFullyConsumed(item) ? ' opacity-60' : ''}`}
                 >
                   <InventoryImage
                     item={item}

@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import Metadata from '@/components/Metadata';
 import InventoryImage from '@/components/InventoryImage';
 import EatFlow from '@/components/inventory/EatFlow';
+import ThrowAwayFlow from '@/components/inventory/ThrowAwayFlow';
 import { formatDate, formatTimestamp } from '@/lib/formatDate';
 import { useMeasures, findMeasure } from '@/lib/measures';
 import { apiFetch, useActiveHouse } from '@/lib/houses';
@@ -82,7 +83,7 @@ export default function InventoryItemPage() {
           <p>
             Amount: {item.remaining} of {item.amount} {displayMeasure(item, measures)}
           </p>
-          <p className={expired ? 'opacity-60' : ''}>
+          <p>
             Expires: {formatDate(item.expiration)}
             {expired && ' — expired'}
           </p>
@@ -98,8 +99,11 @@ export default function InventoryItemPage() {
       </section>
 
       {/* Floating "log eaten" trigger + panel — see EatFlow for why it also
-          owns the (optional, only when Google Health is linked) food-log step. */}
+          owns the (optional, only when Google Health is linked) food-log step.
+          ThrowAwayFlow is the no-food-diary sibling: same remaining decrement,
+          but binned food never gets logged to Google Health. */}
       <EatFlow uuid={uuid} item={item} onSaved={mutate} />
+      <ThrowAwayFlow uuid={uuid} item={item} onSaved={mutate} />
     </>
   );
 }

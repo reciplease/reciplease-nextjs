@@ -57,18 +57,18 @@ describe('InventoryList', () => {
     expect(screen.getByText('Could not load inventory')).toBeInTheDocument();
   });
 
-  it('sorts active items alphabetically, with expired/fully-consumed ones after', () => {
+  it('sorts items with something left alphabetically, with fully-consumed ones after', () => {
     useSWR.mockReturnValue({ isLoading: false, data: mockItems, error: undefined });
     render(<InventoryList />);
     const names = screen.getAllByRole('heading', { level: 4 }).map((el) => el.textContent);
     expect(names).toEqual(['Avocado', 'Bread', 'Flour']);
   });
 
-  it('shows expired items, greyed out, rather than hiding them', () => {
+  it('shows expired items like any other — they still need eating or binning', () => {
     useSWR.mockReturnValue({ isLoading: false, data: mockItems, error: undefined });
     render(<InventoryList />);
     const flourLink = screen.getByText('Flour').closest('a');
-    expect(flourLink).toHaveClass('opacity-60');
+    expect(flourLink).not.toHaveClass('opacity-60');
   });
 
   it('shows a fully-consumed (but unexpired) item greyed out and sorted last, not deleted', () => {

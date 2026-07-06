@@ -67,7 +67,7 @@ function ExpirationSection({
             <li key={item.uuid}>
               <Link
                 href={`/inventory/${item.uuid}`}
-                className={`grid gap-2${item.daysLeft < 0 ? ' opacity-60' : ''}`}
+                className="grid gap-2"
               >
                 <InventoryImage
                   item={item}
