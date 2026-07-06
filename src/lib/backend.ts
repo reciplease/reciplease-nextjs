@@ -65,6 +65,16 @@ function isExpired(jwt: string): boolean {
  * every caller to reason about.
  */
 export async function accessToken(): Promise<string | undefined> {
+  // Manual-testing escape hatch: `RECIPLEASE_DEV_TOKEN=$(node scripts/mint-dev-token.mjs
+  // <userId>) yarn dev` makes every proxied call authenticate as that user without a
+  // Google sign-in (which doesn't work on localhost). Gated on NODE_ENV so a stray env
+  // var can never override real sessions in a production build. Deliberately not
+  // filtered through isExpired: when manually testing you want the backend's 401 to
+  // tell you the token has lapsed, not a silent fallback to anonymous.
+  if (process.env.NODE_ENV === 'development' && process.env.RECIPLEASE_DEV_TOKEN) {
+    return process.env.RECIPLEASE_DEV_TOKEN;
+  }
+
   const raw = sessionToken(await cookies());
   const secret = process.env.NEXTAUTH_SECRET;
   if (!raw || !secret) return undefined;

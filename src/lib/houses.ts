@@ -55,8 +55,12 @@ const fetcher = (url: string): Promise<House[]> =>
 
 export function useHouses() {
   const { status } = useSession();
+  // Mirror AccessGate: with auth disabled (local dev) there's no NextAuth session to
+  // wait for — fetch anyway, and let the proxy's RECIPLEASE_DEV_TOKEN (if set)
+  // authenticate the call.
+  const authDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED === 'true';
   return useSWR<House[]>(
-    status === 'authenticated' ? '/api/houses' : null,
+    status === 'authenticated' || authDisabled ? '/api/houses' : null,
     fetcher,
   );
 }

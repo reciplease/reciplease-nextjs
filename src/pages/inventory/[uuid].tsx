@@ -101,9 +101,14 @@ export default function InventoryItemPage() {
       {/* Floating "log eaten" trigger + panel — see EatFlow for why it also
           owns the (optional, only when Google Health is linked) food-log step.
           ThrowAwayFlow is the no-food-diary sibling: same remaining decrement,
-          but binned food never gets logged to Google Health. */}
-      <EatFlow uuid={uuid} item={item} onSaved={mutate} />
-      <ThrowAwayFlow uuid={uuid} item={item} onSaved={mutate} />
+          but binned food never gets logged to Google Health. Neither renders
+          once nothing is left — there's nothing to eat or bin. */}
+      {item.remaining > 0 && (
+        <>
+          <EatFlow uuid={uuid} item={item} onSaved={mutate} />
+          <ThrowAwayFlow uuid={uuid} item={item} onSaved={mutate} />
+        </>
+      )}
     </>
   );
 }

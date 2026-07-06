@@ -1,4 +1,4 @@
-import { useHouseMembers, usePendingInvites, apiFetch } from '@/lib/houses';
+import { useHouses, useHouseMembers, usePendingInvites, apiFetch } from '@/lib/houses';
 
 // These tests invoke the hooks directly (not via render) and only assert the SWR
 // key, so stub useEffect to a no-op — useActiveHouse's cookie-persisting effect
@@ -35,6 +35,36 @@ describe('apiFetch', () => {
 
     const [, init] = (fetch as jest.Mock).mock.calls[0];
     expect((init.headers as Headers).has('X-RCPLS-House-Id')).toBe(false);
+  });
+});
+
+describe('useHouses', () => {
+  const ORIGINAL_ENV = process.env;
+
+  beforeEach(() => {
+    process.env = { ...ORIGINAL_ENV };
+    useSWR.mockReturnValue({ data: undefined, error: undefined, mutate: jest.fn() });
+  });
+
+  afterAll(() => {
+    process.env = ORIGINAL_ENV;
+  });
+
+  it('does not fetch houses while signed out', () => {
+    useSession.mockReturnValue({ status: 'unauthenticated' });
+
+    useHouses();
+
+    expect(useSWR).toHaveBeenLastCalledWith(null, expect.any(Function));
+  });
+
+  it('fetches houses despite no session when auth is disabled (local dev with a dev token)', () => {
+    process.env.NEXT_PUBLIC_AUTH_DISABLED = 'true';
+    useSession.mockReturnValue({ status: 'unauthenticated' });
+
+    useHouses();
+
+    expect(useSWR).toHaveBeenLastCalledWith('/api/houses', expect.any(Function));
   });
 });
 

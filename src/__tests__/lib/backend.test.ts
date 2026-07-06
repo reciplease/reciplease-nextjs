@@ -115,4 +115,23 @@ describe('accessToken', () => {
 
     expect(await accessToken()).toBeUndefined();
   });
+
+  describe('RECIPLEASE_DEV_TOKEN manual-testing override', () => {
+    it('returns the dev token in development, without touching the session cookie', async () => {
+      (process.env as Record<string, string>).NODE_ENV = 'development';
+      process.env.RECIPLEASE_DEV_TOKEN = 'dev-token';
+
+      expect(await accessToken()).toBe('dev-token');
+      expect(cookies).not.toHaveBeenCalled();
+    });
+
+    it('ignores the dev token outside development, so it can never shadow real sessions', async () => {
+      (process.env as Record<string, string>).NODE_ENV = 'production';
+      process.env.RECIPLEASE_DEV_TOKEN = 'dev-token';
+      (cookies as jest.Mock).mockResolvedValue(cookieStore({ 'next-auth.session-token': 'abc' }));
+      (decode as jest.Mock).mockResolvedValue({ recipleaseToken: VALID_TOKEN });
+
+      expect(await accessToken()).toBe(VALID_TOKEN);
+    });
+  });
 });

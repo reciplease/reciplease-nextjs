@@ -25,8 +25,11 @@ const connectionFetcher = (url: string): Promise<GoogleHealthConnection> =>
 // like useHouses() — no point issuing the request while signed out.
 export function useGoogleHealthConnection() {
   const { status } = useSession();
+  // Mirror useHouses(): auth-disabled local dev has no session but may carry a
+  // RECIPLEASE_DEV_TOKEN through the proxy.
+  const authDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED === 'true';
   return useSWR<GoogleHealthConnection>(
-    status === 'authenticated' ? '/api/google-health/connection' : null,
+    status === 'authenticated' || authDisabled ? '/api/google-health/connection' : null,
     connectionFetcher,
   );
 }

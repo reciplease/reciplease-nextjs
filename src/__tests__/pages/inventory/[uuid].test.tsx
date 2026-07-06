@@ -104,4 +104,11 @@ describe('InventoryItemPage', () => {
     render(<InventoryItemPage />);
     expect(screen.getByTestId('throw-away-flow')).toHaveTextContent('throw-away-flow for Milk');
   });
+
+  it('hides both flows once nothing is left — there is nothing to eat or bin', () => {
+    mockItem({ data: { ...item, remaining: 0 } });
+    render(<InventoryItemPage />);
+    expect(screen.queryByTestId('eat-flow')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('throw-away-flow')).not.toBeInTheDocument();
+  });
 });
