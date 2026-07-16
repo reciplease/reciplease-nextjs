@@ -44,9 +44,13 @@ describe('Header', () => {
       status: 'authenticated',
     });
     render(<Header />);
-    expect(screen.getByRole('link', { name: 'Recipes' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Inventory' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Planner' })).toBeInTheDocument();
+    for (const name of ['Recipes', 'Inventory', 'Planner']) {
+      const link = screen.getByRole('link', { name });
+      expect(link).toBeInTheDocument();
+      // Each nav item carries an icon so the link still reads on mobile,
+      // where the text label is hidden.
+      expect(link.querySelector('svg')).not.toBeNull();
+    }
     expect(screen.getByText('cook')).toBeInTheDocument();
   });
 
@@ -90,32 +94,34 @@ describe('Header', () => {
     expect(screen.getByRole('link', { name: 'Recipes' })).toHaveAttribute('aria-current', 'page');
   });
 
-  it('toggles the mobile menu when the hamburger is clicked', () => {
+  it('toggles the mobile account panel when the person icon is clicked', () => {
     useSession.mockReturnValue({
       data: { user: { handle: 'cook' } },
       status: 'authenticated',
     });
     render(<Header />);
-    const toggle = screen.getByRole('button', { name: 'Menu' });
+    const toggle = screen.getByRole('button', { name: 'Account' });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
 
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    // Opening the menu surfaces a second (stacked) copy of each nav link.
-    expect(screen.getAllByRole('link', { name: 'Recipes' })).toHaveLength(2);
+    // The nav stays inline (one copy per link); opening the panel surfaces a
+    // second copy of the auth controls (the signed-in handle).
+    expect(screen.getAllByRole('link', { name: 'Recipes' })).toHaveLength(1);
+    expect(screen.getAllByText('cook')).toHaveLength(2);
 
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getAllByRole('link', { name: 'Recipes' })).toHaveLength(1);
+    expect(screen.getAllByText('cook')).toHaveLength(1);
   });
 
-  it('closes the mobile menu on route change', () => {
+  it('closes the mobile account panel on route change', () => {
     useSession.mockReturnValue({
       data: { user: { handle: 'cook' } },
       status: 'authenticated',
     });
     render(<Header />);
-    const toggle = screen.getByRole('button', { name: 'Menu' });
+    const toggle = screen.getByRole('button', { name: 'Account' });
 
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');

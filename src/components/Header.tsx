@@ -8,16 +8,63 @@ import { useEffect, useState } from 'react';
 // Hover/active use the secondary brand colour (navy) — the old near-white fill
 // was too bright against the dark UI.
 const navLink =
-  'p-4 transition-colors duration-100 hover:bg-secondary hover:text-white active:bg-secondary active:text-white';
+  'p-3 md:p-4 transition-colors duration-100 hover:bg-secondary hover:text-white active:bg-secondary active:text-white';
 // Current page: brand-coral underline (no fill).
 const navLinkActive =
   'shadow-[inset_0_-0.2rem_0_var(--color-highlight)]';
 
-// The primary nav, shared between the desktop bar and the mobile menu.
+const navIconProps = {
+  width: 20,
+  height: 20,
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 2,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+  'aria-hidden': true,
+} as const;
+
+// The primary nav — inline at every size: icon-only on mobile, icon + label
+// from md up.
 const navItems = [
-  { href: '/recipes', label: 'Recipes' },
-  { href: '/inventory', label: 'Inventory' },
-  { href: '/planner', label: 'Planner' },
+  {
+    href: '/recipes',
+    label: 'Recipes',
+    // Open book
+    icon: (
+      <svg {...navIconProps}>
+        <path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z" />
+        <path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z" />
+      </svg>
+    ),
+  },
+  {
+    href: '/inventory',
+    label: 'Inventory',
+    // Cupboard: cabinet with two doors and knobs
+    icon: (
+      <svg {...navIconProps}>
+        <rect x="4" y="3" width="16" height="18" rx="1" />
+        <path d="M12 3v18" />
+        <path d="M9.5 11v2" />
+        <path d="M14.5 11v2" />
+      </svg>
+    ),
+  },
+  {
+    href: '/planner',
+    label: 'Planner',
+    // Calendar
+    icon: (
+      <svg {...navIconProps}>
+        <rect x="3" y="5" width="18" height="16" rx="2" />
+        <path d="M8 3v4" />
+        <path d="M16 3v4" />
+        <path d="M3 10h18" />
+      </svg>
+    ),
+  },
 ];
 
 export default function Header() {
@@ -27,11 +74,11 @@ export default function Header() {
   const router = useRouter();
   const { pathname } = router;
 
-  // Mobile menu (hamburger). Collapsed by default; closes on navigation so it
-  // never lingers over a freshly loaded page.
-  const [menuOpen, setMenuOpen] = useState(false);
+  // Mobile account panel (person icon). Collapsed by default; closes on
+  // navigation so it never lingers over a freshly loaded page.
+  const [accountOpen, setAccountOpen] = useState(false);
   useEffect(() => {
-    const close = () => setMenuOpen(false);
+    const close = () => setAccountOpen(false);
     router.events.on('routeChangeStart', close);
     return () => router.events.off('routeChangeStart', close);
   }, [router.events]);
@@ -45,10 +92,9 @@ export default function Header() {
     pathname === href || pathname.startsWith(`${href}/`);
 
   // `divider` adds the secondary-coloured separator before all but the first
-  // item. Dividers only read on the horizontal desktop bar, so the mobile menu
-  // opts out (stacked = false).
+  // item. Dividers only read alongside the labels, so they're md-and-up only.
   const linkClass = (href: string, divider = false) =>
-    `${navLink}${divider ? ' border-l-2 border-secondary' : ''}${
+    `${navLink}${divider ? ' md:border-l-2 md:border-secondary' : ''}${
       isActive(href) ? ` ${navLinkActive}` : ''
     }`;
 
@@ -136,17 +182,22 @@ export default function Header() {
         </Link>
       </h1>
 
-      {/* Desktop nav — collapses into the hamburger menu below the md breakpoint. */}
+      {/* Primary nav — inline at every size: icon-only on mobile, icon + label
+          from md up. */}
       {showNav && (
-        <nav className="ms-4 hidden md:flex">
+        <nav className="ms-2 flex md:ms-4">
           {navItems.map((item, i) => (
             <Link
               key={item.href}
               href={item.href}
+              aria-label={item.label}
               aria-current={isActive(item.href) ? 'page' : undefined}
               className={linkClass(item.href, i > 0)}
             >
-              {item.label}
+              <span className="flex items-center gap-2">
+                {item.icon}
+                <span className="hidden md:inline">{item.label}</span>
+              </span>
             </Link>
           ))}
         </nav>
@@ -160,12 +211,13 @@ export default function Header() {
 
         {settingsLink}
 
-        {/* Mobile hamburger — toggles the collapsed menu. */}
+        {/* Mobile account toggle (person icon) — the nav itself stays inline,
+            so this panel only holds the auth controls. */}
         <button
           type="button"
-          aria-label="Menu"
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((open) => !open)}
+          aria-label="Account"
+          aria-expanded={accountOpen}
+          onClick={() => setAccountOpen((open) => !open)}
           className="border-none p-1 md:hidden"
         >
           <svg
@@ -176,42 +228,28 @@ export default function Header() {
             stroke="currentColor"
             strokeWidth="2"
             strokeLinecap="round"
+            strokeLinejoin="round"
             aria-hidden="true"
           >
-            {menuOpen ? (
+            {accountOpen ? (
               <>
                 <path d="M6 6l12 12" />
                 <path d="M18 6L6 18" />
               </>
             ) : (
               <>
-                <path d="M3 6h18" />
-                <path d="M3 12h18" />
-                <path d="M3 18h18" />
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5" />
               </>
             )}
           </svg>
         </button>
       </div>
 
-      {/* Mobile menu panel. `basis-full` makes it wrap onto its own row beneath
-          the bar; hidden once the viewport reaches md. */}
-      {menuOpen && (
+      {/* Mobile account panel. `basis-full` makes it wrap onto its own row
+          beneath the bar; hidden once the viewport reaches md. */}
+      {accountOpen && (
         <div className="basis-full md:hidden">
-          {showNav && (
-            <nav className="flex flex-col">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={isActive(item.href) ? 'page' : undefined}
-                  className={linkClass(item.href)}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          )}
           <div className="flex flex-col items-start gap-3 p-4">{authControls}</div>
         </div>
       )}
