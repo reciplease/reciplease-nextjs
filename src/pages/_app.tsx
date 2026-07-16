@@ -41,6 +41,7 @@ export default function App({
   const standalone =
     router.pathname === '/login' ||
     router.pathname === '/inventory/scan' ||
+    router.pathname === '/inventory/shop' ||
     router.pathname === '/onboarding/handle';
   // Recipes are publicly readable — show them inside the Layout but without
   // the AccessGate sign-in wall.

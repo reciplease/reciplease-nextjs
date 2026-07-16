@@ -56,6 +56,21 @@ async function scanToDetails() {
   await waitFor(() => screen.getByText('Confirm item'));
 }
 
+function enterExpirationDate(date: string) {
+  const [year, month, day] = date.split('-');
+  fireEvent.change(screen.getByLabelText('Day'), { target: { value: day } });
+  fireEvent.change(screen.getByLabelText('Month'), { target: { value: month } });
+  fireEvent.change(screen.getByLabelText('Year'), { target: { value: year } });
+  fireEvent.click(screen.getByText('Continue →'));
+}
+
+// Drive: details → expiration → the combined measure+amount phase.
+async function advanceToMeasureAmount(date = '2027-06-01') {
+  fireEvent.click(screen.getByText('Continue →'));
+  enterExpirationDate(date);
+  await waitFor(() => screen.getByText('Enter measure and amount'));
+}
+
 // Pick the single mock measure via the combobox.
 function pickMeasure() {
   fireEvent.click(screen.getByText('Select measure…'));
@@ -103,6 +118,7 @@ describe('ScanPage', () => {
     (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: ['Oat Milk'], measureId: null });
     render(<ScanPage />);
     await scanToDetails();
+    await advanceToMeasureAmount();
 
     fireEvent.click(screen.getByText('Select measure…'));
     expect(screen.getByText('No measures found')).toBeInTheDocument();
@@ -155,7 +171,7 @@ describe('ScanPage', () => {
       expect(screen.getByLabelText('Name')).toHaveValue('');
     });
 
-    it('suggests a measure parsed from the product quantity', async () => {
+    it('pre-fills the measure+amount step with a measure parsed from the product quantity', async () => {
       useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
       (lookupProduct as jest.Mock).mockResolvedValue({
         nameCandidates: ['Flour'],
@@ -163,10 +179,10 @@ describe('ScanPage', () => {
       });
       render(<ScanPage />);
       await scanToDetails();
+      await advanceToMeasureAmount();
 
-      // The combobox shows the suggested measure, and Continue is enabled.
       expect(screen.getByText('gram / grams')).toBeInTheDocument();
-      expect(screen.getByText('Continue →')).not.toBeDisabled();
+      expect(screen.getByLabelText('Amount (grams)')).toBeInTheDocument();
     });
 
     it('suggests the name and measure from a previously inventoried item with the same barcode', async () => {
@@ -196,8 +212,10 @@ describe('ScanPage', () => {
       expect(
         screen.getByText('Suggested from a previous inventory item with this barcode.'),
       ).toBeInTheDocument();
-      expect(screen.getByText('gram / grams')).toBeInTheDocument();
       expect(lookupProduct).not.toHaveBeenCalled();
+
+      await advanceToMeasureAmount();
+      expect(screen.getByText('gram / grams')).toBeInTheDocument();
     });
 
     it('falls back to Open Food Facts when no inventory item matches the barcode', async () => {
@@ -244,11 +262,12 @@ describe('ScanPage', () => {
       expect(screen.getByLabelText('Name')).toHaveValue('Oat Milk');
     });
 
-    it('does not suggest a measure when Open Food Facts returns one we do not stock', async () => {
+    it('leaves the measure unset when Open Food Facts returns one we do not stock', async () => {
       useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
       (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: ['Flour'], measureId: 'kg' });
       render(<ScanPage />);
       await scanToDetails();
+      await advanceToMeasureAmount();
 
       expect(screen.getByText('Select measure…')).toBeInTheDocument();
     });
@@ -270,54 +289,74 @@ describe('ScanPage', () => {
       expect(screen.getByLabelText('Name')).toHaveValue('Oatly Oat Milk');
     });
 
-    it('Continue is disabled until a measure is chosen', async () => {
-      setup();
+    it('Continue is disabled until the item has a name', async () => {
+      useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
+      (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: [], measureId: null });
+      render(<ScanPage />);
       await scanToDetails();
+
       expect(screen.getByText('Continue →')).toBeDisabled();
-      pickMeasure();
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Oat Milk' } });
       expect(screen.getByText('Continue →')).not.toBeDisabled();
     });
   });
 
-  describe('details → expiration → amount → save', () => {
-    function enterExpirationDate(date: string) {
-      const [year, month, day] = date.split('-');
-      fireEvent.change(screen.getByLabelText('Day'), { target: { value: day } });
-      fireEvent.change(screen.getByLabelText('Month'), { target: { value: month } });
-      fireEvent.change(screen.getByLabelText('Year'), { target: { value: year } });
-      fireEvent.click(screen.getByText('Continue →'));
-    }
-
-    async function advanceToAmount() {
+  describe('details → expiration → measure+amount → save', () => {
+    async function advanceFromScan(date = '2027-06-01') {
       setup();
       await scanToDetails();
-      pickMeasure();
-      fireEvent.click(screen.getByText('Continue →'));
-      enterExpirationDate('2027-06-01');
+      await advanceToMeasureAmount(date);
     }
 
     it('asks for the expiration date as manual entry, not a camera scan', async () => {
       setup();
       await scanToDetails();
-      pickMeasure();
       fireEvent.click(screen.getByText('Continue →'));
 
       expect(screen.getByText('Enter expiration date')).toBeInTheDocument();
       expect(screen.getByLabelText('Expiration date')).toBeInTheDocument();
     });
 
-    it('reaches the amount phase showing name, expiration and measure hint', async () => {
-      await advanceToAmount();
+    it('accepts a month name as printed on the packaging', async () => {
+      setup();
+      await scanToDetails();
+      fireEvent.click(screen.getByText('Continue →'));
+
+      fireEvent.change(screen.getByLabelText('Day'), { target: { value: '01' } });
+      fireEvent.change(screen.getByLabelText('Month'), { target: { value: 'JUN' } });
+      fireEvent.change(screen.getByLabelText('Year'), { target: { value: '2027' } });
+      fireEvent.click(screen.getByText('Continue →'));
+
+      await waitFor(() => screen.getByText('Enter measure and amount'));
+      // Localized via formatDate — June 2027 confirms JUN resolved to month 06.
+      expect(screen.getByText(/Jun.*2027|2027.*Jun/)).toBeInTheDocument();
+    });
+
+    it('asks for measure and amount together after the expiration date', async () => {
+      await advanceFromScan();
+
       expect(screen.getByText('Oat Milk')).toBeInTheDocument();
       // Localized via formatDate (toLocaleDateString), not the raw ISO string.
       expect(screen.getByText(/Jun.*2027|2027.*Jun/)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Amount \(grams\)/)).toBeInTheDocument();
+      expect(screen.getByText('Select measure…')).toBeInTheDocument();
+      expect(screen.getByLabelText(/Amount/)).toBeInTheDocument();
+    });
+
+    it('Save is disabled until both measure and amount are set', async () => {
+      await advanceFromScan();
+
+      fireEvent.change(screen.getByLabelText(/Amount/), { target: { value: '250' } });
+      expect(screen.getByText('Save')).toBeDisabled();
+
+      pickMeasure();
+      expect(screen.getByText('Save')).not.toBeDisabled();
     });
 
     it('posts the new flattened payload with barcode and resets', async () => {
-      await advanceToAmount();
+      await advanceFromScan();
       (fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({}) });
 
+      pickMeasure();
       fireEvent.change(screen.getByLabelText(/Amount/), { target: { value: '250' } });
       fireEvent.click(screen.getByText('Save'));
 
@@ -341,9 +380,10 @@ describe('ScanPage', () => {
     });
 
     it('shows an error when save fails', async () => {
-      await advanceToAmount();
+      await advanceFromScan();
       (fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
 
+      pickMeasure();
       fireEvent.change(screen.getByLabelText(/Amount/), { target: { value: '250' } });
       fireEvent.click(screen.getByText('Save'));
 
@@ -353,9 +393,10 @@ describe('ScanPage', () => {
     });
 
     it('shows an unexpected error message when save throws', async () => {
-      await advanceToAmount();
+      await advanceFromScan();
       (fetch as jest.Mock).mockRejectedValueOnce(new Error('network down'));
 
+      pickMeasure();
       fireEvent.change(screen.getByLabelText(/Amount/), { target: { value: '250' } });
       fireEvent.click(screen.getByText('Save'));
 
@@ -365,7 +406,7 @@ describe('ScanPage', () => {
     });
 
     it('returns to the expiration phase when edit date is clicked', async () => {
-      await advanceToAmount();
+      await advanceFromScan();
 
       fireEvent.click(screen.getByText('← Edit date'));
 
@@ -374,9 +415,10 @@ describe('ScanPage', () => {
     });
 
     it('hides the success flash 2 seconds after a successful save', async () => {
-      await advanceToAmount();
+      await advanceFromScan();
       (fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({}) });
 
+      pickMeasure();
       jest.useFakeTimers();
       try {
         fireEvent.change(screen.getByLabelText(/Amount/), { target: { value: '250' } });

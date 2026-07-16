@@ -64,6 +64,17 @@ declare global {
   > &
     Pick<components['schemas']['InventoryItem'], 'barcode' | 'image'>;
 
+  // A shopping-trip capture (barcode + photos) awaiting digitisation into an
+  // InventoryItem — every capture step is skippable, so all fields but the id are
+  // optional. The images are base64 like InventoryItem.image.
+  type PendingInventoryItem = Required<Pick<components['schemas']['PendingInventoryItem'], 'uuid'>> &
+    Pick<components['schemas']['PendingInventoryItem'], 'barcode' | 'expirationImage' | 'measureImage' | 'updatedAt'>;
+
+  type CreatePendingInventoryItem = Pick<
+    components['schemas']['PendingInventoryItem'],
+    'barcode' | 'expirationImage' | 'measureImage'
+  >;
+
   // Static reference data served from the backend (a Java enum). The short name
   // doubles as the measureId (e.g. "g", "kg", "cl").
   type Measure = Required<components['schemas']['Measure']>;

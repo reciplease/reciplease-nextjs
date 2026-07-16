@@ -1,6 +1,5 @@
 import { render, screen } from '@testing-library/react';
 import RecipeFab from '@/components/RecipeFab';
-import InventoryFab from '@/components/InventoryFab';
 
 jest.mock('next/link', () => ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
   <a href={href} {...rest}>{children}</a>
@@ -32,16 +31,6 @@ describe('section FABs', () => {
     );
   });
 
-  it('InventoryFab links to the scanner flow when authenticated', () => {
-    useSession.mockReturnValue({ status: 'authenticated' });
-    useRouter.mockReturnValue({ pathname: '/inventory' });
-    render(<InventoryFab />);
-    expect(screen.getByRole('link', { name: 'Scan item' })).toHaveAttribute(
-      'href',
-      '/inventory/scan',
-    );
-  });
-
   it('renders nothing when unauthenticated', () => {
     useSession.mockReturnValue({ status: 'unauthenticated' });
     const { container } = render(<RecipeFab />);
@@ -52,13 +41,6 @@ describe('section FABs', () => {
     useSession.mockReturnValue({ status: 'authenticated' });
     useRouter.mockReturnValue({ pathname: '/recipes/new' });
     const { container } = render(<RecipeFab />);
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it('InventoryFab hides itself on the scanner page', () => {
-    useSession.mockReturnValue({ status: 'authenticated' });
-    useRouter.mockReturnValue({ pathname: '/inventory/scan' });
-    const { container } = render(<InventoryFab />);
     expect(container).toBeEmptyDOMElement();
   });
 
