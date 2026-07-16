@@ -3,7 +3,6 @@ import Logo from '@/components/Logo';
 import { useActiveHouse } from '@/lib/houses';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
-import { useEffect, useState } from 'react';
 
 // Hover/active use the secondary brand colour (navy) — the old near-white fill
 // was too bright against the dark UI.
@@ -73,15 +72,6 @@ export default function Header() {
   const activeHouse = useActiveHouse();
   const router = useRouter();
   const { pathname } = router;
-
-  // Mobile account panel (person icon). Collapsed by default; closes on
-  // navigation so it never lingers over a freshly loaded page.
-  const [accountOpen, setAccountOpen] = useState(false);
-  useEffect(() => {
-    const close = () => setAccountOpen(false);
-    router.events.on('routeChangeStart', close);
-    return () => router.events.off('routeChangeStart', close);
-  }, [router.events]);
 
   // Mirror AccessGate/RecipeFab: local dev shows the nav even without a session.
   const authDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED === 'true';
@@ -154,10 +144,14 @@ export default function Header() {
   ) : null;
 
   // Sign out lives on /settings now, alongside the rest of the account
-  // controls — the header just shows who's signed in.
+  // controls — the header just shows who's signed in. The handle truncates
+  // away first when the bar gets tight; the nav icons and settings never give
+  // up space for it.
   const authControls = authenticated ? (
     session.user?.handle && (
-      <span className="text-[0.85rem] opacity-70">{session.user.handle}</span>
+      <span className="min-w-0 truncate text-[0.85rem] opacity-70">
+        {session.user.handle}
+      </span>
     )
   ) : (
     <Link
@@ -173,7 +167,7 @@ export default function Header() {
   );
 
   return (
-    <header className="flex flex-wrap items-center justify-start mt-4 mb-8">
+    <header className="flex items-center justify-start mt-4 mb-8">
       <h1 className="flex-none">
         <Link href={'/'} aria-label="Reciplease home">
           {/* Inlined SVG so the cover can adopt the section accent colour
@@ -185,7 +179,7 @@ export default function Header() {
       {/* Primary nav — inline at every size: icon-only on mobile, icon + label
           from md up. */}
       {showNav && (
-        <nav className="ms-2 flex md:ms-4">
+        <nav className="ms-2 flex shrink-0 md:ms-4">
           {navItems.map((item, i) => (
             <Link
               key={item.href}
@@ -203,56 +197,17 @@ export default function Header() {
         </nav>
       )}
 
-      <div className="ml-auto mr-8 flex items-center gap-3">
-        {houseSettingsLink}
+      {/* Right group. `min-w-0` lets the username inside truncate instead of
+          forcing the bar wider; the icon links are `shrink-0` so the username
+          always gives way first. */}
+      <div className="ml-auto mr-8 flex min-w-0 items-center gap-3">
+        {authControls}
 
-        {/* Desktop account controls. */}
-        <div className="hidden items-center gap-3 md:flex">{authControls}</div>
-
-        {settingsLink}
-
-        {/* Mobile account toggle (person icon) — the nav itself stays inline,
-            so this panel only holds the auth controls. */}
-        <button
-          type="button"
-          aria-label="Account"
-          aria-expanded={accountOpen}
-          onClick={() => setAccountOpen((open) => !open)}
-          className="border-none p-1 md:hidden"
-        >
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            {accountOpen ? (
-              <>
-                <path d="M6 6l12 12" />
-                <path d="M18 6L6 18" />
-              </>
-            ) : (
-              <>
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5" />
-              </>
-            )}
-          </svg>
-        </button>
-      </div>
-
-      {/* Mobile account panel. `basis-full` makes it wrap onto its own row
-          beneath the bar; hidden once the viewport reaches md. */}
-      {accountOpen && (
-        <div className="basis-full md:hidden">
-          <div className="flex flex-col items-start gap-3 p-4">{authControls}</div>
+        <div className="flex shrink-0 items-center gap-3">
+          {houseSettingsLink}
+          {settingsLink}
         </div>
-      )}
+      </div>
     </header>
   );
 }

@@ -85,6 +85,15 @@ body {
   overflow-x: hidden;
 }
 
+// Reserve the scrollbar's width at all times, whether or not the page
+// actually needs to scroll. Without this, the centred content-grid column
+// shifts sideways when navigating between a tall page (e.g. inventory, which
+// scrolls) and a short one (e.g. recipes/planner, which doesn't) — the
+// classic Windows-style reserved-width scrollbar comes and goes with them.
+html {
+  scrollbar-gutter: stable;
+}
+
 a {
   color: inherit;
   text-decoration: none;

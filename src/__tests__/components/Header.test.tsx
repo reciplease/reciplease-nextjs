@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { createElement } from 'react';
 import Header from '@/components/Header';
 
@@ -24,14 +24,9 @@ const useRouter = require('next/router').useRouter as jest.Mock;
 describe('Header', () => {
   const originalAuthDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED;
 
-  // Header subscribes to router.events to close the mobile menu on navigation.
-  const events = { on: jest.fn(), off: jest.fn() };
-
   beforeEach(() => {
     process.env.NEXT_PUBLIC_AUTH_DISABLED = 'false';
-    useRouter.mockReturnValue({ pathname: '/recipes', events });
-    events.on.mockClear();
-    events.off.mockClear();
+    useRouter.mockReturnValue({ pathname: '/recipes' });
   });
 
   afterEach(() => {
@@ -71,7 +66,7 @@ describe('Header', () => {
   it('marks the current route as active', () => {
     useSession.mockReturnValue({ data: null, status: 'unauthenticated' });
     process.env.NEXT_PUBLIC_AUTH_DISABLED = 'true';
-    useRouter.mockReturnValue({ pathname: '/inventory', events });
+    useRouter.mockReturnValue({ pathname: '/inventory' });
     render(<Header />);
     // The current route's link is marked aria-current="page"; others aren't.
     expect(screen.getByRole('link', { name: 'Inventory' })).toHaveAttribute('aria-current', 'page');
@@ -81,7 +76,7 @@ describe('Header', () => {
   it('marks the settings link active on the settings page', () => {
     process.env.NEXT_PUBLIC_AUTH_DISABLED = 'true';
     useSession.mockReturnValue({ data: null, status: 'unauthenticated' });
-    useRouter.mockReturnValue({ pathname: '/settings', events });
+    useRouter.mockReturnValue({ pathname: '/settings' });
     render(<Header />);
     expect(screen.getByRole('link', { name: 'Settings' })).toHaveClass('text-secondary');
   });
@@ -89,48 +84,19 @@ describe('Header', () => {
   it('keeps a recipe sub-route active on the Recipes tab', () => {
     process.env.NEXT_PUBLIC_AUTH_DISABLED = 'true';
     useSession.mockReturnValue({ data: null, status: 'unauthenticated' });
-    useRouter.mockReturnValue({ pathname: '/recipes/[recipeId]', events });
+    useRouter.mockReturnValue({ pathname: '/recipes/[recipeId]' });
     render(<Header />);
     expect(screen.getByRole('link', { name: 'Recipes' })).toHaveAttribute('aria-current', 'page');
   });
 
-  it('toggles the mobile account panel when the person icon is clicked', () => {
+  it('truncates the username rather than crowding the nav and settings', () => {
     useSession.mockReturnValue({
-      data: { user: { handle: 'cook' } },
+      data: { user: { handle: 'rhyssaldanha' } },
       status: 'authenticated',
     });
     render(<Header />);
-    const toggle = screen.getByRole('button', { name: 'Account' });
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    // The nav stays inline (one copy per link); opening the panel surfaces a
-    // second copy of the auth controls (the signed-in handle).
-    expect(screen.getAllByRole('link', { name: 'Recipes' })).toHaveLength(1);
-    expect(screen.getAllByText('cook')).toHaveLength(2);
-
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getAllByText('cook')).toHaveLength(1);
-  });
-
-  it('closes the mobile account panel on route change', () => {
-    useSession.mockReturnValue({
-      data: { user: { handle: 'cook' } },
-      status: 'authenticated',
-    });
-    render(<Header />);
-    const toggle = screen.getByRole('button', { name: 'Account' });
-
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
-
-    const onRouteChangeStart = events.on.mock.calls.find(
-      ([event]) => event === 'routeChangeStart',
-    )![1];
-    act(() => onRouteChangeStart());
-
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    // `truncate` ellipsizes the handle (rhyssalda…) as the bar tightens, so
+    // the nav icons and settings never lose space to it.
+    expect(screen.getByText('rhyssaldanha')).toHaveClass('truncate');
   });
 });
