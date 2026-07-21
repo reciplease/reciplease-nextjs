@@ -65,8 +65,8 @@ describe('WeekCalendar', () => {
     const fifth = weekOne.find((btn) => btn.textContent === '5')!;
     const fourth = weekOne.find((btn) => btn.textContent === '4')!;
 
-    expect(fifth.className).toEqual(expect.stringContaining('ring-highlight'));
-    expect(fourth.className).not.toEqual(expect.stringContaining('ring-highlight'));
+    expect(fifth.className).toEqual(expect.stringContaining('bg-recipe-highlight'));
+    expect(fourth.className).not.toEqual(expect.stringContaining('bg-recipe-highlight'));
   });
 
   it('reports the visible grid range on mount and after month navigation', () => {

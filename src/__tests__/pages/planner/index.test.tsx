@@ -200,8 +200,8 @@ describe('Planner', () => {
     const weekOne = screen.getAllByLabelText('Select week of 2026-06-01');
     const dayByText = (text: string) => weekOne.find((btn) => btn.textContent === text)!;
 
-    expect(dayByText('5').className).toEqual(expect.stringContaining('ring-highlight'));
-    expect(dayByText('6').className).toEqual(expect.stringContaining('ring-highlight'));
-    expect(dayByText('4').className).not.toEqual(expect.stringContaining('ring-highlight'));
+    expect(dayByText('5').className).toEqual(expect.stringContaining('bg-recipe-highlight'));
+    expect(dayByText('6').className).toEqual(expect.stringContaining('bg-recipe-highlight'));
+    expect(dayByText('4').className).not.toEqual(expect.stringContaining('bg-recipe-highlight'));
   });
 });
