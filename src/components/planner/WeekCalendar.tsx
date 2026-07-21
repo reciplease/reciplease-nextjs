@@ -52,6 +52,18 @@ export default function WeekCalendar({
         </button>
       </div>
 
+      <button
+        type="button"
+        className="justify-self-center text-sm px-3 py-1"
+        onClick={() => {
+          const now = new Date();
+          setViewMonth(firstOfMonth(now));
+          onSelect(toIsoDate(mondayOf(now)));
+        }}
+      >
+        Today
+      </button>
+
       <div className="grid grid-cols-7 gap-1 text-center text-xs text-[#666]">
         {WEEKDAY_LABELS.map((label) => (
           <span key={label}>{label}</span>
