@@ -1,9 +1,19 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { useEffect } from 'react';
 import Login from '@/pages/login';
 
 jest.mock('next-auth/react', () => ({ signIn: jest.fn() }));
 jest.mock('next/router', () => ({ useRouter: jest.fn() }));
 jest.mock('@/lib/passkey', () => ({ passkeySignInCredentials: jest.fn() }));
+// next/script's onLoad only fires once the browser actually loads the script — fire it
+// on mount instead so tests can exercise the post-GSI-load rendering path synchronously.
+jest.mock('next/script', () => ({
+  __esModule: true,
+  default: function MockScript({ onLoad }: { onLoad?: () => void }) {
+    useEffect(() => onLoad?.(), [onLoad]);
+    return null;
+  },
+}));
 
 const { signIn } = require('next-auth/react');
 const useRouter = require('next/router').useRouter as jest.Mock;
@@ -13,6 +23,7 @@ describe('Login page', () => {
   afterEach(() => {
     (signIn as jest.Mock).mockReset();
     (passkeySignInCredentials as jest.Mock).mockReset();
+    delete (window as { google?: unknown }).google;
   });
 
   it('signs in with Google using the default callback url when none is provided', () => {
@@ -41,6 +52,50 @@ describe('Login page', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /sign in with google/i }));
     expect(signIn).toHaveBeenCalledWith('google', { callbackUrl: '/recipes' });
+  });
+
+  it('renders the Google Identity Services button and hides the fallback once GSI loads', () => {
+    const renderButton = jest.fn();
+    const prompt = jest.fn();
+    (window as unknown as { google: unknown }).google = {
+      accounts: { id: { initialize: jest.fn(), renderButton, prompt } },
+    };
+    useRouter.mockReturnValue({ query: {} });
+
+    render(<Login />);
+
+    expect(renderButton).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ text: 'signin_with' }));
+    expect(prompt).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /sign in with google/i })).not.toBeInTheDocument();
+  });
+
+  it('signs in via the google-onetap provider with the credential GSI returns', () => {
+    let capturedCallback: ((response: { credential: string }) => void) | undefined;
+    (window as unknown as { google: unknown }).google = {
+      accounts: {
+        id: {
+          initialize: jest.fn(({ callback }) => {
+            capturedCallback = callback;
+          }),
+          renderButton: jest.fn(),
+          prompt: jest.fn(),
+        },
+      },
+    };
+    useRouter.mockReturnValue({ query: { callbackUrl: '/inventory' } });
+
+    render(<Login />);
+    capturedCallback?.({ credential: 'id-token-abc' });
+
+    expect(signIn).toHaveBeenCalledWith('google-onetap', { credential: 'id-token-abc', callbackUrl: '/inventory' });
+  });
+
+  it('keeps showing the fallback Google button when window.google never becomes available', () => {
+    useRouter.mockReturnValue({ query: {} });
+
+    render(<Login />);
+
+    expect(screen.getByRole('button', { name: /sign in with google/i })).toBeInTheDocument();
   });
 
   it('does not show an error message by default', () => {

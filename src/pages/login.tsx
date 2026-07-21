@@ -1,8 +1,28 @@
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { useState } from 'react';
+import Script from 'next/script';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { passkeySignInCredentials } from '@/lib/passkey';
+
+// Minimal shape of the Google Identity Services API this page uses. See
+// https://developers.google.com/identity/gsi/web/reference/js-reference
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize(config: {
+            client_id: string;
+            callback: (response: { credential: string }) => void;
+          }): void;
+          renderButton(parent: HTMLElement, options: Record<string, string>): void;
+          prompt(): void;
+        };
+      };
+    };
+  }
+}
 
 const PASSKEY_SIGNUP_LABEL = 'Create an account with a passkey';
 
@@ -78,6 +98,48 @@ export default function Login() {
   const error = typeof router.query.error === 'string' ? router.query.error : undefined;
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
   const [passkeyBusy, setPasskeyBusy] = useState<'login' | 'signup' | null>(null);
+  const [gsiReady, setGsiReady] = useState(false);
+  const [googleButtonRendered, setGoogleButtonRendered] = useState(false);
+  const [googleButtonWidth, setGoogleButtonWidth] = useState(320);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+
+  // Google's rendered button doesn't reflow on its own, so measure the slot once
+  // up front — it only needs to be right for the initial render, not live-resize.
+  useLayoutEffect(() => {
+    setGoogleButtonWidth(Math.min(400, Math.round(googleButtonRef.current?.clientWidth ?? 320)));
+  }, []);
+
+  useEffect(() => {
+    const google = window.google;
+    const container = googleButtonRef.current;
+    // window.google can be missing even once the script "loads" (e.g. blocked by an
+    // extension/CSP after the network request itself succeeds) — keep the plain
+    // fallback button in that case rather than rendering an empty slot.
+    if (!gsiReady || !google || !container) return;
+
+    google.accounts.id.initialize({
+      client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '',
+      // Google Identity Services' Credentials provider (see auth-options.ts)
+      // verifies this ID token server-side and mints our own session — the
+      // browser never sees or trusts it beyond handing it off here.
+      callback: (response) => {
+        void signIn('google-onetap', { credential: response.credential, callbackUrl });
+      },
+    });
+    google.accounts.id.renderButton(container, {
+      type: 'standard',
+      theme: 'outline',
+      size: 'large',
+      text: 'signin_with',
+      shape: 'rectangular',
+      logo_alignment: 'left',
+      width: String(googleButtonWidth),
+    });
+    setGoogleButtonRendered(true);
+    // Shows "Continue as [name]" for a returning user already signed into
+    // Google in this browser, without waiting for a click on the button.
+    google.accounts.id.prompt();
+  }, [gsiReady, googleButtonWidth, callbackUrl]);
 
   // Unlike the OAuth buttons, the WebAuthn ceremony itself runs here in the browser before
   // signIn() — a cancelled/failed ceremony never reaches NextAuth, so it can't surface via the
@@ -115,13 +177,22 @@ export default function Login() {
             </p>
           )}
 
-          <button
-            className='mt-2 inline-flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-lg border border-[#dadce0] bg-white px-4 py-3 text-[0.95rem] font-medium text-[#1f1f1f] transition hover:bg-[#f8f9fa] hover:shadow-[0_1px_3px_rgba(0,0,0,0.12)] dark:border-[#4a473f] dark:bg-[#35332e] dark:text-[#e8e6e1] dark:hover:bg-[#3d3b35]'
-            onClick={() => signIn('google', { callbackUrl })}
-          >
-            <GoogleIcon />
-            Sign in with Google
-          </button>
+          <Script
+            src='https://accounts.google.com/gsi/client'
+            strategy='afterInteractive'
+            onLoad={() => setGsiReady(true)}
+          />
+          {/* Google renders its own button into this slot — see the useEffect above. */}
+          <div ref={googleButtonRef} className='mt-2 w-full' />
+          {!googleButtonRendered && (
+            <button
+              className='mt-2 inline-flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-lg border border-[#dadce0] bg-white px-4 py-3 text-[0.95rem] font-medium text-[#1f1f1f] transition hover:bg-[#f8f9fa] hover:shadow-[0_1px_3px_rgba(0,0,0,0.12)] dark:border-[#4a473f] dark:bg-[#35332e] dark:text-[#e8e6e1] dark:hover:bg-[#3d3b35]'
+              onClick={() => signIn('google', { callbackUrl })}
+            >
+              <GoogleIcon />
+              Sign in with Google
+            </button>
+          )}
 
           <button
             className='inline-flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-lg border border-[#dadce0] bg-white px-4 py-3 text-[0.95rem] font-medium text-[#1f1f1f] transition hover:bg-[#f8f9fa] hover:shadow-[0_1px_3px_rgba(0,0,0,0.12)] dark:border-[#4a473f] dark:bg-[#35332e] dark:text-[#e8e6e1] dark:hover:bg-[#3d3b35]'

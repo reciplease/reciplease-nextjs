@@ -3,6 +3,7 @@ import GoogleProvider from 'next-auth/providers/google';
 import GithubProvider from 'next-auth/providers/github';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import type { JWT } from 'next-auth/jwt';
+import { OAuth2Client } from 'google-auth-library';
 import { BACKEND_URL } from '@/lib/backend-url';
 import { accessToken } from '@/lib/backend';
 import type { components } from '@/types/generated/api';
@@ -96,6 +97,35 @@ async function authorizePasskey(mode: 'signup' | 'login', challenge: string, cre
   }
 }
 
+const googleIdTokenClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+/**
+ * Verifies the ID token handed back by Google Identity Services' rendered
+ * button (the "Continue as [Name]" flow, which shows the account before the
+ * user clicks) and mints a Reciplease JWT — the GIS equivalent of {@link
+ * exchangeIdentity}. Unlike the code-flow GoogleProvider below, this never
+ * redirects to Google, so it can't carry a `linkToken` for account linking;
+ * it's login/signup only, same restriction as {@link authorizePasskey}.
+ */
+async function authorizeGoogleCredential(credential: string): Promise<User | null> {
+  try {
+    const ticket = await googleIdTokenClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    if (!payload?.sub) return null;
+
+    // Reported as provider 'google' (not the NextAuth provider id below) so it
+    // resolves to the same backend identity as the code-flow login/linking.
+    const result = await exchangeIdentity({ provider: 'google', providerAccountId: payload.sub }, undefined, payload.email);
+    if (!result.ok) return null;
+    return { id: result.userId, recipleaseToken: result.token, handle: result.handle };
+  } catch {
+    return null;
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
@@ -114,6 +144,20 @@ export const authOptions: NextAuthOptions = {
     GithubProvider({
       clientId: process.env.GITHUB_CLIENT_ID ?? '',
       clientSecret: process.env.GITHUB_CLIENT_SECRET ?? '',
+    }),
+    // Google Identity Services' rendered button (login page only — see
+    // src/pages/login.tsx). Distinct from GoogleProvider above, which still
+    // handles account linking in Settings via the redirect/code flow.
+    CredentialsProvider({
+      id: 'google-onetap',
+      name: 'Google',
+      credentials: {
+        credential: { label: 'credential', type: 'text' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.credential) return null;
+        return authorizeGoogleCredential(credentials.credential);
+      },
     }),
     // Signup and login only — linking a passkey to an already signed-in account doesn't go
     // through NextAuth at all (see src/lib/passkey.ts's registerPasskey), since unlike OAuth
@@ -139,9 +183,10 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, account, user }) {
       // `account` is set only right after a sign-in/link handshake (OAuth or passkey).
-      if (account?.provider === 'passkey') {
-        // authorize() above already did the WebAuthn verification and minted the JWT —
-        // no further round trip needed, just adopt what it returned.
+      if (account?.provider === 'passkey' || account?.provider === 'google-onetap') {
+        // authorize() above already did the verification (WebAuthn ceremony or
+        // Google ID token) and minted the JWT — no further round trip needed,
+        // just adopt what it returned.
         if (user?.recipleaseToken) {
           token.recipleaseToken = user.recipleaseToken;
           token.userId = user.id;

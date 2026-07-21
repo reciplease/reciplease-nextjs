@@ -1,12 +1,19 @@
 /** @jest-environment node */
 jest.mock('@/lib/backend', () => ({ accessToken: jest.fn(), BACKEND_URL: 'http://backend.test' }));
+jest.mock('google-auth-library', () => ({
+  OAuth2Client: jest.fn().mockImplementation(() => ({ verifyIdToken: jest.fn() })),
+}));
 import { authOptions, exchangeIdentity } from '@/lib/auth-options';
 import { accessToken } from '@/lib/backend';
+import { OAuth2Client } from 'google-auth-library';
 import type { Account, Session } from 'next-auth';
 import type { JWT } from 'next-auth/jwt';
 
 global.fetch = jest.fn();
 const accessTokenMock = accessToken as jest.Mock;
+// auth-options.ts constructs a single `new OAuth2Client(...)` at module load, so
+// there's exactly one mocked instance to pull verifyIdToken off of.
+const mockVerifyIdToken = (OAuth2Client as unknown as jest.Mock).mock.results[0].value.verifyIdToken as jest.Mock;
 
 const { jwt, session } = authOptions.callbacks!;
 
@@ -16,6 +23,7 @@ beforeEach(() => {
   (fetch as jest.Mock).mockReset();
   accessTokenMock.mockReset();
   accessTokenMock.mockResolvedValue(undefined);
+  mockVerifyIdToken.mockReset();
   process.env = { ...ORIGINAL_ENV };
 });
 
@@ -233,12 +241,35 @@ describe('jwt callback', () => {
 
     expect(result.error).toBe('ExchangeError');
   });
+
+  it('adopts the token/userId/handle authorize() already produced for the google-onetap provider, without calling /api/auth/exchange', async () => {
+    const token = {} as JWT;
+    const account = { provider: 'google-onetap' } as unknown as Account;
+    const user = { id: 'user-1', recipleaseToken: 'gsi-jwt', handle: 'chef' } as never;
+
+    const result = await jwt!({ token, account, user });
+
+    expect(result).toMatchObject({ recipleaseToken: 'gsi-jwt', userId: 'user-1', handle: 'chef', error: undefined });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('sets an error for the google-onetap provider when authorize() produced no user', async () => {
+    const token = {} as JWT;
+    const account = { provider: 'google-onetap' } as unknown as Account;
+
+    const result = await jwt!({ token, account, user: undefined as never });
+
+    expect(result.error).toBe('ExchangeError');
+  });
 });
 
 describe('passkey CredentialsProvider', () => {
   // CredentialsProvider() always sets provider.id to the literal "credentials"; the id/authorize
-  // we configured live under provider.options instead.
-  const passkeyProvider = (authOptions.providers.find((p) => p.type === 'credentials') as unknown as {
+  // we configured live under provider.options instead. There are now two CredentialsProviders
+  // (this one and google-onetap), so match on the configured id, not just type.
+  const passkeyProvider = (authOptions.providers.find(
+    (p) => p.type === 'credentials' && (p as unknown as { options: { id: string } }).options.id === 'passkey',
+  ) as unknown as {
     options: { authorize: (credentials: Record<string, string> | undefined) => Promise<unknown> };
   }).options;
 
@@ -291,6 +322,68 @@ describe('passkey CredentialsProvider', () => {
 
     expect(result).toBeNull();
     expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('google-onetap CredentialsProvider', () => {
+  const googleOneTapProvider = (authOptions.providers.find(
+    (p) => p.type === 'credentials' && (p as unknown as { options: { id: string } }).options.id === 'google-onetap',
+  ) as unknown as {
+    options: { authorize: (credentials: Record<string, string> | undefined) => Promise<unknown> };
+  }).options;
+
+  it('verifies the ID token, exchanges the identity for provider "google", and returns a user with the minted token', async () => {
+    mockVerifyIdToken.mockResolvedValue({
+      getPayload: () => ({ sub: 'google-sub-1', email: 'me@gmail.com' }),
+    });
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'rcpls-jwt', userId: 'user-1', handle: 'chef' }),
+    });
+
+    const result = await googleOneTapProvider.authorize({ credential: 'id-token-1' });
+
+    expect(result).toEqual({ id: 'user-1', recipleaseToken: 'rcpls-jwt', handle: 'chef' });
+    expect(mockVerifyIdToken).toHaveBeenCalledWith(expect.objectContaining({ idToken: 'id-token-1' }));
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/auth/exchange'),
+      expect.objectContaining({
+        body: JSON.stringify({ provider: 'google', providerId: 'google-sub-1', linkToken: undefined, email: 'me@gmail.com' }),
+      }),
+    );
+  });
+
+  it('returns null when the token has no sub claim', async () => {
+    mockVerifyIdToken.mockResolvedValue({ getPayload: () => ({ email: 'me@gmail.com' }) });
+
+    const result = await googleOneTapProvider.authorize({ credential: 'id-token-1' });
+
+    expect(result).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('returns null when verification throws (invalid/expired token)', async () => {
+    mockVerifyIdToken.mockRejectedValue(new Error('bad token'));
+
+    const result = await googleOneTapProvider.authorize({ credential: 'garbage' });
+
+    expect(result).toBeNull();
+  });
+
+  it('returns null when the backend exchange fails', async () => {
+    mockVerifyIdToken.mockResolvedValue({ getPayload: () => ({ sub: 'google-sub-1', email: 'me@gmail.com' }) });
+    (fetch as jest.Mock).mockResolvedValue({ ok: false, status: 500 });
+
+    const result = await googleOneTapProvider.authorize({ credential: 'id-token-1' });
+
+    expect(result).toBeNull();
+  });
+
+  it('returns null when no credential is provided', async () => {
+    const result = await googleOneTapProvider.authorize(undefined);
+
+    expect(result).toBeNull();
+    expect(mockVerifyIdToken).not.toHaveBeenCalled();
   });
 });
 
