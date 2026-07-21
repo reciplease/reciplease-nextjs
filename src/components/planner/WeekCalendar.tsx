@@ -85,7 +85,11 @@ export default function WeekCalendar({
                       onSelect(weekMonday);
                       if (!isCurrentMonth) setViewMonth(firstOfMonth(day));
                     }}
-                    className={`p-1.5 rounded text-sm ${isCurrentMonth ? '' : 'text-[#bbb]'} ${isToday ? 'font-semibold underline' : ''} ${isPlanned ? 'ring-1 ring-highlight ring-inset' : ''}`}
+                    // Planned days are filled with bg-recipe-highlight (not
+                    // bg-highlight, which the .planner-theme wrapper recolours to
+                    // blue) so a planned day reads as unmistakably "has a recipe"
+                    // against the section's own blue accent.
+                    className={`p-1.5 rounded text-sm ${isPlanned ? 'bg-recipe-highlight text-white' : isCurrentMonth ? '' : 'text-[#bbb]'} ${isToday ? 'font-semibold underline' : ''}`}
                   >
                     {day.getDate()}
                   </button>

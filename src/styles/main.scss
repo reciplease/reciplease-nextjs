@@ -9,7 +9,8 @@
 // Exposed as Tailwind tokens (bg-highlight, text-highlight, ring-highlight, …)
 // and as CSS variables (var(--color-highlight)) for use in .scss modules.
 @theme {
-  --color-highlight: #f69e7b; // coral — the book cover; our primary accent/highlight
+  --color-recipe-highlight: #f69e7b; // coral — the book cover; the recipes section accent
+  --color-highlight: var(--color-recipe-highlight); // default accent, recoloured per-section below
   --color-secondary: #383e56; // navy — the book outline (also manifest theme_color)
   // A lighter tint of the secondary, handy for muted surfaces/borders.
   --color-secondary-muted: #6b7393;
