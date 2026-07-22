@@ -71,3 +71,36 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  deploy:
+    name: Deploy to Netlify
+    needs: [unit, e2e]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: yarn
+      - name: Cache node_modules
+        id: node-modules-cache
+        uses: actions/cache@v5
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node24-modules-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node24-modules-
+      - if: steps.node-modules-cache.outputs.cache-hit != 'true'
+        run: yarn install --frozen-lockfile
+      # Builds and deploys from this runner via the Netlify CLI (`--build`
+      # invokes Netlify's own build system, incl. the Next.js runtime plugin,
+      # locally) rather than relying on Netlify's git-push-triggered auto-build
+      # — that's disabled on the site (build_settings.stop_builds) precisely so
+      # a deploy can never go out ahead of CI passing. netlify.toml supplies
+      # the build command; BACKEND_URL/GOOGLE_CLIENT_ID/etc are pulled from the
+      # site's own configured env vars by `--build`, not duplicated here.
+      - run: npx --yes netlify-cli deploy --build --prod --site "$NETLIFY_SITE_ID" --auth "$NETLIFY_AUTH_TOKEN"
+        env:
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
