@@ -49,6 +49,20 @@ describe('Header', () => {
     expect(screen.getByText('cook')).toBeInTheDocument();
   });
 
+  it('hides the nav even though status is authenticated, when session.error flags a dead token', () => {
+    // Regression: the cookie can still decode as "authenticated" for up to 30 days
+    // after the embedded Reciplease JWT itself has expired — session.error is what
+    // auth-options.ts sets once it notices that, and this must gate the nav too, or
+    // it flashes "signed in" chrome for a token the backend will reject.
+    useSession.mockReturnValue({
+      data: { user: { handle: 'cook' }, error: 'SessionExpired' },
+      status: 'authenticated',
+    });
+    render(<Header />);
+    expect(screen.queryByRole('link', { name: 'Recipes' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /sign in/i })).toBeInTheDocument();
+  });
+
   it('hides the nav and shows a sign in link when unauthenticated', () => {
     useSession.mockReturnValue({ data: null, status: 'unauthenticated' });
     render(<Header />);

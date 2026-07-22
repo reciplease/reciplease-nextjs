@@ -101,12 +101,13 @@ export default function AccessGate({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
-  if (status === 'loading') {
+  // Every "still figuring out whether to show the app" state — session loading,
+  // about to redirect to sign in, waiting on the allowlist/handle probes — renders
+  // the exact same thing. These used to each show their own wording ("Loading…",
+  // "Redirecting to sign in…", "Checking access…"), which on a single page load
+  // reads as a sequence of different flashing popups rather than one smooth wait.
+  if (status === 'loading' || needsReauth) {
     return <Centered>Loading…</Centered>;
-  }
-
-  if (needsReauth) {
-    return <Centered>Redirecting to sign in…</Centered>;
   }
 
   if (probeError) {
@@ -119,7 +120,7 @@ export default function AccessGate({ children }: { children: ReactNode }) {
   }
 
   if (isLoading || !data) {
-    return <Centered>Checking access…</Centered>;
+    return <Centered>Loading…</Centered>;
   }
 
   if (data.status === 403) {
@@ -146,7 +147,7 @@ export default function AccessGate({ children }: { children: ReactNode }) {
   }
 
   if (meLoading || !me) {
-    return <Centered>Checking access…</Centered>;
+    return <Centered>Loading…</Centered>;
   }
 
   if (me.status === 200 && !me.handle) {

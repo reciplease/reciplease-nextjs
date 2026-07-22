@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useSession } from 'next-auth/react';
+import { useAuthenticated } from '@/lib/useAuthenticated';
 
 // Positioning copied from Fab.tsx: align the FAB's right edge to the content
 // grid's right edge (min(80ch, 100vw - 2rem) centred), collapsing to a 1rem
@@ -12,7 +12,7 @@ const FAB_RIGHT = 'right-[max(1rem,calc(50vw_-_40ch))]';
 // expands into two options: pencil = add a single item via the scan wizard,
 // trolley = capture a whole shopping trip for later processing.
 export default function InventoryFab() {
-  const { status } = useSession();
+  const authenticated = useAuthenticated();
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
@@ -28,7 +28,7 @@ export default function InventoryFab() {
   // Mirror AccessGate: local dev bypasses the sign-in gate entirely.
   const authDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED === 'true';
 
-  if (!authDisabled && status !== 'authenticated') return null;
+  if (!authDisabled && !authenticated) return null;
   // Hidden on the capture flows themselves (scan, shop and its processing
   // pages) — "add more items" is not a useful action mid-flow, and the fixed
   // button would sit over the processing list's row actions on small screens.

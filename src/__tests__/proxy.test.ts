@@ -28,6 +28,38 @@ describe('middleware', () => {
     expect(options.callbacks.authorized({ token: null })).toBe(false);
   });
 
+  it('rejects a token with an error flag even though the outer cookie still decodes', () => {
+    const options = (withAuth as jest.Mock).mock.calls[0][0];
+
+    expect(options.callbacks.authorized({ token: { sub: '123', error: 'SessionExpired' } })).toBe(false);
+  });
+
+  it('rejects a token whose embedded recipleaseToken has expired', () => {
+    const options = (withAuth as jest.Mock).mock.calls[0][0];
+    const expiredHeader = Buffer.from(JSON.stringify({ alg: 'HS256' })).toString('base64url');
+    const expiredPayload = Buffer.from(
+      JSON.stringify({ exp: Math.floor(Date.now() / 1000) - 60 }),
+    ).toString('base64url');
+    const expiredJwt = `${expiredHeader}.${expiredPayload}.sig`;
+
+    expect(
+      options.callbacks.authorized({ token: { sub: '123', recipleaseToken: expiredJwt } }),
+    ).toBe(false);
+  });
+
+  it('accepts a token whose embedded recipleaseToken has not expired', () => {
+    const options = (withAuth as jest.Mock).mock.calls[0][0];
+    const header = Buffer.from(JSON.stringify({ alg: 'HS256' })).toString('base64url');
+    const payload = Buffer.from(
+      JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }),
+    ).toString('base64url');
+    const validJwt = `${header}.${payload}.sig`;
+
+    expect(
+      options.callbacks.authorized({ token: { sub: '123', recipleaseToken: validJwt } }),
+    ).toBe(true);
+  });
+
   it('bypasses auth when NEXT_PUBLIC_AUTH_DISABLED is true', () => {
     process.env.NEXT_PUBLIC_AUTH_DISABLED = 'true';
     const req = new NextRequest('http://localhost/recipes');

@@ -3,6 +3,7 @@ import Logo from '@/components/Logo';
 import { useActiveHouse } from '@/lib/houses';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
+import { useAuthenticated } from '@/lib/useAuthenticated';
 
 // Hover/active use the secondary brand colour (navy) — the old near-white fill
 // was too bright against the dark UI.
@@ -67,8 +68,8 @@ const navItems = [
 ];
 
 export default function Header() {
-  const { data: session, status } = useSession();
-  const authenticated = status === 'authenticated';
+  const { data: session } = useSession();
+  const authenticated = useAuthenticated();
   const activeHouse = useActiveHouse();
   const router = useRouter();
   const { pathname } = router;
@@ -147,7 +148,7 @@ export default function Header() {
   // controls — the header just shows who's signed in. The handle truncates
   // away first when the bar gets tight; the nav icons and settings never give
   // up space for it.
-  const authControls = authenticated ? (
+  const authControls = authenticated && session ? (
     session.user?.handle && (
       <span className="min-w-0 truncate text-[0.85rem] opacity-70">
         {session.user.handle}

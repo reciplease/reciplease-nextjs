@@ -6,7 +6,14 @@ import type { JWT } from 'next-auth/jwt';
 import { OAuth2Client } from 'google-auth-library';
 import { BACKEND_URL } from '@/lib/backend-url';
 import { accessToken } from '@/lib/backend';
+import { jwtExpiryMillis } from '@/lib/jwt';
 import type { components } from '@/types/generated/api';
+
+// Refresh once less than this much of the Reciplease JWT's life remains — comfortably
+// inside the window that SessionProvider's refetchInterval/focus revalidation (see
+// _app.tsx) will hit at least once while a tab is open, so an active user's token
+// renews silently well before it actually expires.
+const REFRESH_MARGIN_MILLIS = 60 * 60 * 1000;
 
 type ExchangeResponseBody = components['schemas']['ExchangeResponse'];
 
@@ -67,6 +74,27 @@ export async function exchangeIdentity(
         error: response.status === 409 ? 'IdentityConflict' : 'ExchangeError',
       };
     }
+
+    const body: ExchangeResponseBody = await response.json();
+    return { ok: true, token: body.token ?? '', userId: body.userId ?? '', handle: body.handle ?? null };
+  } catch {
+    return { ok: false, error: 'ExchangeError' };
+  }
+}
+
+/**
+ * Mints a fresh Reciplease JWT from a still-valid one, via POST /api/auth/refresh —
+ * a sliding session that keeps an active user signed in without a full provider
+ * re-auth. Only ever called on a token that isn't expired yet (see the jwt callback),
+ * since the backend requires a currently-valid bearer token to authenticate the call.
+ */
+async function refreshRecipleaseToken(recipleaseToken: string): Promise<ExchangeResult> {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${recipleaseToken}` },
+    });
+    if (!response.ok) return { ok: false, error: 'ExchangeError' };
 
     const body: ExchangeResponseBody = await response.json();
     return { ok: true, token: body.token ?? '', userId: body.userId ?? '', handle: body.handle ?? null };
@@ -177,7 +205,11 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
-  session: { strategy: 'jwt' },
+  // Matches the backend Reciplease JWT's own 24h expiry (ReciplaseJwtService.EXPIRY) —
+  // otherwise NextAuth's own session cookie (30-day default) would outlive the token
+  // embedded inside it, and an inactive user's cookie would still decode as
+  // "authenticated" long after the token it carries has actually died.
+  session: { strategy: 'jwt', maxAge: 24 * 60 * 60 },
   // Use our own branded sign-in page instead of NextAuth's default UI.
   pages: { signIn: '/login', error: '/login' },
   callbacks: {
@@ -195,15 +227,12 @@ export const authOptions: NextAuthOptions = {
         } else {
           token.error = 'ExchangeError';
         }
-        return token;
-      }
-
-      // existingLinkToken recovers the current user's Reciplease JWT (if any) so
-      // an already-signed-in user linking a second provider attaches it to their
-      // existing account; otherwise it's a fresh login.
-      if (account) {
-        // `user` here is the provider's profile for this handshake, not the
-        // previously-signed-in user — its email identifies *this* linked account.
+      } else if (account) {
+        // existingLinkToken recovers the current user's Reciplease JWT (if any) so
+        // an already-signed-in user linking a second provider attaches it to their
+        // existing account; otherwise it's a fresh login. `user` here is the
+        // provider's profile for this handshake, not the previously-signed-in
+        // user — its email identifies *this* linked account.
         const result = await exchangeIdentity(account, await existingLinkToken(token), user?.email);
         if (result.ok) {
           token.recipleaseToken = result.token;
@@ -213,7 +242,29 @@ export const authOptions: NextAuthOptions = {
         } else {
           token.error = result.error;
         }
-        return token;
+      } else if (token.recipleaseToken) {
+        // No fresh sign-in handshake this call — this is every subsequent session
+        // check for an already-signed-in user (NextAuth invokes jwt() on every
+        // /api/auth/session request, which SessionProvider's refetchInterval and
+        // focus revalidation hit periodically — see _app.tsx). Revalidate the
+        // embedded token's own expiry here rather than only discovering it's dead
+        // when some backend call eventually 401s: that's what used to let a stale
+        // session render "authenticated" UI before failing a moment later.
+        const expiryMillis = jwtExpiryMillis(token.recipleaseToken);
+        if (expiryMillis === undefined || expiryMillis <= Date.now()) {
+          token.recipleaseToken = undefined;
+          token.error = 'SessionExpired';
+        } else if (expiryMillis - Date.now() < REFRESH_MARGIN_MILLIS) {
+          const refreshed = await refreshRecipleaseToken(token.recipleaseToken);
+          if (refreshed.ok) {
+            token.recipleaseToken = refreshed.token;
+            token.userId = refreshed.userId;
+            token.handle = refreshed.handle;
+            token.error = undefined;
+          }
+          // Refresh failing doesn't clear the still-valid token — it's retried on
+          // the next check, or caught by the expiry branch above once it's truly dead.
+        }
       }
 
       return token;

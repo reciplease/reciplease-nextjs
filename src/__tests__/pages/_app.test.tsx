@@ -14,15 +14,18 @@ jest.mock('next-auth/react', () => ({
     children,
     session,
     refetchOnWindowFocus,
+    refetchInterval,
   }: {
     children: React.ReactNode;
     session?: unknown;
     refetchOnWindowFocus: boolean;
+    refetchInterval: number;
   }) => (
     <div
       data-testid="session-provider"
       data-session={JSON.stringify(session ?? null)}
       data-refetch={String(refetchOnWindowFocus)}
+      data-refetch-interval={String(refetchInterval)}
     >
       {children}
     </div>
@@ -61,6 +64,7 @@ describe('_app', () => {
     const provider = screen.getByTestId('session-provider');
     expect(provider).toHaveAttribute('data-session', 'null');
     expect(provider).toHaveAttribute('data-refetch', 'true');
+    expect(provider).toHaveAttribute('data-refetch-interval', String(5 * 60));
   });
 
   it('renders standalone on the scanner page', () => {
@@ -118,6 +122,7 @@ describe('_app', () => {
 
     const provider = screen.getByTestId('session-provider');
     expect(provider).toHaveAttribute('data-refetch', 'false');
+    expect(provider).toHaveAttribute('data-refetch-interval', '0');
     expect(JSON.parse(provider.getAttribute('data-session')!)).toMatchObject({
       user: { handle: 'local-dev-user' },
     });

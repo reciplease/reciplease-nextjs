@@ -66,6 +66,12 @@ describe('InventoryFab', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('renders nothing when session.error flags a dead token, even though status is authenticated', () => {
+    useSession.mockReturnValue({ status: 'authenticated', data: { error: 'SessionExpired' } });
+    const { container } = render(<InventoryFab />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it.each([
     '/inventory/scan',
     '/inventory/shop',

@@ -19,6 +19,15 @@ const { jwt, session } = authOptions.callbacks!;
 
 const ORIGINAL_ENV = process.env;
 
+/** A structurally-valid (unsigned) JWT with only an `exp` claim — enough for jwtExpiryMillis. */
+function fakeJwt(expiresInSeconds: number): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'none' })).toString('base64url');
+  const payload = Buffer.from(
+    JSON.stringify({ exp: Math.floor(Date.now() / 1000) + expiresInSeconds }),
+  ).toString('base64url');
+  return `${header}.${payload}.sig`;
+}
+
 beforeEach(() => {
   (fetch as jest.Mock).mockReset();
   accessTokenMock.mockReset();
@@ -33,7 +42,7 @@ afterAll(() => {
 
 describe('authOptions config', () => {
   it('uses JWT sessions and a custom sign-in page', () => {
-    expect(authOptions.session).toEqual({ strategy: 'jwt' });
+    expect(authOptions.session).toEqual({ strategy: 'jwt', maxAge: 24 * 60 * 60 });
     expect(authOptions.pages).toEqual({ signIn: '/login', error: '/login' });
   });
 });
@@ -213,13 +222,66 @@ describe('jwt callback', () => {
     expect(result.error).toBe('IdentityConflict');
   });
 
-  it('leaves the token untouched when there is no fresh account (subsequent requests)', async () => {
-    const token = { recipleaseToken: 'existing-jwt', handle: 'chef' } as JWT;
+  it('leaves a token that is not close to expiring untouched (subsequent requests)', async () => {
+    const token = { recipleaseToken: fakeJwt(12 * 60 * 60), handle: 'chef' } as JWT;
+    const originalRecipleaseToken = token.recipleaseToken;
 
     const result = await jwt!({ token, account: null, user: undefined as never });
 
     expect(result).toBe(token);
+    expect(result.recipleaseToken).toBe(originalRecipleaseToken);
+    expect(result.error).toBeUndefined();
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('clears the token and sets SessionExpired once the embedded JWT has actually expired', async () => {
+    const token = { recipleaseToken: fakeJwt(-60), handle: 'chef' } as JWT;
+
+    const result = await jwt!({ token, account: null, user: undefined as never });
+
+    expect(result.recipleaseToken).toBeUndefined();
+    expect(result.error).toBe('SessionExpired');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('treats an unparseable recipleaseToken as expired', async () => {
+    const token = { recipleaseToken: 'not-a-real-jwt', handle: 'chef' } as JWT;
+
+    const result = await jwt!({ token, account: null, user: undefined as never });
+
+    expect(result.recipleaseToken).toBeUndefined();
+    expect(result.error).toBe('SessionExpired');
+  });
+
+  it('silently refreshes a token nearing expiry via POST /api/auth/refresh', async () => {
+    const token = { recipleaseToken: fakeJwt(5 * 60), userId: 'user-1', handle: 'chef' } as JWT;
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'refreshed-jwt', userId: 'user-1', handle: 'chef' }),
+    });
+
+    const result = await jwt!({ token, account: null, user: undefined as never });
+
+    expect(result.recipleaseToken).toBe('refreshed-jwt');
+    expect(result.error).toBeUndefined();
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/auth/refresh'),
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ Authorization: expect.stringContaining('Bearer ') }),
+      }),
+    );
+  });
+
+  it('keeps the still-valid token in place when a near-expiry refresh attempt fails', async () => {
+    const originalRecipleaseToken = fakeJwt(5 * 60);
+    const token = { recipleaseToken: originalRecipleaseToken, userId: 'user-1', handle: 'chef' } as JWT;
+    (fetch as jest.Mock).mockResolvedValue({ ok: false, status: 500 });
+
+    const result = await jwt!({ token, account: null, user: undefined as never });
+
+    expect(result.recipleaseToken).toBe(originalRecipleaseToken);
+    expect(result.error).toBeUndefined();
   });
 
   it('adopts the token/userId/handle authorize() already produced for the passkey provider, without calling /api/auth/exchange', async () => {

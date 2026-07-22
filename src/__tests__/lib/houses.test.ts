@@ -66,6 +66,14 @@ describe('useHouses', () => {
 
     expect(useSWR).toHaveBeenLastCalledWith('/api/houses', expect.any(Function));
   });
+
+  it('does not fetch houses when session.error flags a dead token, even though status is authenticated', () => {
+    useSession.mockReturnValue({ status: 'authenticated', data: { error: 'SessionExpired' } });
+
+    useHouses();
+
+    expect(useSWR).toHaveBeenLastCalledWith(null, expect.any(Function));
+  });
 });
 
 describe('useHouseMembers / usePendingInvites', () => {

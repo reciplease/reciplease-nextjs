@@ -1,18 +1,18 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useSession } from 'next-auth/react';
+import { useAuthenticated } from '@/lib/useAuthenticated';
 
 // Shared presentation/behaviour for the floating action buttons. Section-specific
 // FABs (RecipeFab, InventoryFab) wrap this with their own destination and label.
 // Hidden when signed out and on the destination page itself.
 export default function Fab({ href, label }: { href: string; label: string }) {
-  const { status } = useSession();
+  const authenticated = useAuthenticated();
   const router = useRouter();
 
   // Mirror AccessGate: local dev bypasses the sign-in gate entirely.
   const authDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED === 'true';
 
-  if (!authDisabled && status !== 'authenticated') return null;
+  if (!authDisabled && !authenticated) return null;
   if (router.pathname === href) return null;
 
   return (

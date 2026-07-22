@@ -41,7 +41,7 @@ describe('AccessGate access probe', () => {
 
     renderGated(<div>App content</div>);
 
-    expect(screen.getByText('Checking access…')).toBeInTheDocument();
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('App content')).toBeInTheDocument());
     expect(fetch).toHaveBeenCalledWith('/api/houses');
     expect(fetch).toHaveBeenCalledWith('/api/me');

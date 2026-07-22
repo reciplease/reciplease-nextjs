@@ -37,6 +37,12 @@ describe('section FABs', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('renders nothing when session.error flags a dead token, even though status is authenticated', () => {
+    useSession.mockReturnValue({ status: 'authenticated', data: { error: 'SessionExpired' } });
+    const { container } = render(<RecipeFab />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('RecipeFab hides itself on the builder page', () => {
     useSession.mockReturnValue({ status: 'authenticated' });
     useRouter.mockReturnValue({ pathname: '/recipes/new' });

@@ -2,6 +2,7 @@ import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import type { NextRequestWithAuth } from 'next-auth/middleware';
+import { isJwtExpired } from '@/lib/jwt';
 
 // Require a NextAuth session for all pages. API routes are excluded: they are a
 // BFF that forwards the bearer token and returns 401/403 itself, and redirecting
@@ -12,7 +13,18 @@ import type { NextRequestWithAuth } from 'next-auth/middleware';
 const authMiddleware = withAuth({
   pages: { signIn: '/login' },
   callbacks: {
-    authorized: ({ token }) => token != null,
+    // A decodable NextAuth session cookie isn't enough on its own — its embedded
+    // Reciplease JWT (auth-options.ts's jwt callback) has its own, shorter expiry
+    // and can be flagged with an error (e.g. a failed sign-in exchange) independently
+    // of the outer cookie still being valid. Checking both here, at the edge, means an
+    // expired/errored session redirects to /login before any page ever renders —
+    // instead of the page mounting as "signed in" and only discovering otherwise once
+    // a client-side backend call 401s a moment later.
+    authorized: ({ token }) => {
+      if (token == null || token.error) return false;
+      const recipleaseToken = token.recipleaseToken as string | undefined;
+      return !recipleaseToken || !isJwtExpired(recipleaseToken);
+    },
   },
 });
 

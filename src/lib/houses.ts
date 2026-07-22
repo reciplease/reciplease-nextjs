@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import useSWR from 'swr';
-import { useSession } from 'next-auth/react';
+import { useAuthenticated } from '@/lib/useAuthenticated';
 import type { components } from '@/types/generated/api';
 
 // The backend always returns these fields for a house/member/invite — `Required`
@@ -54,13 +54,13 @@ const fetcher = (url: string): Promise<House[]> =>
   apiFetch(url).then((res) => (res.ok ? res.json() : []));
 
 export function useHouses() {
-  const { status } = useSession();
+  const authenticated = useAuthenticated();
   // Mirror AccessGate: with auth disabled (local dev) there's no NextAuth session to
   // wait for — fetch anyway, and let the proxy's RECIPLEASE_DEV_TOKEN (if set)
   // authenticate the call.
   const authDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED === 'true';
   return useSWR<House[]>(
-    status === 'authenticated' || authDisabled ? '/api/houses' : null,
+    authenticated || authDisabled ? '/api/houses' : null,
     fetcher,
   );
 }

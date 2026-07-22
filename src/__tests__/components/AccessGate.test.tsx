@@ -116,7 +116,7 @@ describe('AccessGate', () => {
     expect(screen.queryByText('App content')).not.toBeInTheDocument();
   });
 
-  it('shows a checking-access message while the allowlist probe is loading', () => {
+  it('shows the shared loading state while the allowlist probe is loading', () => {
     useSession.mockReturnValue({ data: { user: { handle: 'cook' } }, status: 'authenticated' });
     mockSWRByKey({ 'access-gate:house-probe': { data: undefined, isLoading: true } });
 
@@ -126,7 +126,7 @@ describe('AccessGate', () => {
       </AccessGate>,
     );
 
-    expect(screen.getByText('Checking access…')).toBeInTheDocument();
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
   });
 
   it('shows a retry message (not an indefinite spinner) when the allowlist probe errors', () => {
@@ -142,7 +142,7 @@ describe('AccessGate', () => {
       </AccessGate>,
     );
 
-    expect(screen.queryByText('Checking access…')).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument();
     expect(screen.getByText(/Couldn.t reach Reciplease/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(retryProbe).toHaveBeenCalled();
@@ -162,7 +162,7 @@ describe('AccessGate', () => {
       </AccessGate>,
     );
 
-    expect(screen.queryByText('Checking access…')).not.toBeInTheDocument();
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument();
     expect(screen.getByText(/Couldn.t reach Reciplease/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(retryMe).toHaveBeenCalled();
@@ -196,7 +196,7 @@ describe('AccessGate', () => {
     expect(screen.getByText(/This account doesn.t have access yet/)).toBeInTheDocument();
   });
 
-  it('shows a checking-access message while /api/me is loading', () => {
+  it('shows the shared loading state while /api/me is loading', () => {
     useSession.mockReturnValue({ data: { user: { handle: 'cook' } }, status: 'authenticated' });
     mockSWRByKey({
       'access-gate:house-probe': { data: { status: 200 }, isLoading: false },
@@ -209,7 +209,7 @@ describe('AccessGate', () => {
       </AccessGate>,
     );
 
-    expect(screen.getByText('Checking access…')).toBeInTheDocument();
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
     expect(screen.queryByText('App content')).not.toBeInTheDocument();
   });
 

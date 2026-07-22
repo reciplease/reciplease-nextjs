@@ -60,6 +60,12 @@ export default function App({
       // Don't let a background revalidation against /api/auth/session wipe the
       // injected fake session in local dev.
       refetchOnWindowFocus={!FAKE_AUTH}
+      // Periodically hits /api/auth/session in the background, which re-runs
+      // auth-options.ts's jwt callback — that's what silently refreshes the
+      // Reciplease JWT once it's nearing expiry, so an open tab stays signed in
+      // without the user ever seeing a re-auth prompt. 5 minutes comfortably
+      // beats the callback's own 1h refresh margin.
+      refetchInterval={FAKE_AUTH ? 0 : 5 * 60}
     >
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
