@@ -77,6 +77,7 @@ jobs:
     needs: [unit, e2e]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
@@ -101,7 +102,11 @@ jobs:
       # netlify.toml supplies the build command; BACKEND_URL/GOOGLE_CLIENT_ID/etc
       # are pulled from the site's own configured env vars by `--build`, not
       # duplicated here.
-      - run: npx --yes netlify-cli deploy --build --prod --site "$NETLIFY_SITE_ID" --auth "$NETLIFY_AUTH_TOKEN"
+      # Pinned to the version verified working locally — an unpinned `npx
+      # netlify-cli` resolves "latest" fresh on every run with no local cache,
+      # which is slow and was the likely cause of one run hanging past 12
+      # minutes in CI (a local run of the same command completed in ~50s).
+      - run: npx --yes netlify-cli@26.1.0 deploy --build --prod --site "$NETLIFY_SITE_ID" --auth "$NETLIFY_AUTH_TOKEN"
         env:
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
