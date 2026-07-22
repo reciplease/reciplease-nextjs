@@ -53,12 +53,15 @@ test.describe('Inventory (auth disabled)', () => {
   test('inventory page shows items and the scan action', async ({ page }) => {
     await page.goto('/inventory');
     await expect(page.getByText('Milk')).toBeVisible();
-    await expect(page.getByRole('link', { name: /scan/i })).toBeVisible();
+    // The scan link is behind the "Add to inventory" FAB, not visible until opened.
+    await page.getByRole('button', { name: 'Add to inventory' }).click();
+    await expect(page.getByRole('link', { name: /add one item/i })).toBeVisible();
   });
 
   test('scan button links to scan page', async ({ page }) => {
     await page.goto('/inventory');
-    await page.getByRole('link', { name: /scan/i }).click();
+    await page.getByRole('button', { name: 'Add to inventory' }).click();
+    await page.getByRole('link', { name: /add one item/i }).click();
     await expect(page).toHaveURL('/inventory/scan');
     await expect(page.getByText('Scan barcode')).toBeVisible();
   });
