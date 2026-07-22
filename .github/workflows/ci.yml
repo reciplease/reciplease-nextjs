@@ -96,10 +96,11 @@ jobs:
       # Builds and deploys from this runner via the Netlify CLI (`--build`
       # invokes Netlify's own build system, incl. the Next.js runtime plugin,
       # locally) rather than relying on Netlify's git-push-triggered auto-build
-      # — that's disabled on the site (build_settings.stop_builds) precisely so
-      # a deploy can never go out ahead of CI passing. netlify.toml supplies
-      # the build command; BACKEND_URL/GOOGLE_CLIENT_ID/etc are pulled from the
-      # site's own configured env vars by `--build`, not duplicated here.
+      # — that's disabled on the site (build_settings.stop_builds = true, set
+      # 2026-07-22) precisely so a deploy can never go out ahead of CI passing.
+      # netlify.toml supplies the build command; BACKEND_URL/GOOGLE_CLIENT_ID/etc
+      # are pulled from the site's own configured env vars by `--build`, not
+      # duplicated here.
       - run: npx --yes netlify-cli deploy --build --prod --site "$NETLIFY_SITE_ID" --auth "$NETLIFY_AUTH_TOKEN"
         env:
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
