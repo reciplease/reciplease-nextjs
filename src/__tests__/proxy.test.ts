@@ -98,6 +98,11 @@ describe('config.matcher', () => {
   it('matches protected app pages', () => {
     expect(matcher.test('/inventory')).toBe(true);
     expect(matcher.test('/planner')).toBe(true);
+    expect(matcher.test('/settings/house')).toBe(true);
+  });
+
+  it('matches gated recipe routes with more path after the recipeId, unlike a blanket "recipes" prefix exclusion', () => {
+    expect(matcher.test('/recipes/abc123/edit')).toBe(true);
   });
 
   it('excludes the root, api routes, recipes, Next internals and static assets', () => {
@@ -105,9 +110,14 @@ describe('config.matcher', () => {
     expect(matcher.test('/api/measures')).toBe(false);
     expect(matcher.test('/recipes')).toBe(false);
     expect(matcher.test('/recipes/abc123')).toBe(false);
+    expect(matcher.test('/invite/abc123')).toBe(false);
     expect(matcher.test('/_next/static/chunk.js')).toBe(false);
     expect(matcher.test('/_next/image')).toBe(false);
     expect(matcher.test('/favicon.ico')).toBe(false);
     expect(matcher.test('/logo192.png')).toBe(false);
+  });
+
+  it('cannot distinguish /recipes/new from /recipes/[recipeId] — same one-segment shape, so it stays excluded (AccessGate covers it client-side instead)', () => {
+    expect(matcher.test('/recipes/new')).toBe(false);
   });
 });

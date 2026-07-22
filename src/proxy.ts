@@ -39,13 +39,29 @@ export default function middleware(req: NextRequest, event: Parameters<typeof au
 }
 
 export const config = {
-  // Recipes pages are publicly readable — exclude them from the auth gate.
-  // Invite pages handle their own auth (preview before sign-in, accept after)
-  // — gating them here would redirect straight to /login before the invite
-  // preview (house name) ever renders.
+  // /recipes and /recipes/[recipeId] are publicly readable — excluded from the
+  // auth gate. Only those two exact shapes, though: `recipes$` (bare) and
+  // `recipes/[^/]+$` (exactly one further segment, e.g. the recipeId) — NOT a
+  // blanket "recipes" prefix, so a genuinely gated route with more path after
+  // it, like /recipes/[recipeId]/edit, still gets caught here rather than
+  // relying on AccessGate alone.
+  //
+  // /recipes/new is the one gap this can't close: it's the same shape as
+  // /recipes/[recipeId] (one segment past /recipes), so there's no way to tell
+  // "new" the static route apart from "new" as someone's recipeId using the URL
+  // alone — Next.js itself resolves that collision by routing priority, not
+  // middleware. AccessGate (client-side) still fully gates it; it just isn't
+  // caught at the edge.
+  //
+  // /invite/[code] is excluded the same way (single segment only) — it handles
+  // its own auth (preview before sign-in, accept after); gating it here would
+  // redirect straight to /login before the invite preview (house name) renders.
+  //
   // / is excluded so Next.js can handle the redirect to /recipes before auth.
   // `.*\..*` excludes any path with a file extension (e.g. /reciplease-book.svg,
   // /logo192.png, /manifest.json) so public static assets — like the header
   // logo — load for signed-out visitors instead of being redirected to /login.
-  matcher: ['/((?!$|api|recipes|invite|_next/static|_next/image|favicon.ico|.*\\..*).*)'],
+  matcher: [
+    '/((?!$|api|recipes$|recipes/[^/]+$|invite/[^/]+$|_next/static|_next/image|favicon\\.ico|.*\\..*).*)',
+  ],
 };
