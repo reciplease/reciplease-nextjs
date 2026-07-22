@@ -128,7 +128,10 @@ export default function Login() {
     });
     google.accounts.id.renderButton(container, {
       type: 'standard',
-      theme: 'outline',
+      // The app is dark-only (see _document.tsx) — 'outline' renders a white
+      // pill that clashes with every other button on this page; 'filled_black'
+      // matches them.
+      theme: 'filled_black',
       size: 'large',
       text: 'signin_with',
       shape: 'rectangular',
