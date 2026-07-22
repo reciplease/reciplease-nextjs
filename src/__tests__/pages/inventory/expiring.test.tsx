@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ExpiringInventory from '@/pages/inventory/expiring';
 
 jest.mock('swr');
@@ -11,14 +11,21 @@ jest.mock('next/link', () => ({ children, href, className }: { children: React.R
 ));
 jest.mock('@/components/Metadata', () => () => null);
 
+global.fetch = jest.fn();
+
 const useSWR = require('swr').default;
 
 const measure: Measure = { measureId: 'ITEMS', singular: 'item', plural: 'items', short: 'item' };
 
-function mockInventory(state: { isLoading: boolean; data: InventoryItem[] | undefined; error: Error | undefined }) {
+function mockInventory(state: {
+  isLoading: boolean;
+  data: InventoryItem[] | undefined;
+  error: Error | undefined;
+  mutate?: jest.Mock;
+}) {
   useSWR.mockImplementation((key: string) => {
     if (key === '/api/measures') return { data: [measure], isLoading: false };
-    return state;
+    return { mutate: jest.fn(), ...state };
   });
 }
 
@@ -43,6 +50,11 @@ const mockItems: InventoryItem[] = [
 ];
 
 describe('ExpiringInventory', () => {
+  beforeEach(() => {
+    (fetch as jest.Mock).mockReset();
+    (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+  });
+
   it('shows loading state', () => {
     mockInventory({ isLoading: true, data: undefined, error: undefined });
     render(<ExpiringInventory />);
@@ -97,6 +109,35 @@ describe('ExpiringInventory', () => {
     mockInventory({ isLoading: false, data: mockItems, error: undefined });
     render(<ExpiringInventory />);
     expect(screen.getByText('6 items')).toBeInTheDocument();
+  });
+
+  it('shows the remaining quantity, not the original purchased amount, once some has been used', () => {
+    const partlyUsed: InventoryItem = { ...mockItems[2], amount: 6, remaining: 2 };
+    mockInventory({ isLoading: false, data: [partlyUsed], error: undefined });
+    render(<ExpiringInventory />);
+
+    expect(screen.getByText('2 items')).toBeInTheDocument();
+    expect(screen.queryByText('6 items')).not.toBeInTheDocument();
+  });
+
+  it('opens the throw-away panel from the list and bins the item without navigating to its detail page', async () => {
+    const mutate = jest.fn();
+    mockInventory({ isLoading: false, data: mockItems, error: undefined, mutate });
+    render(<ExpiringInventory />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Throw away Eggs' }));
+    expect(screen.getByRole('heading', { name: 'Throw away Eggs' })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Amount thrown away'), { target: { value: '6' } });
+    fireEvent.submit(screen.getByLabelText('Amount thrown away').closest('form')!);
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/inventory/uuid-3',
+        expect.objectContaining({ method: 'PUT' }),
+      );
+      expect(mutate).toHaveBeenCalled();
+    });
   });
 
   it('links back to the pantry view', () => {

@@ -1,30 +1,25 @@
+import { useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
 import InventoryImage from '@/components/InventoryImage';
+import ThrowAwayPanel from '@/components/inventory/ThrowAwayPanel';
 import { apiFetch, useActiveHouse } from '@/lib/houses';
+import { isFullyConsumed } from '@/lib/inventory';
 
 const fetcher = (url: string): Promise<InventoryItem[]> =>
   apiFetch(url).then((res) => res.json());
-
-// Fully-eaten items aren't hidden — they're physically gone, but the user may
-// still want to see them (e.g. to restock) — so they stay in the list, just
-// greyed out and sorted after everything else. Expired items get no such
-// treatment: they're still on the shelf and need to be eaten or thrown away,
-// so they present like any other item.
-function isFullyConsumed(item: InventoryItem): boolean {
-  return (item.remaining ?? item.amount ?? 0) <= 0;
-}
 
 export default function InventoryList() {
   // Wait for the active house before fetching: house-scoped calls need the
   // X-RCPLS-House-Id header, which is only known once houses have loaded. Keying
   // by house id also refetches if the user switches house.
   const activeHouse = useActiveHouse();
-  const { data: items, error, isLoading } = useSWR(
+  const { data: items, error, isLoading, mutate } = useSWR(
     activeHouse ? ['/api/inventory', activeHouse.id] : null,
     () => fetcher('/api/inventory'),
   );
+  const [throwingAway, setThrowingAway] = useState<InventoryItem | null>(null);
 
   if (!activeHouse || isLoading) {
     return (
@@ -78,7 +73,7 @@ export default function InventoryList() {
           // how many items there are.
           <ul className="list-none p-0 grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-4 my-8">
             {pantryItems.map((item) => (
-              <li key={item.uuid}>
+              <li key={item.uuid} className="relative">
                 <Link
                   href={`/inventory/${item.uuid}`}
                   className={`grid gap-2${isFullyConsumed(item) ? ' opacity-60' : ''}`}
@@ -89,11 +84,34 @@ export default function InventoryList() {
                   />
                   <h4 className="font-medium text-center text-sm">{item.name}</h4>
                 </Link>
+                {!isFullyConsumed(item) && (
+                  <button
+                    type="button"
+                    aria-label={`Throw away ${item.name}`}
+                    title="Throw away"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setThrowingAway(item);
+                    }}
+                    className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full border-0 bg-black/60 leading-none text-white transition hover:bg-black/80"
+                  >
+                    <span aria-hidden="true">🗑</span>
+                  </button>
+                )}
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      {throwingAway && (
+        <ThrowAwayPanel
+          uuid={throwingAway.uuid}
+          item={throwingAway}
+          onSaved={() => mutate()}
+          onClose={() => setThrowingAway(null)}
+        />
+      )}
     </>
   );
 }

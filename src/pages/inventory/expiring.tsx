@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
 import InventoryImage from '@/components/InventoryImage';
+import ThrowAwayPanel from '@/components/inventory/ThrowAwayPanel';
 import { useMeasures, findMeasure } from '@/lib/measures';
 import { apiFetch, useActiveHouse } from '@/lib/houses';
 
@@ -44,17 +46,19 @@ type ItemWithDaysLeft = InventoryItem & { daysLeft: number };
 function displayMeasure(item: InventoryItem, measures: Measure[]): string {
   const measure = findMeasure(item.measure, measures);
   if (!measure) return item.measure;
-  return item.amount === 1 ? measure.singular : measure.plural;
+  return item.remaining === 1 ? measure.singular : measure.plural;
 }
 
 function ExpirationSection({
   title,
   items,
   measures,
+  onThrowAway,
 }: {
   title: string;
   items: ItemWithDaysLeft[];
   measures: Measure[];
+  onThrowAway: (item: ItemWithDaysLeft) => void;
 }) {
   return (
     <div>
@@ -64,7 +68,7 @@ function ExpirationSection({
       {items.length > 0 && (
         <ul className="list-none p-0 grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-4 my-4">
           {items.map((item) => (
-            <li key={item.uuid}>
+            <li key={item.uuid} className="relative">
               <Link
                 href={`/inventory/${item.uuid}`}
                 className="grid gap-2"
@@ -75,12 +79,24 @@ function ExpirationSection({
                 />
                 <h5 className="font-medium text-center text-sm">{item.name}</h5>
                 <p className="text-center text-xs text-[#666] -mt-1">
-                  {item.amount} {displayMeasure(item, measures)}
+                  {item.remaining} {displayMeasure(item, measures)}
                 </p>
                 <p className={`text-center text-xs font-medium -mt-1 ${daysLeftColor(item.daysLeft)}`}>
                   {formatDaysLeft(item.daysLeft)}
                 </p>
               </Link>
+              <button
+                type="button"
+                aria-label={`Throw away ${item.name}`}
+                title="Throw away"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onThrowAway(item);
+                }}
+                className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full border-0 bg-black/60 leading-none text-white transition hover:bg-black/80"
+              >
+                <span aria-hidden="true">🗑</span>
+              </button>
             </li>
           ))}
         </ul>
@@ -91,11 +107,12 @@ function ExpirationSection({
 
 export default function ExpiringInventory() {
   const activeHouse = useActiveHouse();
-  const { data: items, error, isLoading } = useSWR(
-    activeHouse ? ['/api/inventory', activeHouse.id] : null,
-    () => fetcher('/api/inventory'),
+  const { data: items, error, isLoading, mutate } = useSWR(
+    activeHouse ? ['/api/inventory?excludeFullyConsumed=true', activeHouse.id] : null,
+    () => fetcher('/api/inventory?excludeFullyConsumed=true'),
   );
   const measures = useMeasures();
+  const [throwingAway, setThrowingAway] = useState<ItemWithDaysLeft | null>(null);
 
   if (!activeHouse || isLoading) {
     return (
@@ -115,6 +132,10 @@ export default function ExpiringInventory() {
     );
   }
 
+  // Fully-consumed items (nothing left to expire) are already excluded by the
+  // backend (excludeFullyConsumed=true above) — unlike the pantry list, which
+  // deliberately keeps them visible, greyed out, in case the user wants to
+  // restock.
   const withDaysLeft = items
     .map((item) => ({ ...item, daysLeft: daysUntil(item.expiration) }))
     .sort((a, b) => a.daysLeft - b.daysLeft);
@@ -138,11 +159,20 @@ export default function ExpiringInventory() {
           <p>No items in inventory</p>
         ) : (
           <>
-            <ExpirationSection title="In the next week" items={nextWeek} measures={measures} />
-            <ExpirationSection title="In the next month" items={nextMonth} measures={measures} />
+            <ExpirationSection title="In the next week" items={nextWeek} measures={measures} onThrowAway={setThrowingAway} />
+            <ExpirationSection title="In the next month" items={nextMonth} measures={measures} onThrowAway={setThrowingAway} />
           </>
         )}
       </section>
+
+      {throwingAway && (
+        <ThrowAwayPanel
+          uuid={throwingAway.uuid}
+          item={throwingAway}
+          onSaved={() => mutate()}
+          onClose={() => setThrowingAway(null)}
+        />
+      )}
     </>
   );
 }

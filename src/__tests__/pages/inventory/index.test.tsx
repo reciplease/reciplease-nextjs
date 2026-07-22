@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import InventoryList from '@/pages/inventory';
 
 jest.mock('swr');
@@ -6,6 +6,8 @@ jest.mock('@/lib/houses', () => ({
   useActiveHouse: () => ({ id: 'h1', name: 'Home', role: 'OWNER' }),
   apiFetch: (url: string, init?: RequestInit) => fetch(url, init),
 }));
+
+global.fetch = jest.fn();
 jest.mock('next/link', () => ({ children, href, className }: { children: React.ReactNode; href: string; className?: string }) => (
   <a href={href} className={className}>{children}</a>
 ));
@@ -45,6 +47,11 @@ const mockItems: InventoryItem[] = [
 ];
 
 describe('InventoryList', () => {
+  beforeEach(() => {
+    (fetch as jest.Mock).mockReset();
+    (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+  });
+
   it('shows loading state', () => {
     useSWR.mockReturnValue({ isLoading: true, data: undefined, error: undefined });
     render(<InventoryList />);
@@ -105,5 +112,32 @@ describe('InventoryList', () => {
     useSWR.mockReturnValue({ isLoading: false, data: mockItems, error: undefined });
     render(<InventoryList />);
     expect(screen.getByRole('link', { name: /expiring soon/i })).toHaveAttribute('href', '/inventory/expiring');
+  });
+
+  it('hides the throw-away quick action for an already fully-consumed item', () => {
+    const eaten: InventoryItem = { ...mockItems[1], name: 'Zucchini', remaining: 0 };
+    useSWR.mockReturnValue({ isLoading: false, data: [eaten], error: undefined });
+    render(<InventoryList />);
+    expect(screen.queryByRole('button', { name: /throw away/i })).not.toBeInTheDocument();
+  });
+
+  it('opens the throw-away panel from the tile grid and bins the item without navigating to its detail page', async () => {
+    const mutate = jest.fn();
+    useSWR.mockReturnValue({ isLoading: false, data: mockItems, error: undefined, mutate });
+    render(<InventoryList />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Throw away Bread' }));
+    expect(screen.getByRole('heading', { name: 'Throw away Bread' })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Amount thrown away'), { target: { value: '2' } });
+    fireEvent.submit(screen.getByLabelText('Amount thrown away').closest('form')!);
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/inventory/uuid-1',
+        expect.objectContaining({ method: 'PUT' }),
+      );
+      expect(mutate).toHaveBeenCalled();
+    });
   });
 });
