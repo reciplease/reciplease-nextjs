@@ -10,25 +10,13 @@ export type House = Required<components['schemas']['House']>;
 export type HouseMember = Required<components['schemas']['HouseMember']>;
 export type PendingInvite = Required<components['schemas']['HouseInvite']>;
 
-// Hand-written until `npm run codegen:types` runs against a backend that has
-// the /api/houses/api-keys endpoints deployed — mirrors org.reciplease.dto
-// .ApiKeyDto / .CreatedApiKeyDto. Replace with the generated schema types once
-// that's regenerated.
-export type ApiKey = {
-  id: string;
-  name: string;
-  role: 'OWNER' | 'READ_ONLY';
-  keyPrefix: string;
-  createdAt: string;
+// lastUsedAt is excluded from the blanket `Required` below: springdoc has no way to declare
+// it nullable (unlike e.g. HouseMember.handle), but the backend does send JSON null for a key
+// that's never been used, so it's typed explicitly here instead.
+export type ApiKey = Required<Omit<components['schemas']['ApiKey'], 'lastUsedAt'>> & {
   lastUsedAt: string | null;
 };
-export type CreatedApiKey = {
-  id: string;
-  name: string;
-  role: 'OWNER' | 'READ_ONLY';
-  rawKey: string;
-  createdAt: string;
-};
+export type CreatedApiKey = Required<components['schemas']['CreatedApiKey']>;
 
 export const HOUSE_COOKIE = 'reciplease-house-id';
 // Mirrors org.reciplease.configuration.HouseAccess.HOUSE_HEADER on the backend.
