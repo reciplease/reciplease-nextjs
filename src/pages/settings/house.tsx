@@ -1,6 +1,14 @@
 import Metadata from '@/components/Metadata';
 import HouseSwitcher from '@/components/HouseSwitcher';
-import { useActiveHouse, useHouseMembers, usePendingInvites, apiFetch, type PendingInvite } from '@/lib/houses';
+import {
+  useActiveHouse,
+  useHouseMembers,
+  usePendingInvites,
+  useApiKeys,
+  apiFetch,
+  type PendingInvite,
+  type CreatedApiKey,
+} from '@/lib/houses';
 import { useState } from 'react';
 import useSWR from 'swr';
 
@@ -37,6 +45,7 @@ export default function HouseSettingsPage() {
   const activeHouse = useActiveHouse();
   const { data: members, mutate: mutateMembers } = useHouseMembers();
   const { data: invites, mutate: mutateInvites } = usePendingInvites();
+  const { data: apiKeys, mutate: mutateApiKeys } = useApiKeys();
   // Current user's id, so we don't offer to remove yourself (cached by AccessGate).
   const { data: me } = useSWR<{ id: string }>('/api/me', (url: string) =>
     apiFetch(url).then((r) => (r.ok ? r.json() : null)),
@@ -46,6 +55,10 @@ export default function HouseSettingsPage() {
   const [newInviteRole, setNewInviteRole] = useState<Role>('READ_ONLY');
   const [generating, setGenerating] = useState(false);
   const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
+  const [newKeyName, setNewKeyName] = useState('');
+  const [newKeyRole, setNewKeyRole] = useState<Role>('READ_ONLY');
+  const [creatingKey, setCreatingKey] = useState(false);
+  const [revealedKey, setRevealedKey] = useState<CreatedApiKey | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function updateRole(userId: string, role: Role) {
@@ -114,6 +127,40 @@ export default function HouseSettingsPage() {
       return;
     }
     await mutateInvites();
+  }
+
+  async function createApiKey() {
+    if (!newKeyName.trim()) return;
+    setCreatingKey(true);
+    setError(null);
+    try {
+      const res = await apiFetch('/api/houses/api-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newKeyName.trim(), role: newKeyRole }),
+      });
+      if (!res.ok) {
+        setError('Could not create that API key. Please try again.');
+        return;
+      }
+      const created: CreatedApiKey = await res.json();
+      setRevealedKey(created);
+      setNewKeyName('');
+      await mutateApiKeys();
+    } finally {
+      setCreatingKey(false);
+    }
+  }
+
+  async function revokeApiKey(keyId: string) {
+    if (!window.confirm('Revoke this API key? Anything using it will stop working immediately.')) return;
+    setError(null);
+    const res = await apiFetch(`/api/houses/api-keys/${keyId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      setError('Could not revoke that key. Please try again.');
+      return;
+    }
+    await mutateApiKeys();
   }
 
   if (activeHouse && activeHouse.role !== 'OWNER') {
@@ -218,6 +265,76 @@ export default function HouseSettingsPage() {
                   onClick={() => deleteInvite(invite.id)}
                 >
                   Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        </fieldset>
+
+        <fieldset className="mb-8">
+          <legend className="text-lg font-medium">API keys</legend>
+          <p className="mb-3 text-sm opacity-70">
+            Create a service-account key for a third-party app (e.g. Home Assistant) that can&apos;t sign in interactively.
+          </p>
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              aria-label="Key name"
+              placeholder="e.g. Home Assistant"
+              value={newKeyName}
+              disabled={creatingKey}
+              onChange={(e) => setNewKeyName(e.target.value)}
+              className="rounded border-2 border-secondary bg-black p-2 text-sm text-white"
+            />
+            <RoleSelect value={newKeyRole} onChange={setNewKeyRole} disabled={creatingKey} />
+            <button type="button" className="cursor-pointer" disabled={creatingKey || !newKeyName.trim()} onClick={createApiKey}>
+              {creatingKey ? 'Creating…' : 'Create key'}
+            </button>
+          </div>
+
+          {revealedKey && (
+            <div className="mt-4 rounded border-2 border-highlight p-3">
+              <p className="mb-2 text-sm">
+                Copy this key now — you won&apos;t be able to see it again.
+              </p>
+              <div className="flex items-center gap-3">
+                <code className="min-w-0 flex-1 truncate text-sm">{revealedKey.rawKey}</code>
+                <button
+                  type="button"
+                  className="shrink-0 cursor-pointer"
+                  onClick={() => navigator.clipboard.writeText(revealedKey.rawKey)}
+                >
+                  Copy
+                </button>
+                <button type="button" className="shrink-0 cursor-pointer" onClick={() => setRevealedKey(null)}>
+                  Done
+                </button>
+              </div>
+            </div>
+          )}
+
+          {apiKeys && apiKeys.length === 0 && (
+            <p className="mt-3 text-sm opacity-70">No API keys yet.</p>
+          )}
+          <ul className="mt-3 flex flex-col gap-2">
+            {apiKeys?.map((apiKey) => (
+              <li key={apiKey.id} className="flex items-center justify-between gap-3">
+                <span className="min-w-0">
+                  {apiKey.name} ({apiKey.role === 'OWNER' ? 'Owner' : 'Read only'})
+                  <br />
+                  <span className="text-sm opacity-70">
+                    {apiKey.keyPrefix}… &middot; created {new Date(apiKey.createdAt).toLocaleDateString()}
+                    {apiKey.lastUsedAt
+                      ? ` · last used ${new Date(apiKey.lastUsedAt).toLocaleDateString()}`
+                      : ' · never used'}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className="shrink-0 cursor-pointer"
+                  onClick={() => revokeApiKey(apiKey.id)}
+                >
+                  Revoke
                 </button>
               </li>
             ))}
