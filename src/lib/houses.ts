@@ -9,26 +9,8 @@ import type { components } from '@/types/generated/api';
 export type House = Required<components['schemas']['House']>;
 export type HouseMember = Required<components['schemas']['HouseMember']>;
 export type PendingInvite = Required<components['schemas']['HouseInvite']>;
-
-// Hand-written until `npm run codegen:types` runs against a backend that has
-// the /api/houses/api-keys endpoints deployed — mirrors org.reciplease.dto
-// .ApiKeyDto / .CreatedApiKeyDto. Replace with the generated schema types once
-// that's regenerated.
-export type ApiKey = {
-  id: string;
-  name: string;
-  role: 'OWNER' | 'READ_ONLY';
-  keyPrefix: string;
-  createdAt: string;
-  lastUsedAt: string | null;
-};
-export type CreatedApiKey = {
-  id: string;
-  name: string;
-  role: 'OWNER' | 'READ_ONLY';
-  rawKey: string;
-  createdAt: string;
-};
+export type ApiKey = Required<components['schemas']['ApiKey']>;
+export type CreatedApiKey = Required<components['schemas']['CreatedApiKey']>;
 
 export const HOUSE_COOKIE = 'reciplease-house-id';
 // Mirrors org.reciplease.configuration.HouseAccess.HOUSE_HEADER on the backend.
