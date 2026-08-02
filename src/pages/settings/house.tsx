@@ -276,7 +276,7 @@ export default function HouseSettingsPage() {
           <p className="mb-3 text-sm opacity-70">
             Create a service-account key for a third-party app (e.g. Home Assistant) that can&apos;t sign in interactively.
           </p>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <input
               type="text"
               aria-label="Key name"
@@ -284,7 +284,7 @@ export default function HouseSettingsPage() {
               value={newKeyName}
               disabled={creatingKey}
               onChange={(e) => setNewKeyName(e.target.value)}
-              className="rounded border-2 border-secondary bg-black p-2 text-sm text-white"
+              className="min-w-0 flex-1 rounded border-2 border-secondary bg-black p-2 text-sm text-white sm:flex-none"
             />
             <RoleSelect value={newKeyRole} onChange={setNewKeyRole} disabled={creatingKey} />
             <button type="button" className="cursor-pointer" disabled={creatingKey || !newKeyName.trim()} onClick={createApiKey}>
@@ -297,16 +297,19 @@ export default function HouseSettingsPage() {
               <p className="mb-2 text-sm">
                 Copy this key now — you won&apos;t be able to see it again.
               </p>
-              <div className="flex items-center gap-3">
-                <code className="min-w-0 flex-1 truncate text-sm">{revealedKey.rawKey}</code>
+              {/* break-all (not truncate) so the whole secret stays visible and wraps
+                  within the column, rather than truncating it or overflowing on narrow
+                  viewports — the point of this box is to let it actually be read. */}
+              <code className="mb-3 block break-all text-sm">{revealedKey.rawKey}</code>
+              <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
-                  className="shrink-0 cursor-pointer"
+                  className="cursor-pointer"
                   onClick={() => navigator.clipboard.writeText(revealedKey.rawKey)}
                 >
                   Copy
                 </button>
-                <button type="button" className="shrink-0 cursor-pointer" onClick={() => setRevealedKey(null)}>
+                <button type="button" className="cursor-pointer" onClick={() => setRevealedKey(null)}>
                   Done
                 </button>
               </div>
