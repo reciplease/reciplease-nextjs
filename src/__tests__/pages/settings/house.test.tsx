@@ -11,12 +11,13 @@ jest.mock('@/lib/houses', () => ({
   useActiveHouse: jest.fn(),
   useHouseMembers: jest.fn(),
   usePendingInvites: jest.fn(),
+  useApiKeys: jest.fn(),
   apiFetch: (url: string, init?: RequestInit) => fetch(url, init),
 }));
 jest.mock('@/components/Metadata', () => () => null);
 jest.mock('@/components/HouseSwitcher', () => () => <div data-testid="house-switcher" />);
 
-const { useActiveHouse, useHouseMembers, usePendingInvites } = require('@/lib/houses');
+const { useActiveHouse, useHouseMembers, usePendingInvites, useApiKeys } = require('@/lib/houses');
 
 beforeEach(() => {
   Object.assign(navigator, { clipboard: { writeText: jest.fn().mockResolvedValue(undefined) } });
@@ -32,6 +33,7 @@ describe('HouseSettingsPage', () => {
     useActiveHouse.mockReturnValue({ id: 'house-1', name: 'Test House', role: 'READ_ONLY' });
     useHouseMembers.mockReturnValue({ data: undefined, mutate: jest.fn() });
     usePendingInvites.mockReturnValue({ data: undefined, mutate: jest.fn() });
+    useApiKeys.mockReturnValue({ data: undefined, mutate: jest.fn() });
 
     render(<HouseSettingsPage />);
 
@@ -42,6 +44,7 @@ describe('HouseSettingsPage', () => {
     useActiveHouse.mockReturnValue({ id: 'house-1', name: 'Test House', role: 'READ_ONLY' });
     useHouseMembers.mockReturnValue({ data: undefined, mutate: jest.fn() });
     usePendingInvites.mockReturnValue({ data: undefined, mutate: jest.fn() });
+    useApiKeys.mockReturnValue({ data: undefined, mutate: jest.fn() });
 
     render(<HouseSettingsPage />);
 
@@ -51,6 +54,7 @@ describe('HouseSettingsPage', () => {
   describe('as an owner', () => {
     const mutateMembers = jest.fn();
     const mutateInvites = jest.fn();
+    const mutateApiKeys = jest.fn();
 
     beforeEach(() => {
       useActiveHouse.mockReturnValue({ id: 'house-1', name: 'Test House', role: 'OWNER' });
@@ -64,6 +68,17 @@ describe('HouseSettingsPage', () => {
       usePendingInvites.mockReturnValue({
         data: [{ id: 'invite-1', code: 'abc123', role: 'READ_ONLY', createdAt: '2026-01-01T00:00:00.000Z' }],
         mutate: mutateInvites,
+      });
+      useApiKeys.mockReturnValue({
+        data: [{
+          id: 'key-1',
+          name: 'Home Assistant',
+          role: 'READ_ONLY',
+          keyPrefix: 'rcpl_abcdefghij',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          lastUsedAt: null,
+        }],
+        mutate: mutateApiKeys,
       });
     });
 
@@ -156,6 +171,57 @@ describe('HouseSettingsPage', () => {
         expect.objectContaining({ method: 'DELETE' }),
       ));
       await waitFor(() => expect(mutateMembers).toHaveBeenCalled());
+      confirmSpy.mockRestore();
+    });
+
+    it('shows existing API keys without exposing a raw secret', () => {
+      render(<HouseSettingsPage />);
+
+      expect(screen.getByText(/rcpl_abcdefghij…/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Revoke' })).toBeInTheDocument();
+    });
+
+    it('creates an API key, reveals the raw secret once, and revalidates the list', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({ id: 'key-2', name: 'Grocery bot', role: 'READ_ONLY', rawKey: 'rcpl_rawsecretvalue1234' }),
+      });
+      render(<HouseSettingsPage />);
+
+      fireEvent.change(screen.getByLabelText('Key name'), { target: { value: 'Grocery bot' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Create key' }));
+
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+        '/api/houses/api-keys',
+        expect.objectContaining({ method: 'POST', body: JSON.stringify({ name: 'Grocery bot', role: 'READ_ONLY' }) }),
+      ));
+      expect(await screen.findByText('rcpl_rawsecretvalue1234')).toBeInTheDocument();
+      await waitFor(() => expect(mutateApiKeys).toHaveBeenCalled());
+    });
+
+    it('revokes an API key and revalidates the list', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
+      const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
+      render(<HouseSettingsPage />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+        '/api/houses/api-keys/key-1',
+        expect.objectContaining({ method: 'DELETE' }),
+      ));
+      await waitFor(() => expect(mutateApiKeys).toHaveBeenCalled());
+      confirmSpy.mockRestore();
+    });
+
+    it('does not revoke an API key when the confirmation is dismissed', () => {
+      (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
+      const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false);
+      render(<HouseSettingsPage />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+
+      expect(global.fetch).not.toHaveBeenCalledWith('/api/houses/api-keys/key-1', expect.anything());
       confirmSpy.mockRestore();
     });
   });

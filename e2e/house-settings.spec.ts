@@ -29,6 +29,17 @@ const pendingInvites = [
   { id: 'invite-1', code: 'abc123def456ghi789jk', role: 'READ_ONLY', createdAt: '2026-01-01T00:00:00.000Z' },
 ];
 
+const apiKeys = [
+  {
+    id: 'key-1',
+    name: 'Home Assistant',
+    role: 'READ_ONLY',
+    keyPrefix: 'rcpl_abcdefghij',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    lastUsedAt: null,
+  },
+];
+
 test.describe('House settings page', () => {
   test.beforeEach(async ({ page }) => {
     await mockSession(page);
@@ -37,6 +48,13 @@ test.describe('House settings page', () => {
     await page.route('/api/houses/invites', (route) => {
       if (route.request().method() === 'GET') {
         route.fulfill({ json: pendingInvites });
+      } else {
+        route.continue();
+      }
+    });
+    await page.route('/api/houses/api-keys', (route) => {
+      if (route.request().method() === 'GET') {
+        route.fulfill({ json: apiKeys });
       } else {
         route.continue();
       }
@@ -92,6 +110,39 @@ test.describe('House settings page', () => {
 
     await page.goto('/settings/house');
     await page.getByRole('button', { name: 'Delete' }).click();
+
+    await expect.poll(() => deleteRequested).toBe(true);
+  });
+
+  test('creates an API key and reveals the raw secret once', async ({ page }) => {
+    await page.route('/api/houses/api-keys', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          status: 201,
+          json: { id: 'key-2', name: 'Grocery bot', role: 'READ_ONLY', rawKey: 'rcpl_newlymintedsecret123', createdAt: '2026-01-02T00:00:00.000Z' },
+        });
+      } else {
+        await route.fulfill({ json: apiKeys });
+      }
+    });
+
+    await page.goto('/settings/house');
+    await page.getByLabel('Key name').fill('Grocery bot');
+    await page.getByRole('button', { name: 'Create key' }).click();
+
+    await expect(page.getByText('rcpl_newlymintedsecret123')).toBeVisible();
+  });
+
+  test('revokes an API key', async ({ page }) => {
+    let deleteRequested = false;
+    await page.route('/api/houses/api-keys/key-1', async (route) => {
+      deleteRequested = true;
+      await route.fulfill({ status: 204 });
+    });
+
+    await page.goto('/settings/house');
+    page.on('dialog', (dialog) => dialog.accept());
+    await page.getByRole('button', { name: 'Revoke' }).click();
 
     await expect.poll(() => deleteRequested).toBe(true);
   });
