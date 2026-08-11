@@ -9,11 +9,11 @@ interface ThrowAwayFlowProps {
 
 // The item detail page's throw-away entry point: a FAB that opens
 // ThrowAwayPanel. Records binning some of an inventory item — decrements
-// `remaining` exactly like EatFlow does (clamped at zero, item never
-// deleted), but nothing was eaten so there is no food-diary step —
-// thrown-away food must never reach Google Health. The amount prefills with
-// what's left, since the common case is binning the whole thing once it's
-// expired.
+// `remaining` exactly like EatFlow does (clamped at zero, emptying it
+// archives and deletes the item server-side), but nothing was eaten so there
+// is no food-diary step — thrown-away food must never reach Google Health.
+// The amount prefills with what's left, since the common case is binning the
+// whole thing once it's expired.
 export default function ThrowAwayFlow({ uuid, item, onSaved }: ThrowAwayFlowProps) {
   const [open, setOpen] = useState(false);
 

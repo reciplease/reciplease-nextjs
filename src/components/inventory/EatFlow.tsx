@@ -17,12 +17,12 @@ interface EatFlowProps {
 }
 
 // Records eating some of an inventory item: always decrements `remaining`
-// (clamped at zero, never below — a fully-consumed item stays around rather
-// than being deleted, so it can still show up greyed-out/sorted-last on the
-// pantry page, the same treatment expired items get), and — when Google
-// Health is linked — optionally logs the same amount to Google Health's food
-// diary. The FAB and the panel it opens live in the same component since
-// neither is useful alone.
+// (clamped at zero, never below — emptying it archives and deletes the item
+// server-side, so it simply won't be there next time the pantry list or this
+// item's own page refetches), and — when Google Health is linked —
+// optionally logs the same amount to Google Health's food diary. The FAB and
+// the panel it opens live in the same component since neither is useful
+// alone.
 //
 // Food search merges two sources (see /api/food/search): the user's own
 // Google Health history (an "identified food" match — Google fills in
@@ -135,8 +135,6 @@ export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
     setSubmitting(true);
     try {
       const eaten = parseFloat(amountEaten);
-      // Clamped at zero rather than deleting the item — a fully-consumed item
-      // just sorts to the end and greys out on the pantry page instead.
       const newRemaining = Math.max(0, item.remaining - (Number.isFinite(eaten) ? eaten : 0));
 
       const body: CreateInventoryItem & { remaining: number } = {

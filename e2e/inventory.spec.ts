@@ -72,3 +72,64 @@ test.describe('Inventory (auth disabled)', () => {
     await expect(page).toHaveURL(/\/inventory\/item-1/);
   });
 });
+
+test.describe('Binning the last of an item (auth disabled)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route('**/api/auth/session', (route) =>
+      route.fulfill({
+        json: {
+          user: { name: 'Owner', email: 'owner@example.com' },
+          expires: '2099-01-01T00:00:00.000Z',
+        },
+      }),
+    );
+    await page.route('/api/houses', (route) =>
+      route.fulfill({ json: [{ id: 'house-1', name: 'Home', role: 'OWNER' }] }),
+    );
+    await page.route('/api/measures', (route) => {
+      if (route.request().method() === 'GET') {
+        route.fulfill({ json: mockMeasures });
+      } else {
+        route.continue();
+      }
+    });
+  });
+
+  test('binning it all removes the item from the pantry list rather than leaving a 0-remaining row', async ({ page }) => {
+    // Mutable backing "database" so GET reflects whatever the PUT below did — mirrors the
+    // real backend's archive-and-delete behavior (see InventoryService.saveOrArchive).
+    let items = [...mockInventoryItems];
+
+    await page.route('/api/inventory', (route) => {
+      if (route.request().method() === 'GET') {
+        route.fulfill({ json: items });
+      } else {
+        route.continue();
+      }
+    });
+    await page.route('/api/inventory/item-1', (route) => {
+      if (route.request().method() === 'PUT') {
+        const body = route.request().postDataJSON();
+        if (body.remaining <= 0) {
+          items = items.filter((item) => item.uuid !== 'item-1');
+          route.fulfill({ status: 204 });
+        } else {
+          route.fulfill({ json: { ...items[0], remaining: body.remaining } });
+        }
+      } else {
+        route.continue();
+      }
+    });
+
+    await page.goto('/inventory');
+    await expect(page.getByText('Milk')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Throw away Milk' }).click();
+    await page.getByLabel('Amount thrown away').fill('500');
+    await page.getByRole('button', { name: 'Throw away', exact: true }).click();
+
+    await expect(page.getByRole('heading', { name: 'Throw away Milk' })).not.toBeVisible();
+    await expect(page.getByText('No items in inventory')).toBeVisible();
+    await expect(page.getByRole('link', { name: /Milk/ })).not.toBeVisible();
+  });
+});

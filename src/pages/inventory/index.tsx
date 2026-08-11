@@ -6,7 +6,7 @@ import InventoryImage from '@/components/InventoryImage';
 import ThrowAwayPanel from '@/components/inventory/ThrowAwayPanel';
 import { apiFetch, useActiveHouse } from '@/lib/houses';
 import { useMeasures, findMeasure } from '@/lib/measures';
-import { isFullyConsumed, daysUntil, formatDaysLeft, daysLeftColor } from '@/lib/inventory';
+import { daysUntil, formatDaysLeft, daysLeftColor } from '@/lib/inventory';
 
 const fetcher = (url: string): Promise<InventoryItem[]> =>
   apiFetch(url).then((res) => res.json());
@@ -30,13 +30,9 @@ function InventoryTile({
   measures: Measure[];
   onThrowAway: (item: InventoryItem) => void;
 }) {
-  const consumed = isFullyConsumed(item);
   return (
     <li className="relative">
-      <Link
-        href={`/inventory/${item.uuid}`}
-        className={`grid gap-2${consumed ? ' opacity-60' : ''}`}
-      >
+      <Link href={`/inventory/${item.uuid}`} className="grid gap-2">
         <InventoryImage
           item={item}
           className="w-full aspect-square object-cover rounded border border-[#ccc]"
@@ -57,20 +53,18 @@ function InventoryTile({
           </>
         )}
       </Link>
-      {!consumed && (
-        <button
-          type="button"
-          aria-label={`Throw away ${item.name}`}
-          title="Throw away"
-          onClick={(e) => {
-            e.preventDefault();
-            onThrowAway(item);
-          }}
-          className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full border-0 bg-black/60 leading-none text-white transition hover:bg-black/80"
-        >
-          <span aria-hidden="true">🗑</span>
-        </button>
-      )}
+      <button
+        type="button"
+        aria-label={`Throw away ${item.name}`}
+        title="Throw away"
+        onClick={(e) => {
+          e.preventDefault();
+          onThrowAway(item);
+        }}
+        className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full border-0 bg-black/60 leading-none text-white transition hover:bg-black/80"
+      >
+        <span aria-hidden="true">🗑</span>
+      </button>
     </li>
   );
 }
@@ -143,18 +137,12 @@ export default function InventoryList() {
     );
   }
 
-  // Items with something left first (alphabetically), then fully-consumed
-  // ones (also alphabetically) — greyed out below, rather than hidden.
-  const pantryItems = [...items].sort((a, b) => {
-    const aInactive = isFullyConsumed(a);
-    const bInactive = isFullyConsumed(b);
-    if (aInactive !== bInactive) return aInactive ? 1 : -1;
-    return a.name.localeCompare(b.name);
-  });
+  // A fully-consumed item is deleted server-side (see binInventoryItem), so
+  // every item the list ever sees still has something left — plain
+  // alphabetical order, nothing to grey out.
+  const pantryItems = [...items].sort((a, b) => a.name.localeCompare(b.name));
 
-  // Nearest expiration first, regardless of consumption — fully-consumed
-  // items stay in their true date bucket, just greyed out by InventoryTile,
-  // same treatment as the alphabetical view.
+  // Nearest expiration first.
   const withDaysLeft: ItemWithDaysLeft[] = [...items]
     .map((item) => ({ ...item, daysLeft: daysUntil(item.expiration) }))
     .sort((a, b) => a.daysLeft - b.daysLeft);

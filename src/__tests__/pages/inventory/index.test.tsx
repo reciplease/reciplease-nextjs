@@ -89,29 +89,11 @@ describe('InventoryList', () => {
     expect(screen.getByText('Could not load inventory')).toBeInTheDocument();
   });
 
-  it('sorts items with something left alphabetically, with fully-consumed ones after', () => {
+  it('sorts items alphabetically', () => {
     mockInventory({ isLoading: false, data: mockItems, error: undefined });
     render(<InventoryList />);
     const names = screen.getAllByRole('heading', { level: 4 }).map((el) => el.textContent);
     expect(names).toEqual(['Avocado', 'Bread', 'Flour']);
-  });
-
-  it('shows expired items like any other — they still need eating or binning', () => {
-    mockInventory({ isLoading: false, data: mockItems, error: undefined });
-    render(<InventoryList />);
-    const flourLink = screen.getByText('Flour').closest('a');
-    expect(flourLink).not.toHaveClass('opacity-60');
-  });
-
-  it('shows a fully-consumed (but unexpired) item greyed out and sorted last, not deleted', () => {
-    const eaten: InventoryItem = { ...mockItems[1], name: 'Zucchini', remaining: 0 };
-    mockInventory({ isLoading: false, data: [mockItems[0], eaten], error: undefined });
-    render(<InventoryList />);
-
-    const names = screen.getAllByRole('heading', { level: 4 }).map((el) => el.textContent);
-    expect(names).toEqual(['Bread', 'Zucchini']);
-    expect(screen.getByText('Zucchini').closest('a')).toHaveClass('opacity-60');
-    expect(screen.getByText('Bread').closest('a')).not.toHaveClass('opacity-60');
   });
 
   it('renders a photo thumbnail when the item has an image', () => {
@@ -176,13 +158,6 @@ describe('InventoryList', () => {
     expect(names).toEqual(['Avocado', 'Bread', 'Flour']);
   });
 
-  it('hides the throw-away quick action for an already fully-consumed item', () => {
-    const eaten: InventoryItem = { ...mockItems[1], name: 'Zucchini', remaining: 0 };
-    mockInventory({ isLoading: false, data: [eaten], error: undefined });
-    render(<InventoryList />);
-    expect(screen.queryByRole('button', { name: /throw away/i })).not.toBeInTheDocument();
-  });
-
   it('opens the throw-away panel from the tile grid and bins the item without navigating to its detail page', async () => {
     const mutate = jest.fn();
     mockInventory({ isLoading: false, data: mockItems, error: undefined, mutate });
@@ -201,5 +176,23 @@ describe('InventoryList', () => {
       );
       expect(mutate).toHaveBeenCalled();
     });
+  });
+
+  it('treats binning the last of an item (204, no body) as success and refetches the list', async () => {
+    (fetch as jest.Mock).mockResolvedValue({ ok: true, status: 204, json: async () => ({}) });
+    const mutate = jest.fn();
+    mockInventory({ isLoading: false, data: mockItems, error: undefined, mutate });
+    render(<InventoryList />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Throw away Bread' }));
+    fireEvent.change(screen.getByLabelText('Amount thrown away'), { target: { value: '2' } });
+    fireEvent.submit(screen.getByLabelText('Amount thrown away').closest('form')!);
+
+    await waitFor(() => {
+      expect(mutate).toHaveBeenCalled();
+    });
+    // Once mutate() actually revalidates against the real backend, the item is simply
+    // absent from the next GET /api/inventory response — no client-side removal logic needed.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

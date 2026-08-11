@@ -1,12 +1,5 @@
 import { apiFetch } from '@/lib/houses';
 
-// Fully-eaten items aren't hidden from the pantry list — they're physically
-// gone, but the user may still want to see them (e.g. to restock), so this
-// only controls display/sort treatment there (see inventory/index.tsx).
-export function isFullyConsumed(item: InventoryItem): boolean {
-  return (item.remaining ?? item.amount ?? 0) <= 0;
-}
-
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 // Whole calendar days between today and the expiration date — negative once
@@ -40,9 +33,12 @@ export function daysLeftColor(daysLeft: number): string {
 
 /**
  * Records binning `thrown` units of `item` — decrements `remaining` (clamped
- * at zero, the item is never deleted) via the same PUT the edit form uses.
- * Shared by the item detail page's ThrowAwayFlow FAB and the inline
- * quick-action on the pantry/expiring-soon list tiles.
+ * at zero) via the same PUT the edit form uses. If that empties the item,
+ * the backend archives and deletes it (204, no body) instead of returning
+ * an updated item — `res.ok` covers both outcomes; the pantry list simply
+ * won't see the item again once it's gone. Shared by the item detail page's
+ * ThrowAwayFlow FAB and the inline quick-action on the pantry/expiring-soon
+ * list tiles.
  */
 export async function binInventoryItem(uuid: string, item: InventoryItem, thrown: number): Promise<boolean> {
   const newRemaining = Math.max(0, item.remaining - (Number.isFinite(thrown) ? thrown : 0));
