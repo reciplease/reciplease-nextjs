@@ -12,6 +12,7 @@ import { compressToBase64 } from '@/lib/imageCapture';
 import { formatDate } from '@/lib/formatDate';
 import { apiFetch } from '@/lib/houses';
 import { useMeasures } from '@/lib/measures';
+import { toIsoDate } from '@/lib/week';
 
 // Load scanner adapters client-side only (they use browser APIs)
 const BarcodeScanner = dynamic(() => import('@/components/scanner/BarcodeScanner'), { ssr: false });
@@ -42,7 +43,7 @@ export default function ScanPage() {
   const [barcode, setBarcode] = useState('');
   const [name, setName] = useState('');
   const [measure, setMeasure] = useState<Measure | null>(null);
-  const [expiration, setExpiration] = useState('');
+  const [expiration, setExpiration] = useState(toIsoDate(new Date()));
   const [amount, setAmount] = useState('');
   // Where the suggested name came from, so we can hint at it on the confirm step.
   const [nameSource, setNameSource] = useState<'inventory' | 'openfoodfacts' | null>(null);
@@ -94,7 +95,7 @@ export default function ScanPage() {
 
   function handleConfirmDetails() {
     if (!name.trim()) return;
-    setExpiration('');
+    setExpiration(toIsoDate(new Date()));
     setPhase('expiration');
   }
 
@@ -103,7 +104,7 @@ export default function ScanPage() {
     setBarcode('');
     setName('');
     setMeasure(null);
-    setExpiration('');
+    setExpiration(toIsoDate(new Date()));
     setAmount('');
     setNameSource(null);
     setCandidates([]);
@@ -312,7 +313,7 @@ export default function ScanPage() {
               </button>
               <button
                 type="button"
-                onClick={() => { setPhase('expiration'); setExpiration(''); }}
+                onClick={() => { setPhase('expiration'); setExpiration(toIsoDate(new Date())); }}
                 className="px-4 py-2 bg-zinc-700 text-white rounded-lg hover:bg-zinc-600 text-sm"
               >
                 ← Edit date

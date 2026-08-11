@@ -12,6 +12,7 @@ import { suggestItemFromBarcode } from '@/lib/suggestItemFromBarcode';
 import { compressToBase64, toDataUrl } from '@/lib/imageCapture';
 import { apiFetch, useActiveHouse } from '@/lib/houses';
 import { useMeasures } from '@/lib/measures';
+import { toIsoDate } from '@/lib/week';
 
 const fetcher = (url: string): Promise<PendingInventoryItem> =>
   apiFetch(url).then((res) => {
@@ -75,7 +76,7 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingInventor
   const [suggestedMeasureId, setSuggestedMeasureId] = useState<string | null>(null);
   const [measure, setMeasure] = useState<Measure | null>(null);
   const [amount, setAmount] = useState('');
-  const [expiration, setExpiration] = useState('');
+  const [expiration, setExpiration] = useState(toIsoDate(new Date()));
   // Raw base64 JPEG for the item itself — from an OpenFoodFacts product photo
   // or a manually taken one. Best-effort, like the single-item scan flow.
   const [image, setImage] = useState<string | null>(null);
