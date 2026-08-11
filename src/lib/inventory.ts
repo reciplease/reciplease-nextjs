@@ -2,11 +2,40 @@ import { apiFetch } from '@/lib/houses';
 
 // Fully-eaten items aren't hidden from the pantry list — they're physically
 // gone, but the user may still want to see them (e.g. to restock), so this
-// only controls display/sort treatment there (see inventory/index.tsx). The
-// expiring-soon list uses the same check to drop them outright instead:
-// nothing left means nothing left to expire.
+// only controls display/sort treatment there (see inventory/index.tsx).
 export function isFullyConsumed(item: InventoryItem): boolean {
   return (item.remaining ?? item.amount ?? 0) <= 0;
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// Whole calendar days between today and the expiration date — negative once
+// it's passed. `expiration` is built from its Y/M/D parts (not `new
+// Date(expiration)`, which treats a date-only string as UTC midnight and can
+// land on the wrong local calendar day) so this matches "today" in whatever
+// timezone the browser is in, not UTC.
+export function daysUntil(expiration: string): number {
+  const [year, month, day] = expiration.split('-').map(Number);
+  const expiresAt = new Date(year, month - 1, day);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((expiresAt.getTime() - today.getTime()) / MS_PER_DAY);
+}
+
+export function formatDaysLeft(daysLeft: number): string {
+  if (daysLeft > 1) return `${daysLeft} days left`;
+  if (daysLeft === 1) return '1 day left';
+  if (daysLeft === 0) return 'Expires today';
+  if (daysLeft === -1) return 'Expired yesterday';
+  return `Expired ${Math.abs(daysLeft)} days ago`;
+}
+
+// Red/amber/green by urgency: already-expired-or-expiring-imminently, due
+// within the week, or comfortably further out.
+export function daysLeftColor(daysLeft: number): string {
+  if (daysLeft <= 2) return 'text-red-600';
+  if (daysLeft <= 7) return 'text-amber-600';
+  return 'text-green-600';
 }
 
 /**
