@@ -1,9 +1,34 @@
 # AGENTS.md — Reciplease frontend (reciplease-nextjs)
 
+## Tech stack
+
+- **Package manager: yarn (classic v1)** — install with `yarn`, not `npm
+  install`. The lockfile is `yarn.lock`; there is no `package-lock.json` (if
+  one appears, it's a mistake — delete it). Individual `package.json` scripts
+  still invoke `npm run <script>` internally (e.g. `check`, `build`) — that's
+  fine, it just runs the same `scripts` entry regardless of which package
+  manager launched it; it doesn't mean npm is the intended installer.
+- **Next.js 16** (`next`), **React 18**, **TypeScript 5**. Node >=24
+  (`engines` in `package.json`).
+- Routing is split: **Pages Router** for UI (`src/pages/**`) and **App
+  Router** route handlers as a thin BFF (`src/app/api/**`) that proxy to the
+  Java backend via `backendFetch` (`src/lib/backend.ts`).
+- **Tailwind CSS 4** (`@tailwindcss/postcss`) for styling — inline utility
+  classes, no CSS modules.
+- **SWR** for client-side data fetching/caching.
+- **next-auth** for authentication (Google/GitHub OAuth); see
+  `src/lib/auth-options.ts`.
+- API types are generated from the Java backend's OpenAPI schema via
+  `openapi-typescript` (`yarn codegen:types` / `npm run codegen:types`) into
+  `src/types/generated/api.ts` — this file is gitignored, never hand-write it.
+- `@zxing/browser` / `@zxing/library` for barcode scanning (see
+  `src/components/scanner/BarcodeScanner.tsx`).
+- Dev server default is **Turbopack** (`next dev`). Note: Turbopack refuses
+  to start if `node_modules` is a symlink resolving outside the project
+  root (e.g. a symlink into another git worktree) — use a real `node_modules`
+  for anything that needs `next dev`/`next build` to actually run.
+
 Quick reference for what test suites exist in this repo and how to run them.
-Next.js app, pages router for UI (`src/pages/**`), App Router route handlers
-acting as a thin BFF (`src/app/api/**`) that proxy to the Java backend via
-`backendFetch` (`src/lib/backend.ts`).
 
 ## Test suites
 
