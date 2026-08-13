@@ -4,6 +4,7 @@ import InventoryList from '@/pages/inventory';
 jest.mock('swr');
 jest.mock('@/lib/houses', () => ({
   useActiveHouse: () => ({ id: 'h1', name: 'Home', role: 'OWNER' }),
+  usePendingCapturedItemsCount: () => 0,
   apiFetch: (url: string, init?: RequestInit) => fetch(url, init),
 }));
 
