@@ -128,3 +128,18 @@ export function useApiKeys() {
     apiKeysFetcher,
   );
 }
+
+const pendingCapturedItemsFetcher = (url: string): Promise<PendingInventoryItem[]> =>
+  apiFetch(url).then((res) => (res.ok ? res.json() : []));
+
+// Keyed identically to the fetches on /inventory/shop and /inventory/shop/process,
+// so SWR dedupes across them — mounting this in the header doesn't add a second
+// request on pages that already fetch the same list.
+export function usePendingCapturedItemsCount(): number {
+  const activeHouse = useActiveHouse();
+  const { data } = useSWR(
+    activeHouse ? ['/api/inventory/pending', activeHouse.id] : null,
+    () => pendingCapturedItemsFetcher('/api/inventory/pending'),
+  );
+  return data?.length ?? 0;
+}

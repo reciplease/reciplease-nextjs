@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Metadata from '@/components/Metadata';
 import InventoryImage from '@/components/InventoryImage';
 import ThrowAwayPanel from '@/components/inventory/ThrowAwayPanel';
-import { apiFetch, useActiveHouse } from '@/lib/houses';
+import { apiFetch, useActiveHouse, usePendingCapturedItemsCount } from '@/lib/houses';
 import { useMeasures, findMeasure } from '@/lib/measures';
 import { daysUntil, formatDaysLeft, daysLeftColor } from '@/lib/inventory';
 
@@ -116,6 +116,7 @@ export default function InventoryList() {
     () => fetcher('/api/inventory'),
   );
   const measures = useMeasures();
+  const pendingCapturedCount = usePendingCapturedItemsCount();
   const [throwingAway, setThrowingAway] = useState<InventoryItem | null>(null);
   const [showExpiration, setShowExpiration] = useState(false);
 
@@ -159,6 +160,14 @@ export default function InventoryList() {
       <section className="grid gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <h3 className="text-xl font-semibold mr-auto">Inventory</h3>
+          {pendingCapturedCount > 0 && (
+            <Link
+              href="/inventory/shop/process"
+              className="inline-flex items-center gap-1.5 rounded-full bg-highlight px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:brightness-110"
+            >
+              Process {pendingCapturedCount} captured {pendingCapturedCount === 1 ? 'item' : 'items'}
+            </Link>
+          )}
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"

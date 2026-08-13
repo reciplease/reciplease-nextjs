@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Logo from '@/components/Logo';
-import { useActiveHouse } from '@/lib/houses';
+import { useActiveHouse, usePendingCapturedItemsCount } from '@/lib/houses';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
 import { useAuthenticated } from '@/lib/useAuthenticated';
@@ -71,6 +71,7 @@ export default function Header() {
   const { data: session } = useSession();
   const authenticated = useAuthenticated();
   const activeHouse = useActiveHouse();
+  const pendingCapturedCount = usePendingCapturedItemsCount();
   const router = useRouter();
   const { pathname } = router;
 
@@ -144,6 +145,35 @@ export default function Header() {
     </Link>
   ) : null;
 
+  // Visible to any member of the house the moment a captured shop is
+  // waiting to be turned into inventory — one click straight to the process
+  // page, from wherever in the app the user happens to be.
+  const pendingCapturedLink = activeHouse && pendingCapturedCount > 0 ? (
+    <Link
+      href="/inventory/shop/process"
+      aria-label={`${pendingCapturedCount} captured ${pendingCapturedCount === 1 ? 'item' : 'items'} to process`}
+      title="Process captured items"
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-highlight px-3 py-1 text-sm font-semibold text-white transition-colors hover:brightness-110"
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M3 3h2l.4 2M7 13h10l4-8H5.4" />
+        <circle cx="9" cy="21" r="1" />
+        <circle cx="18" cy="21" r="1" />
+      </svg>
+      <span>{pendingCapturedCount}</span>
+    </Link>
+  ) : null;
+
   // Sign out lives on /settings now, alongside the rest of the account
   // controls — the header just shows who's signed in. The handle truncates
   // away first when the bar gets tight; the nav icons and settings never give
@@ -202,6 +232,7 @@ export default function Header() {
           forcing the bar wider; the icon links are `shrink-0` so the username
           always gives way first. */}
       <div className="ml-auto mr-8 flex min-w-0 items-center gap-3">
+        {pendingCapturedLink}
         {authControls}
 
         <div className="flex shrink-0 items-center gap-3">
