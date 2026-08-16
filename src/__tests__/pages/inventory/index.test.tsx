@@ -52,6 +52,7 @@ const mockItems: InventoryItem[] = [
     amount: 2,
     remaining: 2,
     expiration: daysFromNow(365),
+    createdAt: '2026-01-01T00:00:00Z',
   },
   {
     uuid: 'uuid-2',
@@ -61,6 +62,7 @@ const mockItems: InventoryItem[] = [
     remaining: 3,
     expiration: daysFromNow(180),
     image: 'ZmFrZS1pbWFnZQ==',
+    createdAt: '2026-01-03T00:00:00Z',
   },
   {
     uuid: 'uuid-3',
@@ -69,8 +71,13 @@ const mockItems: InventoryItem[] = [
     amount: 500,
     remaining: 500,
     expiration: daysFromNow(-10),
+    createdAt: '2026-01-02T00:00:00Z',
   },
 ];
+
+function openSortFilterMenu() {
+  fireEvent.click(screen.getByRole('button', { name: 'Sort and filter' }));
+}
 
 describe('InventoryList', () => {
   beforeEach(() => {
@@ -116,12 +123,13 @@ describe('InventoryList', () => {
     expect(screen.getByText('No items in inventory')).toBeInTheDocument();
   });
 
-  it('sorts by expiration into Expired/Within a week/Within a month/Later sections when the toggle is on', () => {
+  it('sorts by expiration into Expired/Within a week/Within a month/Later sections when that sort is selected', () => {
     const mockWithinWeek: InventoryItem = { ...mockItems[0], uuid: 'uuid-4', name: 'Eggs', expiration: daysFromNow(3) };
     mockInventory({ isLoading: false, data: [...mockItems, mockWithinWeek], error: undefined });
     render(<InventoryList />);
 
-    fireEvent.click(screen.getByLabelText('Show expiration'));
+    openSortFilterMenu();
+    fireEvent.click(screen.getByLabelText('Expiration'));
 
     expect(screen.getByRole('heading', { level: 4, name: 'Expired' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 4, name: 'Within a week' })).toBeInTheDocument();
@@ -139,24 +147,73 @@ describe('InventoryList', () => {
     mockInventory({ isLoading: false, data: [mockItems[0]], error: undefined });
     render(<InventoryList />);
 
-    fireEvent.click(screen.getByLabelText('Show expiration'));
+    openSortFilterMenu();
+    fireEvent.click(screen.getByLabelText('Expiration'));
 
     expect(screen.getByRole('heading', { level: 4, name: 'Expired' })).toHaveClass('opacity-40');
     expect(screen.getByRole('heading', { level: 4, name: 'Later' })).not.toHaveClass('opacity-40');
   });
 
-  it('shows the alphabetical view again when the toggle is switched off', () => {
+  it('shows the alphabetical view again when switching back to name sort', () => {
     mockInventory({ isLoading: false, data: mockItems, error: undefined });
     render(<InventoryList />);
 
-    const toggle = screen.getByLabelText('Show expiration');
-    fireEvent.click(toggle);
+    openSortFilterMenu();
+    fireEvent.click(screen.getByLabelText('Expiration'));
     expect(screen.getByRole('heading', { level: 4, name: 'Expired' })).toBeInTheDocument();
 
-    fireEvent.click(toggle);
+    fireEvent.click(screen.getByLabelText('Name (A–Z)'));
+    fireEvent.click(screen.getByLabelText('Close'));
     expect(screen.queryByRole('heading', { level: 4, name: 'Expired' })).not.toBeInTheDocument();
     const names = screen.getAllByRole('heading', { level: 4 }).map((el) => el.textContent);
     expect(names).toEqual(['Avocado', 'Bread', 'Flour']);
+  });
+
+  it('sorts by date added, newest first', () => {
+    mockInventory({ isLoading: false, data: mockItems, error: undefined });
+    render(<InventoryList />);
+
+    openSortFilterMenu();
+    fireEvent.click(screen.getByLabelText('Date added (newest first)'));
+    fireEvent.click(screen.getByLabelText('Close'));
+
+    // Avocado (Jan 3) > Flour (Jan 2) > Bread (Jan 1).
+    const names = screen.getAllByRole('heading', { level: 4 }).map((el) => el.textContent);
+    expect(names).toEqual(['Avocado', 'Flour', 'Bread']);
+  });
+
+  it('filters to partially eaten items only, and clears back to showing everything', () => {
+    const partiallyEaten: InventoryItem = { ...mockItems[0], uuid: 'uuid-5', name: 'Cheese', amount: 4, remaining: 1 };
+    mockInventory({ isLoading: false, data: [...mockItems, partiallyEaten], error: undefined });
+    render(<InventoryList />);
+
+    openSortFilterMenu();
+    fireEvent.click(screen.getByLabelText('Partially eaten'));
+    fireEvent.click(screen.getByLabelText('Close'));
+
+    expect(screen.getAllByRole('heading', { level: 4 }).map((el) => el.textContent)).toEqual(['Cheese']);
+
+    openSortFilterMenu();
+    fireEvent.click(screen.getByText('Clear filter'));
+    fireEvent.click(screen.getByLabelText('Close'));
+
+    expect(screen.getAllByRole('heading', { level: 4 }).map((el) => el.textContent)).toEqual([
+      'Avocado',
+      'Bread',
+      'Cheese',
+      'Flour',
+    ]);
+  });
+
+  it('shows a distinct message when the filter excludes every item', () => {
+    mockInventory({ isLoading: false, data: mockItems, error: undefined });
+    render(<InventoryList />);
+
+    openSortFilterMenu();
+    fireEvent.click(screen.getByLabelText('Partially eaten'));
+
+    expect(screen.getByText('No items match the current filter')).toBeInTheDocument();
+    expect(screen.queryByText('No items in inventory')).not.toBeInTheDocument();
   });
 
   it('opens the throw-away panel from the tile grid and bins the item without navigating to its detail page', async () => {

@@ -57,7 +57,7 @@ declare global {
   type InventoryItem = Required<
     Pick<components['schemas']['InventoryItem'], 'uuid' | 'name' | 'measure' | 'amount' | 'remaining' | 'expiration'>
   > &
-    Pick<components['schemas']['InventoryItem'], 'barcode' | 'image' | 'updatedAt'>;
+    Pick<components['schemas']['InventoryItem'], 'barcode' | 'image' | 'createdAt' | 'updatedAt'>;
 
   type CreateInventoryItem = Required<
     Pick<components['schemas']['InventoryItem'], 'name' | 'measure' | 'amount' | 'expiration'>

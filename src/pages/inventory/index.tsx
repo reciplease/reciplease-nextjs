@@ -4,9 +4,40 @@ import Link from 'next/link';
 import Metadata from '@/components/Metadata';
 import InventoryImage from '@/components/InventoryImage';
 import ThrowAwayPanel from '@/components/inventory/ThrowAwayPanel';
+import SortFilterMenu, {
+  DEFAULT_INVENTORY_FILTERS,
+  type InventoryFilters,
+  type InventorySortBy,
+} from '@/components/inventory/SortFilterMenu';
 import { apiFetch, useActiveHouse, usePendingCapturedItemsCount } from '@/lib/houses';
 import { useMeasures, findMeasure } from '@/lib/measures';
 import { daysUntil, formatDaysLeft, daysLeftColor } from '@/lib/inventory';
+
+const sortFilterIconProps = {
+  width: 20,
+  height: 20,
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 2,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+  'aria-hidden': true,
+} as const;
+
+// Sliders glyph — matches the stroke style Header.tsx uses for its nav icons.
+function SortFilterIcon() {
+  return (
+    <svg {...sortFilterIconProps}>
+      <line x1="4" y1="6" x2="20" y2="6" />
+      <circle cx="9" cy="6" r="2" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <circle cx="15" cy="12" r="2" />
+      <line x1="4" y1="18" x2="20" y2="18" />
+      <circle cx="9" cy="18" r="2" />
+    </svg>
+  );
+}
 
 const fetcher = (url: string): Promise<InventoryItem[]> =>
   apiFetch(url).then((res) => res.json());
@@ -118,7 +149,9 @@ export default function InventoryList() {
   const measures = useMeasures();
   const pendingCapturedCount = usePendingCapturedItemsCount();
   const [throwingAway, setThrowingAway] = useState<InventoryItem | null>(null);
-  const [showExpiration, setShowExpiration] = useState(false);
+  const [sortFilterMenuOpen, setSortFilterMenuOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<InventorySortBy>('name');
+  const [filters, setFilters] = useState<InventoryFilters>(DEFAULT_INVENTORY_FILTERS);
 
   if (!activeHouse || isLoading) {
     return (
@@ -139,12 +172,21 @@ export default function InventoryList() {
   }
 
   // A fully-consumed item is deleted server-side (see binInventoryItem), so
-  // every item the list ever sees still has something left — plain
-  // alphabetical order, nothing to grey out.
-  const pantryItems = [...items].sort((a, b) => a.name.localeCompare(b.name));
+  // every item the list ever sees still has something left — "partially
+  // eaten" is just remaining < the original amount, not a separate flag.
+  const filteredItems = filters.partiallyEaten ? items.filter((item) => item.remaining < item.amount) : items;
+
+  const pantryItems = [...filteredItems].sort((a, b) => a.name.localeCompare(b.name));
+
+  // Newest first — createdAt is always set server-side (Mongo's @CreatedDate),
+  // so this only falls back to 0 (i.e. sorts last) for the pathological case
+  // of a document written before that field existed.
+  const newestFirst = [...filteredItems].sort(
+    (a, b) => (b.createdAt ? Date.parse(b.createdAt) : 0) - (a.createdAt ? Date.parse(a.createdAt) : 0),
+  );
 
   // Nearest expiration first.
-  const withDaysLeft: ItemWithDaysLeft[] = [...items]
+  const withDaysLeft: ItemWithDaysLeft[] = [...filteredItems]
     .map((item) => ({ ...item, daysLeft: daysUntil(item.expiration) }))
     .sort((a, b) => a.daysLeft - b.daysLeft);
 
@@ -168,19 +210,22 @@ export default function InventoryList() {
               Process {pendingCapturedCount} captured {pendingCapturedCount === 1 ? 'item' : 'items'}
             </Link>
           )}
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={showExpiration}
-              onChange={(e) => setShowExpiration(e.target.checked)}
-            />
-            Show expiration
-          </label>
+          <button
+            type="button"
+            aria-label="Sort and filter"
+            title="Sort and filter"
+            onClick={() => setSortFilterMenuOpen(true)}
+            className="flex h-9 w-9 items-center justify-center rounded-full border-0 bg-transparent p-0 leading-none"
+          >
+            <SortFilterIcon />
+          </button>
         </div>
 
-        {pantryItems.length === 0 ? (
+        {items.length === 0 ? (
           <p>No items in inventory</p>
-        ) : showExpiration ? (
+        ) : pantryItems.length === 0 ? (
+          <p>No items match the current filter</p>
+        ) : sortBy === 'expiration' ? (
           <>
             <ExpirationSection title="Expired" items={expired} measures={measures} onThrowAway={setThrowingAway} />
             <ExpirationSection title="Within a week" items={withinWeek} measures={measures} onThrowAway={setThrowingAway} />
@@ -189,12 +234,22 @@ export default function InventoryList() {
           </>
         ) : (
           <ul className={TILE_GRID}>
-            {pantryItems.map((item) => (
+            {(sortBy === 'dateAdded' ? newestFirst : pantryItems).map((item) => (
               <InventoryTile key={item.uuid} item={item} measures={measures} onThrowAway={setThrowingAway} />
             ))}
           </ul>
         )}
       </section>
+
+      {sortFilterMenuOpen && (
+        <SortFilterMenu
+          sortBy={sortBy}
+          onSortByChange={setSortBy}
+          filters={filters}
+          onFiltersChange={setFilters}
+          onClose={() => setSortFilterMenuOpen(false)}
+        />
+      )}
 
       {throwingAway && (
         <ThrowAwayPanel
