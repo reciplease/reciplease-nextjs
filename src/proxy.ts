@@ -1,67 +1,125 @@
-import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import type { NextRequestWithAuth } from 'next-auth/middleware';
+import { getToken } from 'next-auth/jwt';
 import { isJwtExpired } from '@/lib/jwt';
 
-// Require a NextAuth session for all pages. API routes are excluded: they are a
-// BFF that forwards the bearer token and returns 401/403 itself, and redirecting
-// fetch() calls to an HTML sign-in page would break them. Auth, Next internals
-// and static assets are also excluded.
+// Require a live Reciplease session for all pages, with two twists over a bare
+// NextAuth session check:
 //
-// Set NEXT_PUBLIC_AUTH_DISABLED=true to bypass auth entirely (local dev only).
-const authMiddleware = withAuth({
-  pages: { signIn: '/login' },
-  callbacks: {
-    // A decodable NextAuth session cookie isn't enough on its own — its embedded
-    // Reciplease JWT (auth-options.ts's jwt callback) has its own, shorter expiry
-    // and can be flagged with an error (e.g. a failed sign-in exchange) independently
-    // of the outer cookie still being valid. Checking both here, at the edge, means an
-    // expired/errored session redirects to /login before any page ever renders —
-    // instead of the page mounting as "signed in" and only discovering otherwise once
-    // a client-side backend call 401s a moment later.
-    authorized: ({ token }) => {
-      if (token == null || token.error) return false;
-      const recipleaseToken = token.recipleaseToken as string | undefined;
-      return !recipleaseToken || !isJwtExpired(recipleaseToken);
-    },
-  },
-});
+//  1. Some pages are intentionally public (readable while signed out) — see
+//     isPublicPage below. Those never redirect to /login, but we still want to
+//     *try* a silent refresh on them so a signed-in visitor whose access token
+//     just lapsed gets it renewed quietly rather than silently falling back to
+//     anonymous.
+//  2. A decodable NextAuth session cookie isn't enough on its own — its embedded
+//     Reciplease JWT (auth-options.ts's jwt callback) has its own, shorter expiry
+//     and can be flagged with an error (e.g. a failed sign-in exchange or an
+//     unrecoverable expiry) independently of the outer cookie still being valid.
+//
+// This file replaces src/proxy.ts (never actually wired up as real middleware —
+// there was no middleware.ts re-exporting it, so none of its logic ran at all,
+// which is very likely why a signed-in user could still see a public page render
+// "logged out" after a while: nothing here was ever attempting recovery).
+//
+// Set NEXT_PUBLIC_AUTH_DISABLED=true (or NEXT_PUBLIC_FAKE_AUTH=true) to bypass
+// auth entirely (local dev only).
 
-export default function middleware(req: NextRequest, event: Parameters<typeof authMiddleware>[1]) {
-  if (
-    process.env.NEXT_PUBLIC_AUTH_DISABLED === 'true' ||
-    process.env.NEXT_PUBLIC_FAKE_AUTH === 'true'
-  ) {
+/**
+ * /recipes and /recipes/[recipeId] are publicly readable, as is /settings
+ * (client-only appearance/accessibility prefs) and /invite/[code] (handles its
+ * own auth: preview before sign-in, accept after). /recipes/new shares the same
+ * one-segment-past-/recipes shape as /recipes/[recipeId] but must stay gated —
+ * that's the one distinction a matcher regex alone can't make (Next's own page
+ * router does resolve them to distinct files correctly), so it's done here as
+ * plain path logic instead.
+ */
+function isPublicPage(pathname: string): boolean {
+  if (pathname === '/recipes' || pathname === '/settings') return true;
+  if (pathname === '/recipes/new') return false;
+  if (/^\/recipes\/[^/]+$/.test(pathname)) return true;
+  if (/^\/invite\/[^/]+$/.test(pathname)) return true;
+  return false;
+}
+
+function loginRedirect(req: NextRequest): NextResponse {
+  const url = new URL('/login', req.url);
+  url.searchParams.set('callbackUrl', req.nextUrl.pathname + req.nextUrl.search);
+  return NextResponse.redirect(url);
+}
+
+/** Every `Set-Cookie` header value on a Response, however this runtime exposes them. */
+function allSetCookies(res: Response): string[] {
+  const getSetCookie = (res.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie;
+  if (typeof getSetCookie === 'function') return getSetCookie.call(res.headers);
+  const out: string[] = [];
+  res.headers.forEach((value, key) => {
+    if (key.toLowerCase() === 'set-cookie') out.push(value);
+  });
+  return out;
+}
+
+/**
+ * Re-triggers NextAuth's own jwt() callback server-side by hitting our own
+ * /api/auth/session endpoint with the incoming request's cookies attached. If
+ * auth-options.ts's periodic-revalidation branch successfully redeems a refresh
+ * token, that response carries the rotated NextAuth session cookie AND (via the
+ * [...nextauth] route wrapper) the mirrored `reciplease-refresh` cookie — both
+ * of which we copy onto the response actually going back to the browser here,
+ * since a background fetch's own Set-Cookie headers never reach the browser
+ * otherwise.
+ */
+async function attemptSilentRefresh(req: NextRequest): Promise<{ live: boolean; setCookies: string[] }> {
+  try {
+    const res = await fetch(new URL('/api/auth/session', req.url), {
+      headers: { cookie: req.headers.get('cookie') ?? '' },
+    });
+    const setCookies = allSetCookies(res);
+    if (!res.ok) return { live: false, setCookies };
+
+    const body = (await res.json()) as { error?: string; accessToken?: string } | null;
+    return { live: !!body && !body.error && !!body.accessToken, setCookies };
+  } catch {
+    return { live: false, setCookies: [] };
+  }
+}
+
+export default async function middleware(req: NextRequest) {
+  if (process.env.NEXT_PUBLIC_AUTH_DISABLED === 'true' || process.env.NEXT_PUBLIC_FAKE_AUTH === 'true') {
     return NextResponse.next();
   }
-  return authMiddleware(req as NextRequestWithAuth, event);
+
+  const pathname = req.nextUrl.pathname;
+  const publicPage = isPublicPage(pathname);
+
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+
+  if (!token || token.error) {
+    return publicPage ? NextResponse.next() : loginRedirect(req);
+  }
+
+  const recipleaseToken = token.recipleaseToken as string | undefined;
+  if (!recipleaseToken || isJwtExpired(recipleaseToken)) {
+    const { live, setCookies } = await attemptSilentRefresh(req);
+    if (!live) {
+      return publicPage ? NextResponse.next() : loginRedirect(req);
+    }
+    const response = NextResponse.next();
+    for (const cookie of setCookies) response.headers.append('set-cookie', cookie);
+    return response;
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {
-  // /recipes and /recipes/[recipeId] are publicly readable — excluded from the
-  // auth gate. Only those two exact shapes, though: `recipes$` (bare) and
-  // `recipes/[^/]+$` (exactly one further segment, e.g. the recipeId) — NOT a
-  // blanket "recipes" prefix, so a genuinely gated route with more path after
-  // it, like /recipes/[recipeId]/edit, still gets caught here rather than
-  // relying on AccessGate alone.
-  //
-  // /recipes/new is the one gap this can't close: it's the same shape as
-  // /recipes/[recipeId] (one segment past /recipes), so there's no way to tell
-  // "new" the static route apart from "new" as someone's recipeId using the URL
-  // alone — Next.js itself resolves that collision by routing priority, not
-  // middleware. AccessGate (client-side) still fully gates it; it just isn't
-  // caught at the edge.
-  //
-  // /invite/[code] is excluded the same way (single segment only) — it handles
-  // its own auth (preview before sign-in, accept after); gating it here would
-  // redirect straight to /login before the invite preview (house name) renders.
-  //
-  // / is excluded so Next.js can handle the redirect to /recipes before auth.
-  // `.*\..*` excludes any path with a file extension (e.g. /reciplease-book.svg,
-  // /logo192.png, /manifest.json) so public static assets — like the header
-  // logo — load for signed-out visitors instead of being redirected to /login.
-  matcher: [
-    '/((?!$|api|recipes$|recipes/[^/]+$|invite/[^/]+$|_next/static|_next/image|favicon\\.ico|.*\\..*).*)',
-  ],
+  // Excludes: the root (/ redirects to /recipes before auth would apply), every
+  // /api/* route (a BFF that forwards the bearer token and returns 401/403 itself
+  // — redirecting a fetch() call to an HTML sign-in page would break it), Next.js
+  // internals, and any path with a file extension (public static assets like the
+  // header logo, favicons, manifest.json). Unlike proxy.ts's old matcher, this one
+  // does NOT exclude /recipes, /recipes/[recipeId], /settings, or /invite/[code] —
+  // those are public pages, but they still need to run through this middleware so
+  // a signed-in visitor's lapsed access token gets a silent-refresh attempt rather
+  // than never being checked at all.
+  matcher: ['/((?!$|api|_next/static|_next/image|favicon\\.ico|.*\\..*).*)'],
 };

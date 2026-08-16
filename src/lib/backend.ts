@@ -75,3 +75,13 @@ export async function accessToken(): Promise<string | undefined> {
   const recipleaseToken = token?.recipleaseToken as string | undefined;
   return recipleaseToken && !isJwtExpired(recipleaseToken) ? recipleaseToken : undefined;
 }
+
+/**
+ * Reads the literal `reciplease-refresh` cookie set by the [...nextauth] route
+ * wrapper (see route.ts) — a plain httpOnly cookie, distinct from the JWE-embedded
+ * `recipleaseRefreshToken` that auth-options.ts's jwt callback manages internally.
+ * For server-side code that needs the raw refresh token value directly.
+ */
+export async function refreshCookie(): Promise<string | undefined> {
+  return (await cookies()).get('reciplease-refresh')?.value;
+}

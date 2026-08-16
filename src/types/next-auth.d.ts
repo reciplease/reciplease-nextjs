@@ -7,6 +7,10 @@ declare module 'next-auth' {
     // passkey and minted a Reciplease JWT directly, so the jwt callback adopts these rather
     // than running the OAuth /api/auth/exchange round trip.
     recipleaseToken?: string;
+    // Only set alongside recipleaseToken on a fresh login (never on provider-linking,
+    // where the backend returns refreshToken: null) — see jwt callback for how it's
+    // adopted onto the token. Never surfaced on Session; see jwt.d.ts JWT below.
+    recipleaseRefreshToken?: string;
     handle?: string | null;
   }
 
@@ -32,6 +36,10 @@ declare module 'next-auth/jwt' {
     // bearer credential for backend API calls, and also what's passed back
     // as `linkToken` when the user signs in with a second provider.
     recipleaseToken?: string;
+    // The raw refresh token, mirrored out as a dedicated httpOnly `reciplease-refresh`
+    // cookie by the [...nextauth] route wrapper (see route.ts) — never read by client
+    // JS via session(), only ever round-tripped server-side through this JWE.
+    recipleaseRefreshToken?: string;
     userId?: string;
     handle?: string | null;
     error?: string;

@@ -45,7 +45,7 @@ async function existingLinkToken(token: JWT): Promise<string | undefined> {
 }
 
 export type ExchangeResult =
-  | { ok: true; token: string; userId: string; handle: string | null }
+  | { ok: true; token: string; refreshToken: string | null; userId: string; handle: string | null }
   | { ok: false; error: string };
 
 export async function exchangeIdentity(
@@ -76,28 +76,41 @@ export async function exchangeIdentity(
     }
 
     const body: ExchangeResponseBody = await response.json();
-    return { ok: true, token: body.token ?? '', userId: body.userId ?? '', handle: body.handle ?? null };
+    return {
+      ok: true,
+      token: body.token ?? '',
+      refreshToken: body.refreshToken ?? null,
+      userId: body.userId ?? '',
+      handle: body.handle ?? null,
+    };
   } catch {
     return { ok: false, error: 'ExchangeError' };
   }
 }
 
 /**
- * Mints a fresh Reciplease JWT from a still-valid one, via POST /api/auth/refresh —
- * a sliding session that keeps an active user signed in without a full provider
- * re-auth. Only ever called on a token that isn't expired yet (see the jwt callback),
- * since the backend requires a currently-valid bearer token to authenticate the call.
+ * Rotates a refresh token for a fresh access/refresh pair, via POST /api/auth/refresh.
+ * The backend reads the refresh token from a `reciplease-refresh` cookie (@CookieValue) —
+ * it's no longer a bearer-authenticated call, so this works even once the old access
+ * token has fully expired, as long as the refresh token itself is still live. We fake the
+ * cookie header here since this call happens server-to-server, not from the browser.
  */
-async function refreshRecipleaseToken(recipleaseToken: string): Promise<ExchangeResult> {
+async function redeemRefreshToken(refreshToken: string): Promise<ExchangeResult> {
   try {
     const response = await fetch(`${BACKEND_URL}/api/auth/refresh`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${recipleaseToken}` },
+      headers: { cookie: `reciplease-refresh=${refreshToken}` },
     });
     if (!response.ok) return { ok: false, error: 'ExchangeError' };
 
     const body: ExchangeResponseBody = await response.json();
-    return { ok: true, token: body.token ?? '', userId: body.userId ?? '', handle: body.handle ?? null };
+    return {
+      ok: true,
+      token: body.token ?? '',
+      refreshToken: body.refreshToken ?? null,
+      userId: body.userId ?? '',
+      handle: body.handle ?? null,
+    };
   } catch {
     return { ok: false, error: 'ExchangeError' };
   }
@@ -119,7 +132,12 @@ async function authorizePasskey(mode: 'signup' | 'login', challenge: string, cre
     if (!response.ok) return null;
 
     const body: ExchangeResponseBody = await response.json();
-    return { id: body.userId ?? '', recipleaseToken: body.token, handle: body.handle ?? null };
+    return {
+      id: body.userId ?? '',
+      recipleaseToken: body.token,
+      recipleaseRefreshToken: body.refreshToken ?? undefined,
+      handle: body.handle ?? null,
+    };
   } catch {
     return null;
   }
@@ -148,7 +166,12 @@ async function authorizeGoogleCredential(credential: string): Promise<User | nul
     // resolves to the same backend identity as the code-flow login/linking.
     const result = await exchangeIdentity({ provider: 'google', providerAccountId: payload.sub }, undefined, payload.email);
     if (!result.ok) return null;
-    return { id: result.userId, recipleaseToken: result.token, handle: result.handle };
+    return {
+      id: result.userId,
+      recipleaseToken: result.token,
+      recipleaseRefreshToken: result.refreshToken ?? undefined,
+      handle: result.handle,
+    };
   } catch {
     return null;
   }
@@ -221,6 +244,7 @@ export const authOptions: NextAuthOptions = {
         // just adopt what it returned.
         if (user?.recipleaseToken) {
           token.recipleaseToken = user.recipleaseToken;
+          token.recipleaseRefreshToken = user.recipleaseRefreshToken;
           token.userId = user.id;
           token.handle = user.handle ?? null;
           token.error = undefined;
@@ -236,6 +260,10 @@ export const authOptions: NextAuthOptions = {
         const result = await exchangeIdentity(account, await existingLinkToken(token), user?.email);
         if (result.ok) {
           token.recipleaseToken = result.token;
+          // null on the wire when this was a provider-linking exchange (linkToken was
+          // set) rather than a fresh login — don't stomp a refresh token the user
+          // already had from their prior sign-in with the linked-from provider.
+          if (result.refreshToken !== null) token.recipleaseRefreshToken = result.refreshToken;
           token.userId = result.userId;
           token.handle = result.handle;
           token.error = undefined;
@@ -251,19 +279,36 @@ export const authOptions: NextAuthOptions = {
         // when some backend call eventually 401s: that's what used to let a stale
         // session render "authenticated" UI before failing a moment later.
         const expiryMillis = jwtExpiryMillis(token.recipleaseToken);
-        if (expiryMillis === undefined || expiryMillis <= Date.now()) {
-          token.recipleaseToken = undefined;
-          token.error = 'SessionExpired';
-        } else if (expiryMillis - Date.now() < REFRESH_MARGIN_MILLIS) {
-          const refreshed = await refreshRecipleaseToken(token.recipleaseToken);
-          if (refreshed.ok) {
-            token.recipleaseToken = refreshed.token;
-            token.userId = refreshed.userId;
-            token.handle = refreshed.handle;
-            token.error = undefined;
+        const expired = expiryMillis === undefined || expiryMillis <= Date.now();
+        const nearExpiry = expired || expiryMillis - Date.now() < REFRESH_MARGIN_MILLIS;
+
+        if (nearExpiry) {
+          if (token.recipleaseRefreshToken) {
+            const refreshed = await redeemRefreshToken(token.recipleaseRefreshToken);
+            if (refreshed.ok) {
+              token.recipleaseToken = refreshed.token;
+              token.recipleaseRefreshToken = refreshed.refreshToken ?? undefined;
+              token.userId = refreshed.userId;
+              token.handle = refreshed.handle;
+              token.error = undefined;
+            } else if (expired) {
+              // Redemption failed and the old access token is already dead too — no
+              // way to keep the session alive.
+              token.recipleaseToken = undefined;
+              token.recipleaseRefreshToken = undefined;
+              token.error = 'SessionExpired';
+            }
+            // Redemption failing while the old access token still has some life left
+            // doesn't clear the session — it's retried on the next periodic poll.
+          } else if (expired) {
+            // No refresh token at all (e.g. a pre-migration session created before
+            // this shipped) — fall back to the old behaviour: only expire once the
+            // access token itself is dead.
+            token.recipleaseToken = undefined;
+            token.error = 'SessionExpired';
           }
-          // Refresh failing doesn't clear the still-valid token — it's retried on
-          // the next check, or caught by the expiry branch above once it's truly dead.
+          // No refresh token, but not yet actually expired: nothing to do yet — retried
+          // on the next periodic poll once it's truly past its expiry.
         }
       }
 

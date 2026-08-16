@@ -48,10 +48,10 @@ describe('authOptions config', () => {
 });
 
 describe('exchangeIdentity', () => {
-  it('sends provider, providerId, and linkToken to the backend and returns the token/userId/handle on success', async () => {
+  it('sends provider, providerId, and linkToken to the backend and returns the token/refreshToken/userId/handle on success', async () => {
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
-      json: async () => ({ token: 'rcpls-jwt', userId: 'user-1', handle: 'chef' }),
+      json: async () => ({ token: 'rcpls-jwt', refreshToken: 'rcpls-refresh', userId: 'user-1', handle: 'chef' }),
     });
 
     const result = await exchangeIdentity(
@@ -60,7 +60,13 @@ describe('exchangeIdentity', () => {
       'me@github.com',
     );
 
-    expect(result).toEqual({ ok: true, token: 'rcpls-jwt', userId: 'user-1', handle: 'chef' });
+    expect(result).toEqual({
+      ok: true,
+      token: 'rcpls-jwt',
+      refreshToken: 'rcpls-refresh',
+      userId: 'user-1',
+      handle: 'chef',
+    });
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/auth/exchange'),
       expect.objectContaining({
@@ -88,7 +94,22 @@ describe('exchangeIdentity', () => {
       'me@gmail.com',
     );
 
-    expect(result).toEqual({ ok: true, token: 'rcpls-jwt', userId: 'user-1', handle: null });
+    expect(result).toEqual({ ok: true, token: 'rcpls-jwt', refreshToken: null, userId: 'user-1', handle: null });
+  });
+
+  it('reports a null refreshToken when the backend returns none (a provider-linking exchange)', async () => {
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'rcpls-jwt', refreshToken: null, userId: 'user-1', handle: 'chef' }),
+    });
+
+    const result = await exchangeIdentity(
+      { provider: 'github', providerAccountId: '12345' },
+      'old-rcpls-jwt',
+      'me@github.com',
+    );
+
+    expect(result).toEqual({ ok: true, token: 'rcpls-jwt', refreshToken: null, userId: 'user-1', handle: 'chef' });
   });
 
   it('reports an IdentityConflict on a 409 (linking an identity already claimed)', async () => {
@@ -134,19 +155,34 @@ describe('jwt callback', () => {
     const account = { provider: 'google', providerAccountId: 'sub-1' } as unknown as Account;
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
-      json: async () => ({ token: 'rcpls-jwt', userId: 'user-1', handle: 'chef' }),
+      json: async () => ({ token: 'rcpls-jwt', refreshToken: 'rcpls-refresh', userId: 'user-1', handle: 'chef' }),
     });
 
     const result = await jwt!({ token, account, user: { email: 'me@gmail.com' } as never });
 
     expect(result).toMatchObject({
       recipleaseToken: 'rcpls-jwt',
+      recipleaseRefreshToken: 'rcpls-refresh',
       userId: 'user-1',
       handle: 'chef',
       error: undefined,
     });
     const body = JSON.parse((fetch as jest.Mock).mock.calls[0][1].body);
     expect(body.email).toBe('me@gmail.com');
+  });
+
+  it('does not stomp an existing refresh token when the exchange is a provider-linking call (refreshToken: null)', async () => {
+    const token = { recipleaseToken: 'existing-jwt', recipleaseRefreshToken: 'existing-refresh' } as JWT;
+    const account = { provider: 'github', providerAccountId: '999' } as unknown as Account;
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'linked-jwt', refreshToken: null, userId: 'user-1', handle: 'chef' }),
+    });
+
+    const result = await jwt!({ token, account, user: undefined as never });
+
+    expect(result.recipleaseToken).toBe('linked-jwt');
+    expect(result.recipleaseRefreshToken).toBe('existing-refresh');
   });
 
   it('passes the existing recipleaseToken on the token as linkToken (linking a 2nd provider)', async () => {
@@ -253,45 +289,122 @@ describe('jwt callback', () => {
     expect(result.error).toBe('SessionExpired');
   });
 
-  it('silently refreshes a token nearing expiry via POST /api/auth/refresh', async () => {
-    const token = { recipleaseToken: fakeJwt(5 * 60), userId: 'user-1', handle: 'chef' } as JWT;
+  it('silently redeems a refresh token via POST /api/auth/refresh, with the refresh token as a cookie header, when the access token is nearing expiry', async () => {
+    const token = {
+      recipleaseToken: fakeJwt(5 * 60),
+      recipleaseRefreshToken: 'old-refresh',
+      userId: 'user-1',
+      handle: 'chef',
+    } as JWT;
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
-      json: async () => ({ token: 'refreshed-jwt', userId: 'user-1', handle: 'chef' }),
+      json: async () => ({ token: 'refreshed-jwt', refreshToken: 'rotated-refresh', userId: 'user-1', handle: 'chef' }),
+    });
+
+    const result = await jwt!({ token, account: null, user: undefined as never });
+
+    expect(result.recipleaseToken).toBe('refreshed-jwt');
+    expect(result.recipleaseRefreshToken).toBe('rotated-refresh');
+    expect(result.error).toBeUndefined();
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/auth/refresh'),
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ cookie: 'reciplease-refresh=old-refresh' }),
+      }),
+    );
+  });
+
+  it('keeps the still-valid access token in place when a near-expiry redemption attempt fails but the access token has not fully expired yet', async () => {
+    const originalRecipleaseToken = fakeJwt(5 * 60);
+    const token = {
+      recipleaseToken: originalRecipleaseToken,
+      recipleaseRefreshToken: 'old-refresh',
+      userId: 'user-1',
+      handle: 'chef',
+    } as JWT;
+    (fetch as jest.Mock).mockResolvedValue({ ok: false, status: 500 });
+
+    const result = await jwt!({ token, account: null, user: undefined as never });
+
+    expect(result.recipleaseToken).toBe(originalRecipleaseToken);
+    expect(result.recipleaseRefreshToken).toBe('old-refresh');
+    expect(result.error).toBeUndefined();
+  });
+
+  it('clears the session and sets SessionExpired when redemption fails and the access token has already fully expired', async () => {
+    const token = {
+      recipleaseToken: fakeJwt(-60),
+      recipleaseRefreshToken: 'old-refresh',
+      userId: 'user-1',
+      handle: 'chef',
+    } as JWT;
+    (fetch as jest.Mock).mockResolvedValue({ ok: false, status: 401 });
+
+    const result = await jwt!({ token, account: null, user: undefined as never });
+
+    expect(result.recipleaseToken).toBeUndefined();
+    expect(result.recipleaseRefreshToken).toBeUndefined();
+    expect(result.error).toBe('SessionExpired');
+  });
+
+  it('redeems a dead refresh token successfully even after the access token has fully expired (no bearer auth needed)', async () => {
+    const token = {
+      recipleaseToken: fakeJwt(-60),
+      recipleaseRefreshToken: 'old-refresh',
+      userId: 'user-1',
+      handle: 'chef',
+    } as JWT;
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'refreshed-jwt', refreshToken: 'rotated-refresh', userId: 'user-1', handle: 'chef' }),
     });
 
     const result = await jwt!({ token, account: null, user: undefined as never });
 
     expect(result.recipleaseToken).toBe('refreshed-jwt');
     expect(result.error).toBeUndefined();
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/auth/refresh'),
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({ Authorization: expect.stringContaining('Bearer ') }),
-      }),
-    );
   });
 
-  it('keeps the still-valid token in place when a near-expiry refresh attempt fails', async () => {
-    const originalRecipleaseToken = fakeJwt(5 * 60);
-    const token = { recipleaseToken: originalRecipleaseToken, userId: 'user-1', handle: 'chef' } as JWT;
-    (fetch as jest.Mock).mockResolvedValue({ ok: false, status: 500 });
+  it('falls back to the pre-migration behaviour (clear once expired) when there is no refresh token at all', async () => {
+    const token = { recipleaseToken: fakeJwt(-60), handle: 'chef' } as JWT;
 
     const result = await jwt!({ token, account: null, user: undefined as never });
 
-    expect(result.recipleaseToken).toBe(originalRecipleaseToken);
+    expect(result.recipleaseToken).toBeUndefined();
+    expect(result.error).toBe('SessionExpired');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('does not attempt a refresh call when near expiry but there is no refresh token and the access token is not yet expired', async () => {
+    const token = { recipleaseToken: fakeJwt(5 * 60), handle: 'chef' } as JWT;
+
+    const result = await jwt!({ token, account: null, user: undefined as never });
+
+    expect(result.recipleaseToken).toBe(token.recipleaseToken);
     expect(result.error).toBeUndefined();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('adopts the token/userId/handle authorize() already produced for the passkey provider, without calling /api/auth/exchange', async () => {
     const token = {} as JWT;
     const account = { provider: 'passkey' } as unknown as Account;
-    const user = { id: 'user-1', recipleaseToken: 'passkey-jwt', handle: 'chef' } as never;
+    const user = {
+      id: 'user-1',
+      recipleaseToken: 'passkey-jwt',
+      recipleaseRefreshToken: 'passkey-refresh',
+      handle: 'chef',
+    } as never;
 
     const result = await jwt!({ token, account, user });
 
-    expect(result).toMatchObject({ recipleaseToken: 'passkey-jwt', userId: 'user-1', handle: 'chef', error: undefined });
+    expect(result).toMatchObject({
+      recipleaseToken: 'passkey-jwt',
+      recipleaseRefreshToken: 'passkey-refresh',
+      userId: 'user-1',
+      handle: 'chef',
+      error: undefined,
+    });
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -307,11 +420,22 @@ describe('jwt callback', () => {
   it('adopts the token/userId/handle authorize() already produced for the google-onetap provider, without calling /api/auth/exchange', async () => {
     const token = {} as JWT;
     const account = { provider: 'google-onetap' } as unknown as Account;
-    const user = { id: 'user-1', recipleaseToken: 'gsi-jwt', handle: 'chef' } as never;
+    const user = {
+      id: 'user-1',
+      recipleaseToken: 'gsi-jwt',
+      recipleaseRefreshToken: 'gsi-refresh',
+      handle: 'chef',
+    } as never;
 
     const result = await jwt!({ token, account, user });
 
-    expect(result).toMatchObject({ recipleaseToken: 'gsi-jwt', userId: 'user-1', handle: 'chef', error: undefined });
+    expect(result).toMatchObject({
+      recipleaseToken: 'gsi-jwt',
+      recipleaseRefreshToken: 'gsi-refresh',
+      userId: 'user-1',
+      handle: 'chef',
+      error: undefined,
+    });
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -335,15 +459,20 @@ describe('passkey CredentialsProvider', () => {
     options: { authorize: (credentials: Record<string, string> | undefined) => Promise<unknown> };
   }).options;
 
-  it('calls login/finish for mode=login and returns a user with the minted token', async () => {
+  it('calls login/finish for mode=login and returns a user with the minted token and refresh token', async () => {
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
-      json: async () => ({ token: 'rcpls-jwt', userId: 'user-1', handle: 'chef' }),
+      json: async () => ({ token: 'rcpls-jwt', refreshToken: 'rcpls-refresh', userId: 'user-1', handle: 'chef' }),
     });
 
     const result = await passkeyProvider.authorize({ mode: 'login', challenge: 'chal-1', credential: '{"id":"cred-1"}' });
 
-    expect(result).toEqual({ id: 'user-1', recipleaseToken: 'rcpls-jwt', handle: 'chef' });
+    expect(result).toEqual({
+      id: 'user-1',
+      recipleaseToken: 'rcpls-jwt',
+      recipleaseRefreshToken: 'rcpls-refresh',
+      handle: 'chef',
+    });
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/passkey/login/finish'),
       expect.objectContaining({
@@ -400,12 +529,17 @@ describe('google-onetap CredentialsProvider', () => {
     });
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
-      json: async () => ({ token: 'rcpls-jwt', userId: 'user-1', handle: 'chef' }),
+      json: async () => ({ token: 'rcpls-jwt', refreshToken: 'rcpls-refresh', userId: 'user-1', handle: 'chef' }),
     });
 
     const result = await googleOneTapProvider.authorize({ credential: 'id-token-1' });
 
-    expect(result).toEqual({ id: 'user-1', recipleaseToken: 'rcpls-jwt', handle: 'chef' });
+    expect(result).toEqual({
+      id: 'user-1',
+      recipleaseToken: 'rcpls-jwt',
+      recipleaseRefreshToken: 'rcpls-refresh',
+      handle: 'chef',
+    });
     expect(mockVerifyIdToken).toHaveBeenCalledWith(expect.objectContaining({ idToken: 'id-token-1' }));
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/auth/exchange'),
