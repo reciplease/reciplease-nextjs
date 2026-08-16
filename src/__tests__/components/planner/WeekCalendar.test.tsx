@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import WeekCalendar from '@/components/planner/WeekCalendar';
 
 describe('WeekCalendar', () => {
@@ -50,23 +50,37 @@ describe('WeekCalendar', () => {
     expect(screen.getByText('July 2026')).toBeInTheDocument();
   });
 
-  it('outlines days that have a planned meal', () => {
+  it('marks days that have a planned meal with a dot, regardless of which week is selected', () => {
     render(
       <WeekCalendar
         selectedMonday="2026-06-01"
         onSelect={jest.fn()}
-        plannedDates={new Set(['2026-06-05'])}
+        // One planned day in the selected week (5 Jun) and one in a
+        // different, unselected week (18 Jun) — both should get a dot.
+        plannedDates={new Set(['2026-06-05', '2026-06-18'])}
       />,
     );
 
-    // Both are in the week-of-1-June row, so disambiguate by that aria-label
-    // rather than by day number (which repeats for trailing/leading days).
     const weekOne = screen.getAllByLabelText('Select week of 2026-06-01');
     const fifth = weekOne.find((btn) => btn.textContent === '5')!;
     const fourth = weekOne.find((btn) => btn.textContent === '4')!;
+    const eighteenth = screen
+      .getAllByLabelText('Select week of 2026-06-15')
+      .find((btn) => btn.textContent === '18')!;
 
-    expect(fifth.className).toEqual(expect.stringContaining('bg-recipe-highlight'));
-    expect(fourth.className).not.toEqual(expect.stringContaining('bg-recipe-highlight'));
+    expect(within(fifth).queryByTestId('planned-meal-dot')).toBeInTheDocument();
+    expect(within(fourth).queryByTestId('planned-meal-dot')).not.toBeInTheDocument();
+    expect(within(eighteenth).queryByTestId('planned-meal-dot')).toBeInTheDocument();
+  });
+
+  it('shades every week except the currently selected one', () => {
+    render(<WeekCalendar selectedMonday="2026-06-15" onSelect={jest.fn()} />);
+
+    const selectedWeekDay = screen.getAllByLabelText('Select week of 2026-06-15')[0];
+    const otherWeekDay = screen.getAllByLabelText('Select week of 2026-06-01')[0];
+
+    expect(selectedWeekDay.parentElement?.className).not.toEqual(expect.stringContaining('bg-highlight/20'));
+    expect(otherWeekDay.parentElement?.className).toEqual(expect.stringContaining('bg-highlight/20'));
   });
 
   it('reports the visible grid range on mount and after month navigation', () => {

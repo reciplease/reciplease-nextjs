@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import Planner from '@/pages/planner/index';
 
 jest.mock('swr');
@@ -189,7 +189,7 @@ describe('Planner', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Failed to mark as eaten. Please try again.');
   });
 
-  it('outlines planned days on the calendar, including ones outside the selected week', () => {
+  it('marks planned days on the calendar with a dot, including ones outside the selected week', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
     useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined });
     render(<Planner />);
@@ -200,8 +200,23 @@ describe('Planner', () => {
     const weekOne = screen.getAllByLabelText('Select week of 2026-06-01');
     const dayByText = (text: string) => weekOne.find((btn) => btn.textContent === text)!;
 
-    expect(dayByText('5').className).toEqual(expect.stringContaining('bg-recipe-highlight'));
-    expect(dayByText('6').className).toEqual(expect.stringContaining('bg-recipe-highlight'));
-    expect(dayByText('4').className).not.toEqual(expect.stringContaining('bg-recipe-highlight'));
+    expect(within(dayByText('5')).queryByTestId('planned-meal-dot')).toBeInTheDocument();
+    expect(within(dayByText('6')).queryByTestId('planned-meal-dot')).toBeInTheDocument();
+    expect(within(dayByText('4')).queryByTestId('planned-meal-dot')).not.toBeInTheDocument();
+  });
+
+  it('leaves the selected week unshaded while shading every other week', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
+    useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined });
+    render(<Planner />);
+    jest.useRealTimers();
+
+    // 3 June 2026 falls in the week of Monday 1 June, so that's the
+    // initially-selected week; the week of 8 June is a different, shaded one.
+    const selectedWeekDay = screen.getAllByLabelText('Select week of 2026-06-01')[0];
+    const otherWeekDay = screen.getAllByLabelText('Select week of 2026-06-08')[0];
+
+    expect(selectedWeekDay.parentElement?.className).not.toEqual(expect.stringContaining('bg-highlight/20'));
+    expect(otherWeekDay.parentElement?.className).toEqual(expect.stringContaining('bg-highlight/20'));
   });
 });

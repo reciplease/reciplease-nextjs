@@ -12,7 +12,8 @@ export default function WeekCalendar({
   selectedMonday: string;
   onSelect: (mondayIso: string) => void;
   // ISO dates (yyyy-mm-dd) that have at least one planned meal — days in this
-  // set get an outline so the month view shows where meals already exist.
+  // set get a dot under the date so the month view shows where meals already
+  // exist, independent of which week is currently selected.
   plannedDates?: Set<string>;
   // Fired on mount and whenever month navigation changes the visible grid, so
   // a caller can fetch planned meals for exactly the days currently on screen.
@@ -79,8 +80,10 @@ export default function WeekCalendar({
               key={weekMonday}
               // bg-highlight/20 (not a light literal like #eef5ff) so this reads
               // correctly against the app's dark theme, which otherwise leaves
-              // day numbers in their default light-on-dark colour.
-              className={`grid grid-cols-7 gap-1 rounded ${isSelectedWeek ? 'bg-highlight/20' : ''}`}
+              // day numbers in their default light-on-dark colour. Every week
+              // EXCEPT the selected one is shaded, so the selected week reads as
+              // the "clear" one standing out against its shaded neighbours.
+              className={`grid grid-cols-7 gap-1 rounded ${isSelectedWeek ? '' : 'bg-highlight/20'}`}
             >
               {week.map((day) => {
                 const iso = toIsoDate(day);
@@ -97,13 +100,16 @@ export default function WeekCalendar({
                       onSelect(weekMonday);
                       if (!isCurrentMonth) setViewMonth(firstOfMonth(day));
                     }}
-                    // Planned days are filled with bg-recipe-highlight (not
-                    // bg-highlight, which the .planner-theme wrapper recolours to
-                    // blue) so a planned day reads as unmistakably "has a recipe"
-                    // against the section's own blue accent.
-                    className={`p-1.5 rounded text-sm ${isPlanned ? 'bg-recipe-highlight text-white' : isCurrentMonth ? '' : 'text-[#bbb]'} ${isToday ? 'font-semibold underline' : ''}`}
+                    className={`flex flex-col items-center gap-0.5 p-1.5 rounded text-sm ${isCurrentMonth ? '' : 'text-[#bbb]'} ${isToday ? 'font-semibold underline' : ''}`}
                   >
-                    {day.getDate()}
+                    <span>{day.getDate()}</span>
+                    {/* Reserve the dot's space on every day (not just planned ones) so
+                        planned/unplanned days don't shift height against each other. */}
+                    <span
+                      aria-hidden="true"
+                      data-testid={isPlanned ? 'planned-meal-dot' : undefined}
+                      className={`h-1 w-1 rounded-full ${isPlanned ? 'bg-recipe-highlight' : 'bg-transparent'}`}
+                    />
                   </button>
                 );
               })}
