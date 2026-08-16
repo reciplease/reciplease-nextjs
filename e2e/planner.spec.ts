@@ -1,9 +1,9 @@
 import { test, expect, Page } from '@playwright/test';
 
-// Fixed "today" so the calendar's initially-selected week (and therefore which
-// weeks are shaded) is deterministic across runs. Wednesday 3 June 2026 falls
-// in the week starting Monday 1 June 2026.
-const TODAY = '2026-06-03T12:00:00.000Z';
+// Deliberately uses the real "today" (no page.clock) — faking the browser's
+// clock to a fixed date doesn't affect the Next.js dev server's SSR pass,
+// which runs with the real system time, so the two disagree on "today" and
+// Next's dev error overlay (a full-page portal) intercepts every click.
 
 async function mockSession(page: Page) {
   await page.route('**/api/auth/session', (route) =>
@@ -19,70 +19,95 @@ async function mockSession(page: Page) {
   );
 }
 
-const mockMeals = [
-  // Within the initially-selected week (1-7 June).
-  { plannedMealId: 'meal-1', houseId: 'house-1', name: 'Roast dinner', date: '2026-06-05', items: [] },
-  // Outside it, in the week of 15 June — should still get a dot even though
-  // that week is shaded, since the dot marks "has a meal", not "is selected".
-  { plannedMealId: 'meal-2', houseId: 'house-1', name: 'Fish and chips', date: '2026-06-18', items: [] },
-];
+/**
+ * Loads the planner with no planned meals and reads back, straight from the
+ * rendered calendar, the Monday of the initially-selected week plus the
+ * Monday of another week that's guaranteed to be part of the same month
+ * (so selecting it later never triggers a month-view jump, which would
+ * otherwise pull the selected week's row out of the DOM entirely).
+ */
+async function discoverWeeks(page: Page): Promise<{ selectedMonday: string; otherMonday: string }> {
+  await page.route('**/api/planned-meals**', (route) => {
+    if (route.request().method() === 'GET') route.fulfill({ json: [] });
+    else route.continue();
+  });
+  await page.goto('/planner');
+
+  const selectedLabel = await page
+    .locator('button[aria-pressed="true"][aria-label^="Select week of "]')
+    .first()
+    .getAttribute('aria-label');
+  const selectedMonday = selectedLabel!.replace('Select week of ', '');
+  const monthPrefix = selectedMonday.slice(0, 7); // YYYY-MM
+
+  const allLabels = await page
+    .locator('button[aria-label^="Select week of "]')
+    .evaluateAll((els) => Array.from(new Set(els.map((el) => el.getAttribute('aria-label')!))));
+  const otherMonday = allLabels
+    .map((label) => label.replace('Select week of ', ''))
+    .find((iso) => iso !== selectedMonday && iso.startsWith(monthPrefix))!;
+
+  return { selectedMonday, otherMonday };
+}
+
+// The Monday cell is always the first of the 7 day buttons sharing a given
+// "Select week of X" aria-label, since each week row renders Mon..Sun in order.
+function mondayCell(page: Page, weekMonday: string) {
+  return page.locator(`button[aria-label="Select week of ${weekMonday}"]`).first();
+}
 
 test.describe('Planner calendar shading and planned-meal markers', () => {
   test.beforeEach(async ({ page }) => {
-    await page.clock.install({ time: new Date(TODAY) });
     await mockSession(page);
-    await page.route('**/api/planned-meals**', (route) => {
-      if (route.request().method() === 'GET') {
-        route.fulfill({ json: mockMeals });
-      } else {
-        route.continue();
-      }
-    });
-    await page.goto('/planner');
   });
 
   test('shades every week except the selected one', async ({ page }) => {
-    const selectedWeekDay = page
-      .locator('button[aria-label="Select week of 2026-06-01"]')
-      .filter({ hasText: /^5$/ });
-    const otherWeekDay = page
-      .locator('button[aria-label="Select week of 2026-06-15"]')
-      .filter({ hasText: /^18$/ });
+    const { selectedMonday, otherMonday } = await discoverWeeks(page);
 
-    await expect(selectedWeekDay.locator('..')).not.toHaveClass(/bg-highlight\/20/);
-    await expect(otherWeekDay.locator('..')).toHaveClass(/bg-highlight\/20/);
+    await expect(mondayCell(page, selectedMonday).locator('..')).not.toHaveClass(/bg-highlight\/20/);
+    await expect(mondayCell(page, otherMonday).locator('..')).toHaveClass(/bg-highlight\/20/);
   });
 
   test('shows a dot under days with a planned meal, whether or not their week is selected', async ({ page }) => {
-    const plannedInSelectedWeek = page
-      .locator('button[aria-label="Select week of 2026-06-01"]')
-      .filter({ hasText: /^5$/ });
-    const plannedInOtherWeek = page
-      .locator('button[aria-label="Select week of 2026-06-15"]')
-      .filter({ hasText: /^18$/ });
-    const unplannedDay = page
-      .locator('button[aria-label="Select week of 2026-06-01"]')
-      .filter({ hasText: /^4$/ });
+    const { selectedMonday, otherMonday } = await discoverWeeks(page);
 
-    await expect(plannedInSelectedWeek.getByTestId('planned-meal-dot')).toBeVisible();
-    await expect(plannedInOtherWeek.getByTestId('planned-meal-dot')).toBeVisible();
+    await page.unroute('**/api/planned-meals**');
+    await page.route('**/api/planned-meals**', (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      route.fulfill({
+        json: [
+          { plannedMealId: 'meal-1', houseId: 'house-1', name: 'Roast dinner', date: selectedMonday, items: [] },
+          { plannedMealId: 'meal-2', houseId: 'house-1', name: 'Fish and chips', date: otherMonday, items: [] },
+        ],
+      });
+    });
+    await page.reload();
+
+    // Tuesday of the selected week — same row as the Monday meal, but itself unplanned.
+    const unplannedDay = page.locator(`button[aria-label="Select week of ${selectedMonday}"]`).nth(1);
+
+    await expect(mondayCell(page, selectedMonday).getByTestId('planned-meal-dot')).toBeVisible();
+    await expect(mondayCell(page, otherMonday).getByTestId('planned-meal-dot')).toBeVisible();
     await expect(unplannedDay.getByTestId('planned-meal-dot')).toHaveCount(0);
   });
 
-  test('selecting a different week moves the shading, not the meal dots', async ({ page }) => {
-    const weekOf15June = page.locator('button[aria-label="Select week of 2026-06-15"]').first();
-    await weekOf15June.click();
+  test('selecting a different week moves the shading, not the meal dot', async ({ page }) => {
+    const { selectedMonday, otherMonday } = await discoverWeeks(page);
 
-    const nowSelectedWeekDay = page
-      .locator('button[aria-label="Select week of 2026-06-15"]')
-      .filter({ hasText: /^18$/ });
-    const nowUnselectedWeekDay = page
-      .locator('button[aria-label="Select week of 2026-06-01"]')
-      .filter({ hasText: /^5$/ });
+    await page.unroute('**/api/planned-meals**');
+    await page.route('**/api/planned-meals**', (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      route.fulfill({
+        json: [{ plannedMealId: 'meal-2', houseId: 'house-1', name: 'Fish and chips', date: otherMonday, items: [] }],
+      });
+    });
+    await page.reload();
 
-    await expect(nowSelectedWeekDay.locator('..')).not.toHaveClass(/bg-highlight\/20/);
-    await expect(nowUnselectedWeekDay.locator('..')).toHaveClass(/bg-highlight\/20/);
-    // The meal dot on 18 June still shows now that its week is selected.
-    await expect(nowSelectedWeekDay.getByTestId('planned-meal-dot')).toBeVisible();
+    await mondayCell(page, otherMonday).click();
+
+    await expect(mondayCell(page, otherMonday).locator('..')).not.toHaveClass(/bg-highlight\/20/);
+    await expect(mondayCell(page, selectedMonday).locator('..')).toHaveClass(/bg-highlight\/20/);
+    // The meal dot stays on 'otherMonday' regardless of it now being selected.
+    await expect(mondayCell(page, otherMonday).getByTestId('planned-meal-dot')).toBeVisible();
   });
 });
