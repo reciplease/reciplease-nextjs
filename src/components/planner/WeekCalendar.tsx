@@ -78,12 +78,13 @@ export default function WeekCalendar({
           return (
             <div
               key={weekMonday}
-              // bg-highlight/20 (not a light literal like #eef5ff) so this reads
-              // correctly against the app's dark theme, which otherwise leaves
-              // day numbers in their default light-on-dark colour. Every week
-              // EXCEPT the selected one is shaded, so the selected week reads as
-              // the "clear" one standing out against its shaded neighbours.
-              className={`grid grid-cols-7 gap-1 rounded ${isSelectedWeek ? '' : 'bg-highlight/20'}`}
+              // The selected week gets a light tint of the section's own accent
+              // colour (bg-highlight/20 — planner blue here, via .planner-theme)
+              // so it reads as "the one you're looking at". Every other week
+              // gets a much subtler neutral tint (bg-white/5, not bg-highlight)
+              // — colouring the majority of the grid drew the eye to the wrong
+              // place and read like the *other* weeks were the highlighted ones.
+              className={`grid grid-cols-7 gap-1 rounded ${isSelectedWeek ? 'bg-highlight/20' : 'bg-white/5'}`}
             >
               {week.map((day) => {
                 const iso = toIsoDate(day);

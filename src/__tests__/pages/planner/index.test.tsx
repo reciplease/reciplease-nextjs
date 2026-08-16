@@ -205,18 +205,19 @@ describe('Planner', () => {
     expect(within(dayByText('4')).queryByTestId('planned-meal-dot')).not.toBeInTheDocument();
   });
 
-  it('leaves the selected week unshaded while shading every other week', () => {
+  it('tints the selected week with the accent colour and every other week with a muted neutral', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
     useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined });
     render(<Planner />);
     jest.useRealTimers();
 
     // 3 June 2026 falls in the week of Monday 1 June, so that's the
-    // initially-selected week; the week of 8 June is a different, shaded one.
+    // initially-selected week; the week of 8 June is a different, muted one.
     const selectedWeekDay = screen.getAllByLabelText('Select week of 2026-06-01')[0];
     const otherWeekDay = screen.getAllByLabelText('Select week of 2026-06-08')[0];
 
-    expect(selectedWeekDay.parentElement?.className).not.toEqual(expect.stringContaining('bg-highlight/20'));
-    expect(otherWeekDay.parentElement?.className).toEqual(expect.stringContaining('bg-highlight/20'));
+    expect(selectedWeekDay.parentElement?.className).toEqual(expect.stringContaining('bg-highlight/20'));
+    expect(otherWeekDay.parentElement?.className).toEqual(expect.stringContaining('bg-white/5'));
+    expect(otherWeekDay.parentElement?.className).not.toEqual(expect.stringContaining('bg-highlight/20'));
   });
 });

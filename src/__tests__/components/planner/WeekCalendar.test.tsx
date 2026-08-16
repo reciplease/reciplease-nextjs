@@ -73,14 +73,16 @@ describe('WeekCalendar', () => {
     expect(within(eighteenth).queryByTestId('planned-meal-dot')).toBeInTheDocument();
   });
 
-  it('shades every week except the currently selected one', () => {
+  it('tints the currently selected week with the accent colour and every other week with a muted neutral', () => {
     render(<WeekCalendar selectedMonday="2026-06-15" onSelect={jest.fn()} />);
 
     const selectedWeekDay = screen.getAllByLabelText('Select week of 2026-06-15')[0];
     const otherWeekDay = screen.getAllByLabelText('Select week of 2026-06-01')[0];
 
-    expect(selectedWeekDay.parentElement?.className).not.toEqual(expect.stringContaining('bg-highlight/20'));
-    expect(otherWeekDay.parentElement?.className).toEqual(expect.stringContaining('bg-highlight/20'));
+    expect(selectedWeekDay.parentElement?.className).toEqual(expect.stringContaining('bg-highlight/20'));
+    expect(selectedWeekDay.parentElement?.className).not.toEqual(expect.stringContaining('bg-white/5'));
+    expect(otherWeekDay.parentElement?.className).toEqual(expect.stringContaining('bg-white/5'));
+    expect(otherWeekDay.parentElement?.className).not.toEqual(expect.stringContaining('bg-highlight/20'));
   });
 
   it('reports the visible grid range on mount and after month navigation', () => {

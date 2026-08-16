@@ -61,11 +61,12 @@ test.describe('Planner calendar shading and planned-meal markers', () => {
     await mockSession(page);
   });
 
-  test('shades every week except the selected one', async ({ page }) => {
+  test('tints the selected week with the accent colour and every other week with a muted neutral', async ({ page }) => {
     const { selectedMonday, otherMonday } = await discoverWeeks(page);
 
-    await expect(mondayCell(page, selectedMonday).locator('..')).not.toHaveClass(/bg-highlight\/20/);
-    await expect(mondayCell(page, otherMonday).locator('..')).toHaveClass(/bg-highlight\/20/);
+    await expect(mondayCell(page, selectedMonday).locator('..')).toHaveClass(/bg-highlight\/20/);
+    await expect(mondayCell(page, otherMonday).locator('..')).toHaveClass(/bg-white\/5/);
+    await expect(mondayCell(page, otherMonday).locator('..')).not.toHaveClass(/bg-highlight\/20/);
   });
 
   test('shows a dot under days with a planned meal, whether or not their week is selected', async ({ page }) => {
@@ -105,8 +106,8 @@ test.describe('Planner calendar shading and planned-meal markers', () => {
 
     await mondayCell(page, otherMonday).click();
 
-    await expect(mondayCell(page, otherMonday).locator('..')).not.toHaveClass(/bg-highlight\/20/);
-    await expect(mondayCell(page, selectedMonday).locator('..')).toHaveClass(/bg-highlight\/20/);
+    await expect(mondayCell(page, otherMonday).locator('..')).toHaveClass(/bg-highlight\/20/);
+    await expect(mondayCell(page, selectedMonday).locator('..')).toHaveClass(/bg-white\/5/);
     // The meal dot stays on 'otherMonday' regardless of it now being selected.
     await expect(mondayCell(page, otherMonday).getByTestId('planned-meal-dot')).toBeVisible();
   });
