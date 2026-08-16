@@ -12,7 +12,7 @@ jest.mock('@/lib/houses', () => ({
   apiFetch: (url: string, init?: RequestInit) => fetch(url, init),
 }));
 jest.mock('next/router', () => ({
-  useRouter: () => ({ isReady: true, query: { uuid: 'uuid-1' } }),
+  useRouter: () => ({ isReady: true, query: { uuid: 'uuid-1' }, replace: jest.fn() }),
 }));
 jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; href: string }) => (
   <a href={href}>{children}</a>
@@ -52,11 +52,11 @@ describe('InventoryItemPage data fetching', () => {
     expect(fetch).toHaveBeenCalledWith('/api/inventory/uuid-1', undefined);
   });
 
-  it('shows not found when the request fails', async () => {
+  it('shows a redirecting message when the request fails', async () => {
     mockFetchByUrl({ ok: false });
 
     renderFresh(<InventoryItemPage />);
 
-    await waitFor(() => expect(screen.getByText('Item not found')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/no longer exists/)).toBeInTheDocument());
   });
 });

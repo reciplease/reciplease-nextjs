@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -27,6 +28,19 @@ export default function InventoryItemPage() {
   const { data: item, error, isLoading, mutate } = useSWR(swrKey, () => fetcher(`/api/inventory/${uuid}`));
   const measures = useMeasures();
 
+  // Covers both a stale/bad link straight to a deleted item and eating/binning
+  // the last of an item while already on its page (the backend deletes it —
+  // see lib/inventory.ts — so the next revalidation 404s here too). Either
+  // way, there's nothing to show, so bounce back to the list rather than
+  // leaving the user on a dead "not found" page they have to click out of.
+  // Uses the same raw conditions as the render check below rather than a
+  // shared boolean, so that check can still narrow `item`'s type.
+  useEffect(() => {
+    if (router.isReady && activeHouse && !isLoading && (error || !item || !uuid)) {
+      router.replace('/inventory');
+    }
+  }, [router, activeHouse, isLoading, error, item, uuid]);
+
   if (!router.isReady || !activeHouse || isLoading) {
     return (
       <>
@@ -40,8 +54,7 @@ export default function InventoryItemPage() {
     return (
       <>
         <Metadata title="Not Found" description="Inventory item not found" />
-        <p>Item not found</p>
-        <Link href="/inventory">Back to inventory</Link>
+        <p>This item no longer exists — taking you back to inventory…</p>
       </>
     );
   }

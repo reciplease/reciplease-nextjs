@@ -47,12 +47,14 @@ function mockItem(state: { isLoading?: boolean; data?: InventoryItem; error?: un
 
 describe('InventoryItemPage', () => {
   const push = jest.fn();
+  const replace = jest.fn();
 
   beforeEach(() => {
     (fetch as jest.Mock).mockReset();
     push.mockReset();
+    replace.mockReset();
     mutate.mockReset();
-    useRouter.mockReturnValue({ push, isReady: true, query: { uuid: 'uuid-1' } });
+    useRouter.mockReturnValue({ push, replace, isReady: true, query: { uuid: 'uuid-1' } });
   });
 
   it('shows loading state', () => {
@@ -61,10 +63,11 @@ describe('InventoryItemPage', () => {
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
-  it('shows not found when error', () => {
+  it('redirects to the inventory list when the item errors (e.g. deleted/not found)', () => {
     mockItem({ error: new Error('fail') });
     render(<InventoryItemPage />);
-    expect(screen.getByText('Item not found')).toBeInTheDocument();
+    expect(screen.getByText(/no longer exists/)).toBeInTheDocument();
+    expect(replace).toHaveBeenCalledWith('/inventory');
   });
 
   it('renders item name and amount remaining out of the full amount', () => {

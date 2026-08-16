@@ -40,11 +40,13 @@ function mockItemSWR(result: { isLoading: boolean; data: InventoryItem | undefin
 
 describe('EditInventoryItem page', () => {
   const push = jest.fn();
+  const replace = jest.fn();
 
   beforeEach(() => {
     (fetch as jest.Mock).mockReset();
     push.mockReset();
-    useRouter.mockReturnValue({ push, isReady: true, query: { uuid } });
+    replace.mockReset();
+    useRouter.mockReturnValue({ push, replace, isReady: true, query: { uuid } });
   });
 
   it('shows loading state', () => {
@@ -53,10 +55,11 @@ describe('EditInventoryItem page', () => {
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
-  it('shows not found when the item fails to load', () => {
+  it('redirects to the inventory list when the item fails to load', () => {
     mockItemSWR({ isLoading: false, data: undefined, error: new Error('nope') });
     render(<EditInventoryItem />);
-    expect(screen.getByText('Item not found')).toBeInTheDocument();
+    expect(screen.getByText(/no longer exists/)).toBeInTheDocument();
+    expect(replace).toHaveBeenCalledWith('/inventory');
   });
 
   it('pre-populates the form from the existing item', () => {

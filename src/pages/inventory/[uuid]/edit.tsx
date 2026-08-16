@@ -1,6 +1,5 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import Link from 'next/link';
 import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
 import MdyDateInput from '@/components/MdyDateInput';
@@ -30,6 +29,16 @@ export default function EditInventoryItem() {
   );
   const { data: measures, isLoading: measuresLoading } = useSWR('/api/measures', measuresFetcher);
 
+  // See the matching comment in the item detail page — same "bounce back to
+  // the list instead of leaving a dead-end page" fix, applied here too. Uses
+  // the same raw conditions as the render check below rather than a shared
+  // boolean, so that check can still narrow `item`'s type.
+  useEffect(() => {
+    if (router.isReady && activeHouse && !itemLoading && (itemError || !item || !uuid)) {
+      router.replace('/inventory');
+    }
+  }, [router, activeHouse, itemLoading, itemError, item, uuid]);
+
   if (!router.isReady || !activeHouse || itemLoading) {
     return (
       <>
@@ -43,8 +52,7 @@ export default function EditInventoryItem() {
     return (
       <>
         <Metadata title="Not Found" description="Inventory item not found" />
-        <p>Item not found</p>
-        <Link href="/inventory">Back to inventory</Link>
+        <p>This item no longer exists — taking you back to inventory…</p>
       </>
     );
   }
