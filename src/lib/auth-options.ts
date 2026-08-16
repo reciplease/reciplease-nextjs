@@ -117,6 +117,34 @@ async function redeemRefreshToken(refreshToken: string): Promise<ExchangeResult>
 }
 
 /**
+ * Backfills a refresh token for a caller who has a valid access token but no refresh token at
+ * all — chiefly a session that predates refresh-token support existing, which otherwise has no
+ * way to get one short of a forced re-login once its access token eventually expires. Unlike
+ * {@link redeemRefreshToken}, this is bearer-authenticated with the still-valid access token
+ * (POST /api/auth/refresh-token), not a cookie.
+ */
+async function issueRefreshToken(accessTokenValue: string): Promise<ExchangeResult> {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/auth/refresh-token`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${accessTokenValue}` },
+    });
+    if (!response.ok) return { ok: false, error: 'ExchangeError' };
+
+    const body: ExchangeResponseBody = await response.json();
+    return {
+      ok: true,
+      token: body.token ?? '',
+      refreshToken: body.refreshToken ?? null,
+      userId: body.userId ?? '',
+      handle: body.handle ?? null,
+    };
+  } catch {
+    return { ok: false, error: 'ExchangeError' };
+  }
+}
+
+/**
  * Verifies a passkey signup/login ceremony and mints a Reciplease JWT — the passkey
  * equivalent of {@link exchangeIdentity}, except there's no separate provider identity to
  * verify out of band: the backend itself does the WebAuthn verification, so this just
@@ -307,8 +335,22 @@ export const authOptions: NextAuthOptions = {
             token.recipleaseToken = undefined;
             token.error = 'SessionExpired';
           }
-          // No refresh token, but not yet actually expired: nothing to do yet — retried
-          // on the next periodic poll once it's truly past its expiry.
+          // No refresh token, but not yet actually expired: nothing to do yet here —
+          // the backfill below handles it instead of waiting for expiry.
+        }
+
+        if (token.recipleaseToken && !token.recipleaseRefreshToken) {
+          // Still has a live access token (didn't just get cleared above) but no refresh
+          // token — most commonly a pre-migration session, but resilient to any other path
+          // that leaves this gap too. Backfill one opportunistically now rather than
+          // waiting for the access token to expire and forcing a full re-login.
+          const issued = await issueRefreshToken(token.recipleaseToken);
+          if (issued.ok) {
+            token.recipleaseRefreshToken = issued.refreshToken ?? undefined;
+          }
+          // Failure here (backend unreachable, token expired between the check above and
+          // this call, etc.) is silently retried on the next periodic poll — same as the
+          // redemption failure case above.
         }
       }
 
