@@ -256,6 +256,10 @@ export default function ScanPage() {
                 placeholder="Item name"
                 className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-600 rounded-lg text-white focus:outline-none focus:border-highlight"
               />
+              <p className="text-xs text-zinc-500">
+                Lowercase, phrased how a recipe would say it — e.g. &quot;cherry tomatoes&quot;, not
+                &quot;Cherry Tomatoes&quot; or &quot;Sainsbury&apos;s cherry tomatoes&quot; (brand goes below).
+              </p>
             </div>
 
             {/* OpenFoodFacts name candidates — tap one to use it as the name. */}

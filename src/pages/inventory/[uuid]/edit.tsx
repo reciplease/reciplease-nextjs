@@ -160,9 +160,13 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            placeholder="e.g. Milk"
+            placeholder="e.g. milk"
             className="p-2 text-base"
           />
+          <p className="text-xs text-[#666] -mt-1">
+            Lowercase, phrased how a recipe would say it — e.g. &quot;cherry tomatoes&quot;, not
+            &quot;Cherry Tomatoes&quot; or &quot;Sainsbury&apos;s cherry tomatoes&quot; (brand goes below).
+          </p>
 
           <label htmlFor="brand">Brand (optional)</label>
           <input
