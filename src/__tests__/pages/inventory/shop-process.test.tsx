@@ -72,8 +72,10 @@ describe('ProcessListPage', () => {
     render(<ProcessListPage />);
 
     const row = screen.getAllByLabelText('Discard')[0].closest('li')!;
-    const buttonsAndLinks = Array.from(row.querySelectorAll('a, button')).map((el) => el.textContent);
-    expect(buttonsAndLinks.indexOf('Process')).toBeLessThan(buttonsAndLinks.indexOf('×'));
+    const buttonsAndLinks = Array.from(row.querySelectorAll('a, button')).map(
+      (el) => el.getAttribute('aria-label') ?? el.textContent,
+    );
+    expect(buttonsAndLinks.indexOf('Process')).toBeLessThan(buttonsAndLinks.indexOf('Discard'));
   });
 
   it('shows an empty state when there is nothing to process', () => {

@@ -118,9 +118,20 @@ export default function ProcessListPage() {
                     disabled={discarding === item.uuid}
                     aria-label="Discard"
                     title="Discard"
-                    className="w-7 h-7 shrink-0 grid place-items-center rounded-full border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white disabled:opacity-50 leading-none"
+                    className="w-7 h-7 shrink-0 grid place-items-center rounded-full border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white disabled:opacity-50"
                   >
-                    ×
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                    >
+                      <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
                   </button>
                 </div>
                 {item.updatedAt && (
