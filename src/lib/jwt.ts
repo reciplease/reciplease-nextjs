@@ -24,6 +24,12 @@ export function jwtExpiryMillis(jwt: string): number | undefined {
   return typeof exp === 'number' ? exp * 1000 : undefined;
 }
 
+/** The JWT's `iat` claim in epoch milliseconds, or undefined if missing/unparseable. */
+export function jwtIssuedMillis(jwt: string): number | undefined {
+  const iat = decodeJwtPayload(jwt)?.iat;
+  return typeof iat === 'number' ? iat * 1000 : undefined;
+}
+
 export function isJwtExpired(jwt: string): boolean {
   const expiryMillis = jwtExpiryMillis(jwt);
   return expiryMillis === undefined || expiryMillis <= Date.now();

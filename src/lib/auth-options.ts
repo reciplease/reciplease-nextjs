@@ -6,18 +6,20 @@ import type { JWT } from 'next-auth/jwt';
 import { OAuth2Client } from 'google-auth-library';
 import { BACKEND_URL } from '@/lib/backend-url';
 import { accessToken } from '@/lib/backend';
-import { jwtExpiryMillis } from '@/lib/jwt';
+import { jwtExpiryMillis, jwtIssuedMillis } from '@/lib/jwt';
 import type { components } from '@/types/generated/api';
 
-// Refresh once less than this much of the Reciplease JWT's life remains — comfortably
-// inside the window that SessionProvider's refetchInterval/focus revalidation (see
-// _app.tsx) will hit at least once while a tab is open, so an active user's token
-// renews silently well before it actually expires. Must stay smaller than the
-// backend's access-token TTL (application.yml, currently 6h) — otherwise every
-// token looks "near expiry" from the moment it's minted, so every poll redeems the
-// refresh token, and any two polls racing (multiple tabs, interval vs. focus) trip
-// reuse detection and revoke the whole session.
-const REFRESH_MARGIN_MILLIS = 10 * 60 * 1000;
+// Refresh once less than this fraction of the Reciplease JWT's total lifetime (exp -
+// iat) remains — expressed as a fraction of the token's own TTL, not a fixed
+// duration, so it can never exceed the access-token TTL itself no matter what that's
+// configured to on the backend (application.yml `reciplease.jwt.access-token-ttl`).
+// A fixed-minutes margin once ended up *longer* than a 20-minute TTL, which made
+// every token look "near expiry" from the moment it was minted — every poll redeemed
+// the refresh token, and any two polls racing (multiple tabs, interval vs. focus)
+// tripped reuse detection and revoked the whole session. 10% leaves comfortable room
+// for SessionProvider's refetchInterval/focus revalidation (see _app.tsx) to catch a
+// token before it dies, however short or long the backend's TTL is.
+const REFRESH_MARGIN_FRACTION = 0.1;
 
 type ExchangeResponseBody = components['schemas']['ExchangeResponse'];
 
@@ -283,8 +285,17 @@ export const authOptions: NextAuthOptions = {
         // when some backend call eventually 401s: that's what used to let a stale
         // session render "authenticated" UI before failing a moment later.
         const expiryMillis = jwtExpiryMillis(token.recipleaseToken);
+        const issuedMillis = jwtIssuedMillis(token.recipleaseToken);
         const expired = expiryMillis === undefined || expiryMillis <= Date.now();
-        const nearExpiry = expired || expiryMillis - Date.now() < REFRESH_MARGIN_MILLIS;
+        // Fraction of the token's own lifetime, not a fixed duration — see
+        // REFRESH_MARGIN_FRACTION above. Without an iat claim to measure that
+        // lifetime from, there's nothing to take a fraction of, so this only
+        // refreshes once the token has actually expired.
+        const refreshMarginMillis =
+          expiryMillis !== undefined && issuedMillis !== undefined
+            ? (expiryMillis - issuedMillis) * REFRESH_MARGIN_FRACTION
+            : 0;
+        const nearExpiry = expired || expiryMillis - Date.now() < refreshMarginMillis;
 
         if (nearExpiry) {
           if (token.recipleaseRefreshToken) {

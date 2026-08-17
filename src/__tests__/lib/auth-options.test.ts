@@ -19,11 +19,20 @@ const { jwt, session } = authOptions.callbacks!;
 
 const ORIGINAL_ENV = process.env;
 
-/** A structurally-valid (unsigned) JWT with only an `exp` claim — enough for jwtExpiryMillis. */
-function fakeJwt(expiresInSeconds: number): string {
+/**
+ * A structurally-valid (unsigned) JWT with `exp`/`iat` claims — enough for
+ * jwtExpiryMillis/jwtIssuedMillis. `totalLifetimeSeconds` (default 24h, comfortably
+ * bigger than any real access-token TTL) sets how far back `iat` is from `exp`, since
+ * REFRESH_MARGIN_FRACTION is a fraction of that span, not of `expiresInSeconds` alone.
+ */
+function fakeJwt(expiresInSeconds: number, totalLifetimeSeconds = 24 * 60 * 60): string {
   const header = Buffer.from(JSON.stringify({ alg: 'none' })).toString('base64url');
+  const nowSeconds = Math.floor(Date.now() / 1000);
   const payload = Buffer.from(
-    JSON.stringify({ exp: Math.floor(Date.now() / 1000) + expiresInSeconds }),
+    JSON.stringify({
+      exp: nowSeconds + expiresInSeconds,
+      iat: nowSeconds + expiresInSeconds - totalLifetimeSeconds,
+    }),
   ).toString('base64url');
   return `${header}.${payload}.sig`;
 }
@@ -267,6 +276,36 @@ describe('jwt callback', () => {
     expect(result).toBe(token);
     expect(result.recipleaseToken).toBe(originalRecipleaseToken);
     expect(result.error).toBeUndefined();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('scales the refresh margin with the token\'s own TTL, so a short-lived token refreshes proportionally sooner', async () => {
+    // 2 minutes left out of a 20-minute total lifetime is 10% remaining — right at
+    // the REFRESH_MARGIN_FRACTION boundary — so this should redeem, not idle, even
+    // though 2 minutes would be nowhere near a fixed-minutes margin sized for a much
+    // longer-lived token (this is the exact mismatch that caused the outage this
+    // margin-as-fraction design fixes).
+    const token = { recipleaseToken: fakeJwt(60, 20 * 60), recipleaseRefreshToken: 'existing-refresh', handle: 'chef' } as JWT;
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'refreshed-jwt', refreshToken: 'rotated-refresh', userId: 'user-1', handle: 'chef' }),
+    });
+
+    const result = await jwt!({ token, account: null, user: undefined as never });
+
+    expect(result.recipleaseToken).toBe('refreshed-jwt');
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/api/auth/refresh'), expect.anything());
+  });
+
+  it('never treats a token as near-expiry from a fixed margin bigger than its own TTL — the bug that caused the outage', async () => {
+    // 15 of 20 minutes remaining (75%) is nowhere near expiry under a percentage
+    // margin, but would have been "near expiry" forever under the old fixed
+    // REFRESH_MARGIN_MILLIS (which exceeded some real access-token TTLs entirely).
+    const token = { recipleaseToken: fakeJwt(15 * 60, 20 * 60), recipleaseRefreshToken: 'existing-refresh', handle: 'chef' } as JWT;
+
+    const result = await jwt!({ token, account: null, user: undefined as never });
+
+    expect(result).toBe(token);
     expect(fetch).not.toHaveBeenCalled();
   });
 

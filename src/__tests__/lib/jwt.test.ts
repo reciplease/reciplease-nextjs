@@ -1,8 +1,14 @@
-import { isJwtExpired, jwtExpiryMillis } from '@/lib/jwt';
+import { isJwtExpired, jwtExpiryMillis, jwtIssuedMillis } from '@/lib/jwt';
 
 function jwtWithExp(exp: number | undefined): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256' })).toString('base64url');
   const payload = Buffer.from(JSON.stringify(exp === undefined ? {} : { exp })).toString('base64url');
+  return `${header}.${payload}.signature`;
+}
+
+function jwtWithIat(iat: number | undefined): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256' })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify(iat === undefined ? {} : { iat })).toString('base64url');
   return `${header}.${payload}.signature`;
 }
 
@@ -23,6 +29,21 @@ describe('jwtExpiryMillis', () => {
   it('returns undefined for a payload that is not valid JSON', () => {
     const badPayload = Buffer.from('not json').toString('base64url');
     expect(jwtExpiryMillis(`header.${badPayload}.sig`)).toBeUndefined();
+  });
+});
+
+describe('jwtIssuedMillis', () => {
+  it('reads the iat claim in epoch milliseconds', () => {
+    const iat = Math.floor(Date.now() / 1000) - 3600;
+    expect(jwtIssuedMillis(jwtWithIat(iat))).toBe(iat * 1000);
+  });
+
+  it('returns undefined when there is no iat claim', () => {
+    expect(jwtIssuedMillis(jwtWithIat(undefined))).toBeUndefined();
+  });
+
+  it('returns undefined for a malformed token', () => {
+    expect(jwtIssuedMillis('not-a-jwt')).toBeUndefined();
   });
 });
 
