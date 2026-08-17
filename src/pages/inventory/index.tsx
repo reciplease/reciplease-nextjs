@@ -61,29 +61,37 @@ function InventoryTile({
   measures: Measure[];
   onThrowAway: (item: InventoryItem) => void;
 }) {
+  // Every tile is the same fixed height regardless of how much text it holds
+  // (long names, a brand line, a days-left line) — the image is the one
+  // flexible element (flex-1 + min-h-0) and shrinks to make room for text,
+  // rather than letting a longer name blow the tile taller than its neighbors.
   return (
     <li className="relative">
-      <Link href={`/inventory/${item.uuid}`} className="grid gap-2">
-        <InventoryImage
-          item={item}
-          className="w-full aspect-square object-cover rounded border border-[#ccc]"
-        />
-        {daysLeft === undefined ? (
-          <h4 className="font-medium text-center text-sm">{item.name}</h4>
-        ) : (
-          <h5 className="font-medium text-center text-sm">{item.name}</h5>
-        )}
-        {item.brand && <p className="text-center text-xs text-[#666] -mt-1">{item.brand}</p>}
-        {daysLeft !== undefined && (
-          <>
-            <p className="text-center text-xs text-[#666] -mt-1">
-              {item.remaining} {displayMeasure(item, measures)}
-            </p>
-            <p className={`text-center text-xs font-medium -mt-1 ${daysLeftColor(daysLeft)}`}>
-              {formatDaysLeft(daysLeft)}
-            </p>
-          </>
-        )}
+      <Link href={`/inventory/${item.uuid}`} className="flex flex-col gap-2 h-60">
+        <div className="flex-1 min-h-0">
+          <InventoryImage
+            item={item}
+            className="w-full h-full object-cover rounded border border-[#ccc]"
+          />
+        </div>
+        <div className="shrink-0">
+          {daysLeft === undefined ? (
+            <h4 className="font-medium text-center text-sm line-clamp-2">{item.name}</h4>
+          ) : (
+            <h5 className="font-medium text-center text-sm line-clamp-2">{item.name}</h5>
+          )}
+          {item.brand && <p className="text-center text-xs text-[#666]">{item.brand}</p>}
+          {daysLeft !== undefined && (
+            <>
+              <p className="text-center text-xs text-[#666]">
+                {item.remaining} {displayMeasure(item, measures)}
+              </p>
+              <p className={`text-center text-xs font-medium ${daysLeftColor(daysLeft)}`}>
+                {formatDaysLeft(daysLeft)}
+              </p>
+            </>
+          )}
+        </div>
       </Link>
       <button
         type="button"
