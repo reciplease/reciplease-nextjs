@@ -1,18 +1,18 @@
 type Props = {
   candidates: string[];
   value: string;
-  onSelect: (name: string) => void;
+  onSelect: (value: string) => void;
+  label: string;
 };
 
-// OpenFoodFacts name candidates — tap one to use it as the item name.
-export default function NameCandidates({ candidates, value, onSelect }: Props) {
+// Tap-a-pill picker for candidate values (name or brand) sourced from
+// OpenFoodFacts or a prior inventory match.
+export default function CandidatePills({ candidates, value, onSelect, label }: Props) {
   if (candidates.length === 0) return null;
 
   return (
     <div className="flex flex-col gap-3 rounded-lg bg-zinc-950/60 border border-zinc-800 p-4">
-      <p className="text-xs font-semibold text-zinc-400">
-        From OpenFoodFacts — tap a name to use it
-      </p>
+      <p className="text-xs font-semibold text-zinc-400">{label}</p>
       <div className="flex flex-wrap gap-2">
         {candidates.map((candidate) => {
           const selected = candidate === value.trim();

@@ -3,9 +3,13 @@ import { apiFetch } from '@/lib/houses';
 
 export type ItemSuggestion = {
   name: string;
+  // Best-guess brand (first candidate), separate from name — empty string
+  // when nothing was found, matching `name`'s own empty-default.
+  brand: string;
   measureId: string | null;
   source: 'inventory' | 'openfoodfacts' | null;
   candidates: string[];
+  brandCandidates: string[];
   // OpenFoodFacts product photo, if any — left to the caller to fetch/compress
   // (browser canvas work) so this stays testable without a DOM.
   imageUrl: string | null;
@@ -18,9 +22,11 @@ export type ItemSuggestion = {
 export async function suggestItemFromBarcode(barcode: string): Promise<ItemSuggestion> {
   const suggestion: ItemSuggestion = {
     name: '',
+    brand: '',
     measureId: null,
     source: null,
     candidates: [],
+    brandCandidates: [],
     imageUrl: null,
   };
 
@@ -31,6 +37,7 @@ export async function suggestItemFromBarcode(barcode: string): Promise<ItemSugge
       const prior = items.find((it) => it.barcode === barcode);
       if (prior) {
         suggestion.name = prior.name;
+        suggestion.brand = prior.brand ?? '';
         suggestion.measureId = prior.measure;
         suggestion.source = 'inventory';
       }
@@ -40,12 +47,16 @@ export async function suggestItemFromBarcode(barcode: string): Promise<ItemSugge
   }
 
   if (!suggestion.name) {
-    const { nameCandidates, measureId, imageUrl } = await lookupProduct(barcode);
+    const { nameCandidates, brandCandidates, measureId, imageUrl } = await lookupProduct(barcode);
     suggestion.candidates = nameCandidates;
+    suggestion.brandCandidates = brandCandidates;
     suggestion.imageUrl = imageUrl;
     if (nameCandidates.length > 0) {
       suggestion.name = nameCandidates[0];
       suggestion.source = 'openfoodfacts';
+    }
+    if (brandCandidates.length > 0) {
+      suggestion.brand = brandCandidates[0];
     }
     if (measureId) {
       suggestion.measureId = measureId;

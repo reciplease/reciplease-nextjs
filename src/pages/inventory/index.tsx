@@ -73,6 +73,7 @@ function InventoryTile({
         ) : (
           <h5 className="font-medium text-center text-sm">{item.name}</h5>
         )}
+        {item.brand && <p className="text-center text-xs text-[#666] -mt-1">{item.brand}</p>}
         {daysLeft !== undefined && (
           <>
             <p className="text-center text-xs text-[#666] -mt-1">

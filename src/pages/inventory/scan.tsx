@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import Metadata from '@/components/Metadata';
 import MdyDateInput from '@/components/MdyDateInput';
 import MeasureAmountFields from '@/components/scanner/MeasureAmountFields';
-import NameCandidates from '@/components/scanner/NameCandidates';
+import CandidatePills from '@/components/scanner/CandidatePills';
 import PhotoCaptureInput from '@/components/scanner/PhotoCaptureInput';
 import InventoryImage from '@/components/InventoryImage';
 import { suggestItemFromBarcode } from '@/lib/suggestItemFromBarcode';
@@ -42,13 +42,15 @@ export default function ScanPage() {
   // inventory item itself so future scans can suggest it when planning recipes.
   const [barcode, setBarcode] = useState('');
   const [name, setName] = useState('');
+  const [brand, setBrand] = useState('');
   const [measure, setMeasure] = useState<Measure | null>(null);
   const [expiration, setExpiration] = useState(toIsoDate(new Date()));
   const [amount, setAmount] = useState('');
   // Where the suggested name came from, so we can hint at it on the confirm step.
   const [nameSource, setNameSource] = useState<'inventory' | 'openfoodfacts' | null>(null);
-  // Name candidates from OpenFoodFacts, so the user can pick one.
+  // Name/brand candidates from OpenFoodFacts, so the user can pick one.
   const [candidates, setCandidates] = useState<string[]>([]);
+  const [brandCandidates, setBrandCandidates] = useState<string[]>([]);
   // Raw base64 JPEG (no `data:` prefix) — from an OpenFoodFacts photo or a
   // manually taken one. Best-effort: absent if neither is available.
   const [image, setImage] = useState<string | null>(null);
@@ -74,6 +76,7 @@ export default function ScanPage() {
     const suggestion = await suggestItemFromBarcode(scanned);
 
     setCandidates(suggestion.candidates);
+    setBrandCandidates(suggestion.brandCandidates);
     // Fetch and compress the product photo in the background — best-effort,
     // so a slow/failed/CORS-blocked fetch never blocks the scan flow.
     if (suggestion.imageUrl) {
@@ -86,6 +89,7 @@ export default function ScanPage() {
     }
 
     setName(suggestion.name);
+    setBrand(suggestion.brand);
     // The suggested measure pre-fills the measure+amount step later in the flow.
     setMeasure(measures.find((m) => m.measureId === suggestion.measureId) ?? null);
     setNameSource(suggestion.source);
@@ -103,11 +107,13 @@ export default function ScanPage() {
     scanSeqRef.current++;
     setBarcode('');
     setName('');
+    setBrand('');
     setMeasure(null);
     setExpiration(toIsoDate(new Date()));
     setAmount('');
     setNameSource(null);
     setCandidates([]);
+    setBrandCandidates([]);
     setImage(null);
     setManualBarcode('');
     setPhase('barcode');
@@ -135,6 +141,7 @@ export default function ScanPage() {
         measure: measure.measureId,
         amount: parseFloat(amount),
         expiration,
+        ...(brand.trim() ? { brand: brand.trim() } : {}),
         ...(barcode ? { barcode } : {}),
         ...(image ? { image } : {}),
       };
@@ -252,7 +259,30 @@ export default function ScanPage() {
             </div>
 
             {/* OpenFoodFacts name candidates — tap one to use it as the name. */}
-            <NameCandidates candidates={candidates} value={name} onSelect={setName} />
+            <CandidatePills
+              candidates={candidates}
+              value={name}
+              onSelect={setName}
+              label="From OpenFoodFacts — tap a name to use it"
+            />
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="scan-brand" className="text-xs text-zinc-400">Brand (optional)</label>
+              <input
+                id="scan-brand"
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+                placeholder="e.g. Heinz"
+                className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-600 rounded-lg text-white focus:outline-none focus:border-highlight"
+              />
+            </div>
+
+            <CandidatePills
+              candidates={brandCandidates}
+              value={brand}
+              onSelect={setBrand}
+              label="From OpenFoodFacts — tap a brand to use it"
+            />
 
             {/* Photo preview — from OpenFoodFacts if found, or taken manually. */}
             <div className="flex items-center gap-4">

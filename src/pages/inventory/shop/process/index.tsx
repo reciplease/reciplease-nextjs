@@ -26,6 +26,24 @@ function PendingThumb({ image, label }: { image?: string; label: string }) {
   return <img src={toDataUrl(image)} alt={label} className="w-14 h-14 rounded object-cover" />;
 }
 
+// Barcode tile — a photo for anything captured with the current flow, or the
+// already-decoded number for items captured before that (see
+// PendingInventoryItem.legacyBarcode on the backend); "No barcode photo" only
+// once neither is present.
+function BarcodeThumb({ item }: { item: PendingInventoryItem }) {
+  if (item.barcodeImage) {
+    return <PendingThumb image={item.barcodeImage} label="barcode photo" />;
+  }
+  if (item.legacyBarcode) {
+    return (
+      <div className="w-14 h-14 rounded bg-zinc-100 flex items-center justify-center text-[10px] text-zinc-700 text-center leading-tight px-0.5 font-mono break-all">
+        {item.legacyBarcode}
+      </div>
+    );
+  }
+  return <PendingThumb label="barcode photo" />;
+}
+
 // The backlog created by /inventory/shop: each row is one captured item still
 // waiting to be digitised into a real inventory item.
 export default function ProcessListPage() {
@@ -82,30 +100,34 @@ export default function ProcessListPage() {
         ) : (
           <ul className="list-none p-0 grid gap-3 my-4">
             {items.map((item) => (
-              <li key={item.uuid} className="flex items-center gap-4 rounded border border-zinc-200 p-3">
-                <PendingThumb image={item.expirationImage} label="expiration photo" />
-                <PendingThumb image={item.measureImage} label="measure photo" />
-                <div className="mr-auto min-w-0">
-                  {item.barcode ? (
-                    <p className="font-mono text-sm truncate">{item.barcode}</p>
-                  ) : (
-                    <p className="text-sm text-zinc-500">No barcode</p>
-                  )}
+              <li key={item.uuid} className="grid gap-2 rounded border border-zinc-200 p-3">
+                <div className="flex items-center gap-4">
+                  <BarcodeThumb item={item} />
+                  <PendingThumb image={item.expirationImage} label="expiration photo" />
+                  <PendingThumb image={item.measureImage} label="measure photo" />
+                  <div className="mr-auto" />
+                  <Link
+                    href={`/inventory/shop/process/${item.uuid}`}
+                    className="rounded bg-highlight px-3 py-1.5 text-sm font-semibold text-white"
+                  >
+                    Process
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => handleDiscard(item.uuid)}
+                    disabled={discarding === item.uuid}
+                    aria-label="Discard"
+                    title="Discard"
+                    className="w-7 h-7 shrink-0 grid place-items-center rounded-full border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white disabled:opacity-50 leading-none"
+                  >
+                    ×
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleDiscard(item.uuid)}
-                  disabled={discarding === item.uuid}
-                  className="rounded border-2 border-red-600 px-2 py-1 text-sm text-red-600 hover:bg-red-600 hover:text-white disabled:opacity-50"
-                >
-                  Discard
-                </button>
-                <Link
-                  href={`/inventory/shop/process/${item.uuid}`}
-                  className="rounded bg-highlight px-3 py-1.5 text-sm font-semibold text-white"
-                >
-                  Process
-                </Link>
+                {item.updatedAt && (
+                  <p className="text-xs text-zinc-500">
+                    Scanned {new Date(item.updatedAt).toLocaleString()}
+                  </p>
+                )}
               </li>
             ))}
           </ul>

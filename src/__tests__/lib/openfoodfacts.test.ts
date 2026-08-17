@@ -30,9 +30,20 @@ describe('lookupProduct', () => {
         'Oat M.',
         'Plant-based milks',
       ],
+      brandCandidates: ['Oatly', 'Subbrand'],
       measureId: 'l',
       imageUrl: null,
     });
+  });
+
+  it('drops blank brand tokens and de-duplicates', async () => {
+    mockProduct({ product_name: 'Salt', brands: 'Saxa, Saxa, ' });
+    expect((await lookupProduct('1')).brandCandidates).toEqual(['Saxa']);
+  });
+
+  it('returns an empty brandCandidates list when the product has no brands', async () => {
+    mockProduct({ product_name: 'Salt' });
+    expect((await lookupProduct('1')).brandCandidates).toEqual([]);
   });
 
   it('prefers the small front image over the generic image', async () => {
@@ -75,17 +86,17 @@ describe('lookupProduct', () => {
       ok: true,
       json: async () => ({ status: 0 }),
     });
-    expect(await lookupProduct('0')).toEqual({ nameCandidates: [], measureId: null, imageUrl: null });
+    expect(await lookupProduct('0')).toEqual({ nameCandidates: [], brandCandidates: [], measureId: null, imageUrl: null });
   });
 
   it('returns empty results on HTTP error', async () => {
     (fetch as jest.Mock).mockResolvedValue({ ok: false });
-    expect(await lookupProduct('bad')).toEqual({ nameCandidates: [], measureId: null, imageUrl: null });
+    expect(await lookupProduct('bad')).toEqual({ nameCandidates: [], brandCandidates: [], measureId: null, imageUrl: null });
   });
 
   it('returns empty results on network failure', async () => {
     (fetch as jest.Mock).mockRejectedValue(new Error('timeout'));
-    expect(await lookupProduct('bad')).toEqual({ nameCandidates: [], measureId: null, imageUrl: null });
+    expect(await lookupProduct('bad')).toEqual({ nameCandidates: [], brandCandidates: [], measureId: null, imageUrl: null });
   });
 });
 

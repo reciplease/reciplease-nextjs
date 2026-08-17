@@ -45,6 +45,7 @@ function setup() {
   useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
   (lookupProduct as jest.Mock).mockResolvedValue({
     nameCandidates: ['Oat Milk', 'Oatly Oat Milk'],
+    brandCandidates: [],
     measureId: null,
   });
   return render(<ScanPage />);
@@ -115,7 +116,7 @@ describe('ScanPage', () => {
 
   it('shows no measure options while measures have not loaded', async () => {
     useSWR.mockReturnValue({ data: undefined, mutate: jest.fn() });
-    (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: ['Oat Milk'], measureId: null });
+    (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: ['Oat Milk'], brandCandidates: [], measureId: null });
     render(<ScanPage />);
     await scanToDetails();
     await advanceToMeasureAmount();
@@ -164,7 +165,7 @@ describe('ScanPage', () => {
 
     it('leaves the name blank when Open Food Facts returns nothing', async () => {
       useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
-      (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: [], measureId: null });
+      (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: [], brandCandidates: [], measureId: null });
       render(<ScanPage />);
       await scanToDetails();
 
@@ -175,6 +176,7 @@ describe('ScanPage', () => {
       useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
       (lookupProduct as jest.Mock).mockResolvedValue({
         nameCandidates: ['Flour'],
+        brandCandidates: [],
         measureId: 'g',
       });
       render(<ScanPage />);
@@ -220,7 +222,7 @@ describe('ScanPage', () => {
 
     it('falls back to Open Food Facts when no inventory item matches the barcode', async () => {
       useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
-      (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: ['Oat Milk', 'Oatly Oat Milk'], measureId: null });
+      (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: ['Oat Milk', 'Oatly Oat Milk'], brandCandidates: [], measureId: null });
       (fetch as jest.Mock).mockImplementation((url: string, opts?: { method?: string }) => {
         if (url === '/api/inventory' && opts?.method === undefined) {
           return Promise.resolve({
@@ -248,7 +250,7 @@ describe('ScanPage', () => {
 
     it('falls back to Open Food Facts when the inventory lookup responds with an error', async () => {
       useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
-      (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: ['Oat Milk', 'Oatly Oat Milk'], measureId: null });
+      (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: ['Oat Milk', 'Oatly Oat Milk'], brandCandidates: [], measureId: null });
       (fetch as jest.Mock).mockImplementation((url: string, opts?: { method?: string }) => {
         if (url === '/api/inventory' && opts?.method === undefined) {
           return Promise.resolve({ ok: false });
@@ -264,7 +266,7 @@ describe('ScanPage', () => {
 
     it('leaves the measure unset when Open Food Facts returns one we do not stock', async () => {
       useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
-      (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: ['Flour'], measureId: 'kg' });
+      (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: ['Flour'], brandCandidates: [], measureId: 'kg' });
       render(<ScanPage />);
       await scanToDetails();
       await advanceToMeasureAmount();
@@ -291,7 +293,7 @@ describe('ScanPage', () => {
 
     it('Continue is disabled until the item has a name', async () => {
       useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
-      (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: [], measureId: null });
+      (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: [], brandCandidates: [], measureId: null });
       render(<ScanPage />);
       await scanToDetails();
 

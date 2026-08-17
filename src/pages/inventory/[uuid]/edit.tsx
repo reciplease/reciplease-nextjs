@@ -73,6 +73,7 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
   const router = useRouter();
 
   const [name, setName] = useState(item.name);
+  const [brand, setBrand] = useState(item.brand ?? '');
   const [measureId, setMeasureId] = useState<MeasureId>(item.measure);
   const [amount, setAmount] = useState(String(item.amount));
   const [expiration, setExpiration] = useState(item.expiration);
@@ -124,6 +125,7 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
         amount: parseFloat(amount),
         remaining: item.remaining,
         expiration,
+        ...(brand.trim() ? { brand: brand.trim() } : {}),
         ...(barcode.trim() ? { barcode: barcode.trim() } : {}),
         ...(image ? { image } : {}),
       };
@@ -159,6 +161,16 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
             onChange={(e) => setName(e.target.value)}
             required
             placeholder="e.g. Milk"
+            className="p-2 text-base"
+          />
+
+          <label htmlFor="brand">Brand (optional)</label>
+          <input
+            id="brand"
+            type="text"
+            value={brand}
+            onChange={(e) => setBrand(e.target.value)}
+            placeholder="e.g. Heinz"
             className="p-2 text-base"
           />
 

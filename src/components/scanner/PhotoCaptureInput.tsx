@@ -3,6 +3,10 @@ import { compressToBase64 } from '@/lib/imageCapture';
 type Props = {
   label: string;
   onCaptured: (base64: string) => void;
+  // Barcode photos need more resolution than the default thumbnail-sized
+  // compression to stay decodable — override per-use when that matters.
+  maxDim?: number;
+  quality?: number;
 };
 
 // Camera/file input that compresses the chosen photo to a small base64 JPEG (the
@@ -11,10 +15,10 @@ type Props = {
 // `<input type="file">` is visually unstyleable, so it's hidden (`sr-only`)
 // behind a real button — the label wrapping it keeps it keyboard/click
 // accessible and gives screen readers the same accessible name.
-export default function PhotoCaptureInput({ label, onCaptured }: Props) {
+export default function PhotoCaptureInput({ label, onCaptured, maxDim, quality }: Props) {
   async function handleFile(file: File) {
     try {
-      onCaptured(await compressToBase64(file));
+      onCaptured(await compressToBase64(file, maxDim, quality));
     } catch {
       // Ignore — the user can just try again or skip the photo.
     }

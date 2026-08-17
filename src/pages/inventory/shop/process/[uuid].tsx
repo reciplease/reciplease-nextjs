@@ -5,7 +5,7 @@ import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
 import MdyDateInput from '@/components/MdyDateInput';
 import MeasureAmountFields from '@/components/scanner/MeasureAmountFields';
-import NameCandidates from '@/components/scanner/NameCandidates';
+import CandidatePills from '@/components/scanner/CandidatePills';
 import PhotoCaptureInput from '@/components/scanner/PhotoCaptureInput';
 import InventoryImage from '@/components/InventoryImage';
 import { suggestItemFromBarcode } from '@/lib/suggestItemFromBarcode';
@@ -19,6 +19,17 @@ const fetcher = (url: string): Promise<PendingInventoryItem> =>
     if (!res.ok) throw new Error('Not found');
     return res.json();
   });
+
+// Where to go after finishing one item: the next item still in the backlog
+// (excluding the one we just completed, in case the list hasn't caught up
+// yet), or back to the list once nothing's left.
+async function nextDestination(justCompletedUuid: string): Promise<string> {
+  const remaining: PendingInventoryItem[] = await apiFetch('/api/inventory/pending')
+    .then((res) => (res.ok ? res.json() : []))
+    .catch(() => []);
+  const next = remaining.find((item) => item.uuid !== justCompletedUuid);
+  return next ? `/inventory/shop/process/${next.uuid}` : '/inventory/shop/process';
+}
 
 // A captured photo shown at digitising size, next to the input that digitises
 // it — the whole point of this page is transcribing what's in the picture.
@@ -72,7 +83,9 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingInventor
   const measures = useMeasures();
 
   const [name, setName] = useState('');
+  const [brand, setBrand] = useState('');
   const [candidates, setCandidates] = useState<string[]>([]);
+  const [brandCandidates, setBrandCandidates] = useState<string[]>([]);
   const [suggestedMeasureId, setSuggestedMeasureId] = useState<string | null>(null);
   const [measure, setMeasure] = useState<Measure | null>(null);
   const [amount, setAmount] = useState('');
@@ -83,7 +96,31 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingInventor
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const barcode = pending.barcode;
+  // The barcode itself is decoded here, not during capture — this is where the
+  // shopper isn't rushing and a bad photo (blur, glare, bad framing) can be
+  // retaken or typed in manually instead. `null` = not decoded (yet, or ever);
+  // an explicit manual entry always wins once typed. Seeded from legacyBarcode
+  // for items captured before the photo-based flow existed — those never got
+  // a barcodeImage to decode, so there's nothing to run zxing against below.
+  const [decodedBarcode, setDecodedBarcode] = useState<string | null>(pending.legacyBarcode ?? null);
+  const [decodeFailed, setDecodeFailed] = useState(false);
+  const [manualBarcode, setManualBarcode] = useState('');
+  const barcode = manualBarcode.trim() || decodedBarcode || undefined;
+
+  useEffect(() => {
+    if (!pending.barcodeImage) return;
+    let cancelled = false;
+    import('@zxing/browser').then(({ BrowserMultiFormatReader }) =>
+      new BrowserMultiFormatReader().decodeFromImageUrl(toDataUrl(pending.barcodeImage!)),
+    )
+      .then((result) => {
+        if (!cancelled) setDecodedBarcode(result.getText());
+      })
+      .catch(() => {
+        if (!cancelled) setDecodeFailed(true);
+      });
+    return () => { cancelled = true; };
+  }, [pending.barcodeImage]);
 
   // Suggest a name/measure from the barcode (prior inventory, then
   // OpenFoodFacts) — the capture loop deferred all lookups to here.
@@ -93,7 +130,9 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingInventor
     suggestItemFromBarcode(barcode).then((suggestion) => {
       if (cancelled) return;
       setName((prior) => prior || suggestion.name);
+      setBrand((prior) => prior || suggestion.brand);
       setCandidates(suggestion.candidates);
+      setBrandCandidates(suggestion.brandCandidates);
       setSuggestedMeasureId(suggestion.measureId);
       // Fetch and compress the product photo in the background — a failed or
       // CORS-blocked fetch never blocks digitising.
@@ -130,6 +169,7 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingInventor
         measure: effectiveMeasure.measureId,
         amount: parseFloat(amount),
         expiration,
+        ...(brand.trim() ? { brand: brand.trim() } : {}),
         ...(barcode ? { barcode } : {}),
         ...(image ? { image } : {}),
       };
@@ -142,7 +182,11 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingInventor
         setError('Failed to add the item. Please try again.');
         return;
       }
-      router.push('/inventory/shop/process');
+      // Straight on to the next item in the backlog rather than back to the
+      // list — digitising is usually a full sweep of everything captured in
+      // one trip, so returning to the list after each one would just mean
+      // immediately tapping back in.
+      router.push(await nextDestination(uuid));
     } catch {
       setError('An unexpected error occurred.');
     } finally {
@@ -172,12 +216,45 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingInventor
       <Metadata title="Process item" description="Digitise a captured shop item" />
 
       {/* Dark card matching the scanner pages: photos of packaging read better
-          on the same background they were reviewed against during capture. */}
-      <section className="grid gap-8 rounded-xl bg-zinc-900 text-white p-6 max-w-lg">
+          on the same background they were reviewed against during capture.
+          No max-width — fills the column like the rest of the app instead of
+          leaving a mostly-empty page around a narrow card. */}
+      <section className="grid gap-8 rounded-xl bg-zinc-900 text-white p-6">
         <div className="flex flex-wrap items-center gap-3">
+          {/* Small and top-left — this ends the current sweep through the
+              backlog, so it shouldn't compete with Add to inventory. */}
+          <button
+            type="button"
+            onClick={() => router.push('/inventory/shop/process')}
+            className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold rounded-full"
+          >
+            ← Back to shop
+          </button>
           <h3 className="text-xl font-semibold mr-auto">Process item</h3>
-          {barcode && <p className="font-mono text-xs text-zinc-400">{barcode}</p>}
+          {decodedBarcode && !manualBarcode && <p className="font-mono text-xs text-zinc-400">{decodedBarcode}</p>}
         </div>
+
+        {pending.barcodeImage && (
+          <div className="grid gap-3">
+            <h4 className="text-sm font-semibold text-zinc-300">Barcode</h4>
+            <CapturedPhoto image={pending.barcodeImage} alt="Barcode photo" />
+            {decodeFailed && (
+              <div className="grid gap-1.5">
+                <label htmlFor="process-manual-barcode" className="text-xs text-zinc-400">
+                  Couldn&apos;t read the barcode automatically — enter it manually
+                </label>
+                <input
+                  id="process-manual-barcode"
+                  inputMode="numeric"
+                  value={manualBarcode}
+                  onChange={(e) => setManualBarcode(e.target.value)}
+                  placeholder="e.g. 5012345678900"
+                  className="px-3 py-2 bg-zinc-800 border border-zinc-600 rounded-lg text-white focus:outline-none focus:border-highlight"
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="grid gap-3">
           <h4 className="text-sm font-semibold text-zinc-300">Expiration date</h4>
@@ -212,7 +289,27 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingInventor
             placeholder="Item name"
             className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-600 rounded-lg text-white focus:outline-none focus:border-highlight"
           />
-          <NameCandidates candidates={candidates} value={name} onSelect={setName} />
+          <CandidatePills
+            candidates={candidates}
+            value={name}
+            onSelect={setName}
+            label="From OpenFoodFacts — tap a name to use it"
+          />
+
+          <label htmlFor="process-brand" className="text-xs text-zinc-400">Brand (optional)</label>
+          <input
+            id="process-brand"
+            value={brand}
+            onChange={(e) => setBrand(e.target.value)}
+            placeholder="e.g. Heinz"
+            className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-600 rounded-lg text-white focus:outline-none focus:border-highlight"
+          />
+          <CandidatePills
+            candidates={brandCandidates}
+            value={brand}
+            onSelect={setBrand}
+            label="From OpenFoodFacts — tap a brand to use it"
+          />
 
           {/* Item photo — from OpenFoodFacts if found, or taken manually. */}
           <div className="flex items-center gap-4">
@@ -246,12 +343,6 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingInventor
           >
             Discard
           </button>
-          <Link
-            href="/inventory/shop/process"
-            className="self-center text-sm text-zinc-400 hover:text-white"
-          >
-            ← Back to the list
-          </Link>
         </div>
       </section>
     </>

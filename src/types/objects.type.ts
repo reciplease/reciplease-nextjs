@@ -57,22 +57,25 @@ declare global {
   type InventoryItem = Required<
     Pick<components['schemas']['InventoryItem'], 'uuid' | 'name' | 'measure' | 'amount' | 'remaining' | 'expiration'>
   > &
-    Pick<components['schemas']['InventoryItem'], 'barcode' | 'image' | 'createdAt' | 'updatedAt'>;
+    Pick<components['schemas']['InventoryItem'], 'brand' | 'barcode' | 'image' | 'createdAt' | 'updatedAt'>;
 
   type CreateInventoryItem = Required<
     Pick<components['schemas']['InventoryItem'], 'name' | 'measure' | 'amount' | 'expiration'>
   > &
-    Pick<components['schemas']['InventoryItem'], 'barcode' | 'image'>;
+    Pick<components['schemas']['InventoryItem'], 'brand' | 'barcode' | 'image'>;
 
-  // A shopping-trip capture (barcode + photos) awaiting digitisation into an
-  // InventoryItem — every capture step is skippable, so all fields but the id are
-  // optional. The images are base64 like InventoryItem.image.
+  // A shopping-trip capture (barcode photo + other photos) awaiting digitisation into
+  // an InventoryItem — every capture step is skippable, so all fields but the id are
+  // optional. The barcode itself isn't decoded until processing; only its photo is
+  // captured here. The images are base64 like InventoryItem.image. `legacyBarcode` is a
+  // read-only leftover from before capture switched to photos — an already-decoded
+  // barcode on items captured before that change; never present on anything new.
   type PendingInventoryItem = Required<Pick<components['schemas']['PendingInventoryItem'], 'uuid'>> &
-    Pick<components['schemas']['PendingInventoryItem'], 'barcode' | 'expirationImage' | 'measureImage' | 'updatedAt'>;
+    Pick<components['schemas']['PendingInventoryItem'], 'barcodeImage' | 'legacyBarcode' | 'expirationImage' | 'measureImage' | 'updatedAt'>;
 
   type CreatePendingInventoryItem = Pick<
     components['schemas']['PendingInventoryItem'],
-    'barcode' | 'expirationImage' | 'measureImage'
+    'barcodeImage' | 'expirationImage' | 'measureImage'
   >;
 
   // Static reference data served from the backend (a Java enum). The short name

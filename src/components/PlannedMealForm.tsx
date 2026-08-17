@@ -135,7 +135,7 @@ function IngredientRow({
           <option value="">— none, add to shopping list —</option>
           {inventoryItems.map((item) => (
             <option key={item.uuid} value={item.uuid}>
-              {item.name} ({item.remaining} {item.measure} left)
+              {item.brand ? `${item.brand} ` : ''}{item.name} ({item.remaining} {item.measure} left)
             </option>
           ))}
         </select>

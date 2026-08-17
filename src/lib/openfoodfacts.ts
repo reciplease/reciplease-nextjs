@@ -16,6 +16,9 @@ const FIELDS = [
 export type ProductLookup = {
   // Distinct, human-readable name candidates (best-first) for a new item.
   nameCandidates: string[];
+  // Distinct brand candidates (best-first), separate from the name candidates
+  // above — lets the UI offer them as their own tap-a-pill picker.
+  brandCandidates: string[];
   // A suggested measure (matching an app measureId) parsed from the product
   // quantity, or null when the unit is missing or unrecognised.
   measureId: MeasureId | null;
@@ -34,18 +37,19 @@ export async function lookupProduct(barcode: string): Promise<ProductLookup> {
       `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}?fields=${FIELDS}`,
       { signal: AbortSignal.timeout(6000) },
     );
-    if (!res.ok) return { nameCandidates: [], measureId: null, imageUrl: null };
+    if (!res.ok) return { nameCandidates: [], brandCandidates: [], measureId: null, imageUrl: null };
     const json = await res.json();
     if (json.status !== 1 || !json.product) {
-      return { nameCandidates: [], measureId: null, imageUrl: null };
+      return { nameCandidates: [], brandCandidates: [], measureId: null, imageUrl: null };
     }
     return {
       nameCandidates: candidatesFromProduct(json.product),
+      brandCandidates: brandCandidatesFromProduct(json.product),
       measureId: measureIdFromQuantity(json.product.quantity ?? ''),
       imageUrl: json.product.image_front_small_url ?? json.product.image_url ?? null,
     };
   } catch {
-    return { nameCandidates: [], measureId: null, imageUrl: null };
+    return { nameCandidates: [], brandCandidates: [], measureId: null, imageUrl: null };
   }
 }
 
@@ -80,6 +84,16 @@ function candidatesFromProduct(p: OFFProductFields): string[] {
     .map((c) => c.trim())
     .filter(Boolean)
     .filter((c, i, all) => all.indexOf(c) === i);
+}
+
+// `brands` is a comma-separated list (e.g. "Heinz, Kraft Heinz") — each token
+// is its own candidate, best-first.
+function brandCandidatesFromProduct(p: OFFProductFields): string[] {
+  return (p.brands ?? '')
+    .split(',')
+    .map((b) => b.trim())
+    .filter(Boolean)
+    .filter((b, i, all) => all.indexOf(b) === i);
 }
 
 // OpenFoodFacts quantity units → app measureId (the measure's short name).

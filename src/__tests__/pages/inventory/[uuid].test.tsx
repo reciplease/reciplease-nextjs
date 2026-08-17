@@ -74,7 +74,14 @@ describe('InventoryItemPage', () => {
     mockItem({ data: item });
     render(<InventoryItemPage />);
     expect(screen.getByText('Milk')).toBeInTheDocument();
+    expect(screen.queryByText('Arla')).not.toBeInTheDocument();
     expect(screen.getByText(/500 of 500 millilitres/)).toBeInTheDocument();
+  });
+
+  it('shows the brand under the name when present', () => {
+    mockItem({ data: { ...item, brand: 'Arla' } });
+    render(<InventoryItemPage />);
+    expect(screen.getByText('Arla')).toBeInTheDocument();
   });
 
   it('shows singular measure when amount is 1', () => {

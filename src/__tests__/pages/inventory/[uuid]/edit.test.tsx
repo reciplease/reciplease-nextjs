@@ -24,6 +24,7 @@ const uuid = 'b465af6e-2465-4436-84c1-14f35db68dbf';
 const item: InventoryItem = {
   uuid,
   name: 'Bread',
+  brand: 'Warburtons',
   measure: items.measureId,
   amount: 1,
   remaining: 1,
@@ -66,6 +67,7 @@ describe('EditInventoryItem page', () => {
     mockItemSWR({ isLoading: false, data: item, error: undefined });
     render(<EditInventoryItem />);
     expect(screen.getByLabelText('Name')).toHaveValue('Bread');
+    expect(screen.getByLabelText(/Brand/)).toHaveValue('Warburtons');
     expect(screen.getByLabelText('Amount')).toHaveValue(1);
     expect(screen.getByLabelText('Day')).toHaveValue('31');
     expect(screen.getByLabelText('Month')).toHaveValue('12');
@@ -93,6 +95,7 @@ describe('EditInventoryItem page', () => {
             amount: 2,
             remaining: 1,
             expiration: '2099-12-31',
+            brand: 'Warburtons',
             barcode: '0123456789012',
           }),
         }),

@@ -20,7 +20,21 @@ describe('PhotoCaptureInput', () => {
     });
 
     await waitFor(() => expect(onCaptured).toHaveBeenCalledWith('base64jpeg'));
-    expect(compressToBase64).toHaveBeenCalledWith(file);
+    expect(compressToBase64).toHaveBeenCalledWith(file, undefined, undefined);
+  });
+
+  it('passes through custom compression settings when given', async () => {
+    (compressToBase64 as jest.Mock).mockResolvedValue('base64jpeg');
+    const onCaptured = jest.fn();
+    render(
+      <PhotoCaptureInput label="Photo of barcode" onCaptured={onCaptured} maxDim={800} quality={0.85} />,
+    );
+
+    const file = new File(['photo-bytes'], 'photo.jpg', { type: 'image/jpeg' });
+    fireEvent.change(screen.getByLabelText('Photo of barcode'), { target: { files: [file] } });
+
+    await waitFor(() => expect(onCaptured).toHaveBeenCalledWith('base64jpeg'));
+    expect(compressToBase64).toHaveBeenCalledWith(file, 800, 0.85);
   });
 
   it('emits nothing when compression fails', async () => {

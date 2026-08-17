@@ -70,7 +70,10 @@ export default function InventoryItemPage() {
         {/* Edit sits top-right next to the title on every detail page (see
             recipes/[recipeId].tsx) rather than wherever happened to fit. */}
         <div className="flex items-start justify-between gap-4">
-          <h3 className="text-xl font-semibold">{item.name}</h3>
+          <div>
+            <h3 className="text-xl font-semibold">{item.name}</h3>
+            {item.brand && <p className="text-sm text-[#666]">{item.brand}</p>}
+          </div>
           <Link
             href={`/inventory/${uuid}/edit`}
             className="w-fit shrink-0 rounded border-2 border-secondary px-2 py-1 text-sm whitespace-nowrap"

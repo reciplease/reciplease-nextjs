@@ -48,6 +48,7 @@ const mockItems: InventoryItem[] = [
   {
     uuid: 'uuid-1',
     name: 'Bread',
+    brand: 'Warburtons',
     measure: items.measureId,
     amount: 2,
     remaining: 2,
@@ -102,6 +103,12 @@ describe('InventoryList', () => {
     render(<InventoryList />);
     const names = screen.getAllByRole('heading', { level: 4 }).map((el) => el.textContent);
     expect(names).toEqual(['Avocado', 'Bread', 'Flour']);
+  });
+
+  it('shows the brand under the name when present, and nothing when absent', () => {
+    mockInventory({ isLoading: false, data: mockItems, error: undefined });
+    render(<InventoryList />);
+    expect(screen.getByText('Warburtons')).toBeInTheDocument();
   });
 
   it('renders a photo thumbnail when the item has an image', () => {

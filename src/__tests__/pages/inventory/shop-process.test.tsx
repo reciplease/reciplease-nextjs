@@ -17,8 +17,15 @@ const useSWR = require('swr').default;
 global.fetch = jest.fn();
 
 const pendingItems: PendingInventoryItem[] = [
-  { uuid: 'p1', barcode: '1234567890123', expirationImage: 'ZXhw', measureImage: 'bWVhcw==' },
+  {
+    uuid: 'p1',
+    barcodeImage: 'YmFyY29kZQ==',
+    expirationImage: 'ZXhw',
+    measureImage: 'bWVhcw==',
+    updatedAt: '2026-08-17T10:15:00Z',
+  },
   { uuid: 'p2' },
+  { uuid: 'p3', legacyBarcode: '5012345678900' },
 ];
 
 describe('ProcessListPage', () => {
@@ -30,13 +37,43 @@ describe('ProcessListPage', () => {
     useSWR.mockReturnValue({ data: pendingItems, mutate, isLoading: false });
   });
 
-  it('lists pending items with their barcode and a link to process each', () => {
+  it('lists pending items with their barcode photo and a link to process each', () => {
     render(<ProcessListPage />);
 
-    expect(screen.getByText(/1234567890123/)).toBeInTheDocument();
+    expect(screen.getByAltText('barcode photo')).toHaveAttribute(
+      'src',
+      'data:image/jpeg;base64,YmFyY29kZQ==',
+    );
     const links = screen.getAllByRole('link', { name: /Process/ });
     expect(links[0]).toHaveAttribute('href', '/inventory/shop/process/p1');
     expect(links[1]).toHaveAttribute('href', '/inventory/shop/process/p2');
+  });
+
+  it('shows a placeholder for a missing barcode photo', () => {
+    render(<ProcessListPage />);
+
+    expect(screen.getAllByText('No barcode photo')).toHaveLength(1);
+  });
+
+  it('shows the raw barcode number for an item captured before the photo-based flow', () => {
+    render(<ProcessListPage />);
+
+    expect(screen.getByText('5012345678900')).toBeInTheDocument();
+  });
+
+  it('shows the scan timestamp for a captured item', () => {
+    render(<ProcessListPage />);
+
+    expect(screen.getByText(new RegExp(`Scanned ${new Date('2026-08-17T10:15:00Z').toLocaleString().split(',')[0]}`)))
+      .toBeInTheDocument();
+  });
+
+  it('puts the small Discard control after the Process link', () => {
+    render(<ProcessListPage />);
+
+    const row = screen.getAllByLabelText('Discard')[0].closest('li')!;
+    const buttonsAndLinks = Array.from(row.querySelectorAll('a, button')).map((el) => el.textContent);
+    expect(buttonsAndLinks.indexOf('Process')).toBeLessThan(buttonsAndLinks.indexOf('×'));
   });
 
   it('shows an empty state when there is nothing to process', () => {
@@ -51,7 +88,7 @@ describe('ProcessListPage', () => {
     (fetch as jest.Mock).mockResolvedValue({ ok: true });
     render(<ProcessListPage />);
 
-    fireEvent.click(screen.getAllByText('Discard')[0]);
+    fireEvent.click(screen.getAllByLabelText('Discard')[0]);
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(

@@ -13,6 +13,13 @@ jest.mock('@/lib/houses', () => ({
 }));
 jest.mock('@/lib/suggestItemFromBarcode', () => ({ suggestItemFromBarcode: jest.fn() }));
 
+const mockDecodeFromImageUrl = jest.fn();
+jest.mock('@zxing/browser', () => ({
+  BrowserMultiFormatReader: jest.fn().mockImplementation(() => ({
+    decodeFromImageUrl: mockDecodeFromImageUrl,
+  })),
+}));
+
 const useSWR = require('swr').default;
 const { useRouter } = require('next/router');
 const { suggestItemFromBarcode } = require('@/lib/suggestItemFromBarcode');
@@ -25,7 +32,7 @@ const mockMeasures: Measure[] = [
 
 const pendingItem: PendingInventoryItem = {
   uuid: 'p1',
-  barcode: '1234567890123',
+  barcodeImage: 'YmFyY29kZQ==',
   expirationImage: 'ZXhw',
   measureImage: 'bWVhcw==',
 };
@@ -60,16 +67,24 @@ describe('ProcessDetailPage', () => {
     (suggestItemFromBarcode as jest.Mock).mockReset();
     (suggestItemFromBarcode as jest.Mock).mockResolvedValue({
       name: 'Oat Milk',
+      brand: 'Oatly',
       measureId: 'g',
       source: 'openfoodfacts',
       candidates: ['Oat Milk', 'Oatly Oat Milk'],
+      brandCandidates: ['Oatly'],
       imageUrl: null,
     });
+    mockDecodeFromImageUrl.mockReset();
+    mockDecodeFromImageUrl.mockResolvedValue({ getText: () => '1234567890123' });
   });
 
-  it('shows both captured photos and prefills the name from the barcode suggestion', async () => {
+  it('shows both captured photos and prefills the name from the decoded barcode', async () => {
     setup();
 
+    expect(screen.getByAltText('Barcode photo')).toHaveAttribute(
+      'src',
+      'data:image/jpeg;base64,YmFyY29kZQ==',
+    );
     expect(screen.getByAltText('Expiration photo')).toHaveAttribute(
       'src',
       'data:image/jpeg;base64,ZXhw',
@@ -77,6 +92,9 @@ describe('ProcessDetailPage', () => {
     expect(screen.getByAltText('Measure photo')).toHaveAttribute(
       'src',
       'data:image/jpeg;base64,bWVhcw==',
+    );
+    await waitFor(() =>
+      expect(mockDecodeFromImageUrl).toHaveBeenCalledWith('data:image/jpeg;base64,YmFyY29kZQ=='),
     );
     await waitFor(() => expect(screen.getByLabelText('Name')).toHaveValue('Oat Milk'));
     expect(suggestItemFromBarcode).toHaveBeenCalledWith('1234567890123');
@@ -86,11 +104,34 @@ describe('ProcessDetailPage', () => {
     setup({ uuid: 'p2' });
 
     expect(screen.getAllByText('No photo captured')).toHaveLength(2);
+    expect(mockDecodeFromImageUrl).not.toHaveBeenCalled();
     expect(suggestItemFromBarcode).not.toHaveBeenCalled();
   });
 
-  it('completes the pending item with a free-text month and navigates back to the list', async () => {
-    (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+  it('falls back to manual entry when the barcode photo cannot be decoded', async () => {
+    mockDecodeFromImageUrl.mockRejectedValue(new Error('not found'));
+    setup();
+
+    const manualInput = await screen.findByLabelText(/enter it manually/);
+    fireEvent.change(manualInput, { target: { value: '9998887776665' } });
+
+    await waitFor(() => expect(suggestItemFromBarcode).toHaveBeenCalledWith('9998887776665'));
+  });
+
+  it('uses legacyBarcode directly for items captured before the photo-based flow, without attempting to decode', async () => {
+    setup({ uuid: 'p2', legacyBarcode: '5012345678900', expirationImage: 'ZXhw' });
+
+    expect(screen.getByText('5012345678900')).toBeInTheDocument();
+    expect(mockDecodeFromImageUrl).not.toHaveBeenCalled();
+    await waitFor(() => expect(suggestItemFromBarcode).toHaveBeenCalledWith('5012345678900'));
+  });
+
+  it('completes the pending item with a free-text month and advances straight to the next one in the backlog', async () => {
+    (fetch as jest.Mock).mockImplementation((url: string) =>
+      url === '/api/inventory/pending'
+        ? Promise.resolve({ ok: true, json: async () => [{ uuid: 'p2' }] })
+        : Promise.resolve({ ok: true, json: async () => ({}) }),
+    );
     setup();
     await waitFor(() => expect(screen.getByLabelText('Name')).toHaveValue('Oat Milk'));
 
@@ -111,12 +152,38 @@ describe('ProcessDetailPage', () => {
             measure: 'g',
             amount: 500,
             expiration: '2027-06-01',
+            brand: 'Oatly',
             barcode: '1234567890123',
           }),
         }),
       );
     });
+    // Straight to the next backlog item, not back to the list.
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/inventory/shop/process/p2'));
+  });
+
+  it('returns to the list once the backlog is empty after completing', async () => {
+    (fetch as jest.Mock).mockImplementation((url: string) =>
+      url === '/api/inventory/pending'
+        ? Promise.resolve({ ok: true, json: async () => [] })
+        : Promise.resolve({ ok: true, json: async () => ({}) }),
+    );
+    setup();
+    await waitFor(() => expect(screen.getByLabelText('Name')).toHaveValue('Oat Milk'));
+
+    enterExpirationDate('01', 'JUN', '2027');
+    fireEvent.change(screen.getByLabelText(/Amount/), { target: { value: '500' } });
+    fireEvent.click(screen.getByRole('button', { name: /Add to inventory/ }));
+
     await waitFor(() => expect(push).toHaveBeenCalledWith('/inventory/shop/process'));
+  });
+
+  it('has a small top-left button back to the shop backlog', async () => {
+    setup();
+
+    fireEvent.click(screen.getByRole('button', { name: /Back to shop/ }));
+
+    expect(push).toHaveBeenCalledWith('/inventory/shop/process');
   });
 
   it('disables completion until name, measure, amount and expiration are all set', async () => {

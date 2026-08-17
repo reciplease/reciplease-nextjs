@@ -147,13 +147,16 @@ export default function Header() {
 
   // Visible to any member of the house the moment a captured shop is
   // waiting to be turned into inventory — one click straight to the process
-  // page, from wherever in the app the user happens to be.
+  // page, from wherever in the app the user happens to be. Always the
+  // inventory accent specifically (not bg-highlight, which follows whatever
+  // section the user is currently browsing) — this pill is always about
+  // inventory, regardless of which section's colour is active right now.
   const pendingCapturedLink = activeHouse && pendingCapturedCount > 0 ? (
     <Link
       href="/inventory/shop/process"
       aria-label={`${pendingCapturedCount} captured ${pendingCapturedCount === 1 ? 'item' : 'items'} to process`}
       title="Process captured items"
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-highlight px-3 py-1 text-sm font-semibold text-white transition-colors hover:brightness-110"
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[var(--color-inventory-highlight)] px-3 py-1 text-sm font-semibold text-white transition-colors hover:brightness-110"
     >
       <svg
         width="16"

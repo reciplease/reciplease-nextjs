@@ -1,28 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ShopPage from '@/pages/inventory/shop';
 
-jest.mock('@/components/scanner/BarcodeScanner', () =>
-  function MockBarcodeScanner({ onDetected, active }: { onDetected: (b: string) => void; active: boolean }) {
-    return (
-      <button
-        data-testid="barcode-scanner"
-        disabled={!active}
-        onClick={() => onDetected('1234567890123')}
-      >
-        Simulate barcode scan
-      </button>
-    );
-  },
-);
-
-jest.mock('next/dynamic', () => (fn: () => Promise<{ default: unknown }>) => {
-  let Component: React.ComponentType<any> | null = null;
-  fn().then((mod) => { Component = (mod as any).default ?? mod; });
-  return function DynamicMock(props: any) {
-    return Component ? <Component {...props} /> : null;
-  };
-});
-
 jest.mock('next/router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('@/components/Metadata', () => () => null);
 jest.mock('@/lib/imageCapture', () => ({
@@ -48,23 +26,21 @@ async function capturePhoto(label: string, base64: string) {
   (compressToBase64 as jest.Mock).mockResolvedValueOnce(base64);
   const file = new File(['bytes'], 'photo.jpg', { type: 'image/jpeg' });
   fireEvent.change(screen.getByLabelText(label), { target: { files: [file] } });
-  const retakeLabel = label.replace('Take picture of', 'Retake picture of');
+  const retakeLabel = label.replace(/^Take/, 'Retake');
   await waitFor(() => screen.getByLabelText(retakeLabel));
 }
 
-function scanBarcode() {
-  fireEvent.click(screen.getByText('Scan barcode'));
-  fireEvent.click(screen.getByTestId('barcode-scanner'));
-}
-
-// Drive one full capture: scan barcode + both photos, in any order, then submit.
+// Drive one full capture: barcode + both photos, in any order, then submit.
 async function captureAndSubmitOneItem() {
-  scanBarcode();
-  await waitFor(() => screen.getByText('1234567890123'));
+  await capturePhoto('Take barcode photo', 'barcode-base64');
   await capturePhoto('Take picture of expiration', 'exp-base64');
   await capturePhoto('Take picture of measure', 'measure-base64');
   fireEvent.click(screen.getByText('Submit'));
 }
+
+beforeEach(() => {
+  window.localStorage.clear();
+});
 
 describe('ShopPage', () => {
   const mutate = jest.fn();
@@ -78,7 +54,7 @@ describe('ShopPage', () => {
 
   it('starts with all three captures available and a running count of zero', () => {
     render(<ShopPage />);
-    expect(screen.getByText('Scan barcode')).toBeInTheDocument();
+    expect(screen.getByLabelText('Take barcode photo')).toBeInTheDocument();
     expect(screen.getByLabelText('Take picture of expiration')).toBeInTheDocument();
     expect(screen.getByLabelText('Take picture of measure')).toBeInTheDocument();
     expect(screen.getByText('0 items captured')).toBeInTheDocument();
@@ -110,11 +86,14 @@ describe('ShopPage', () => {
       'data:image/jpeg;base64,exp-base64',
     );
 
-    scanBarcode();
-    await waitFor(() => screen.getByText('1234567890123'));
+    await capturePhoto('Take barcode photo', 'barcode-base64');
+    expect(screen.getByAltText('Barcode photo preview')).toHaveAttribute(
+      'src',
+      'data:image/jpeg;base64,barcode-base64',
+    );
   });
 
-  it('captures barcode + both photos and posts the pending item on submit', async () => {
+  it('captures a barcode photo + both other photos and posts the pending item on submit', async () => {
     mockPostOk();
     render(<ShopPage />);
 
@@ -125,7 +104,7 @@ describe('ShopPage', () => {
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
-          barcode: '1234567890123',
+          barcodeImage: 'barcode-base64',
           expirationImage: 'exp-base64',
           measureImage: 'measure-base64',
         }),
@@ -140,8 +119,7 @@ describe('ShopPage', () => {
     mockPostOk();
     render(<ShopPage />);
 
-    scanBarcode();
-    await waitFor(() => screen.getByText('1234567890123'));
+    await capturePhoto('Take barcode photo', 'barcode-base64');
     fireEvent.click(screen.getByText('Submit'));
 
     await waitFor(() => {
@@ -149,26 +127,14 @@ describe('ShopPage', () => {
         '/api/inventory/pending',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ barcode: '1234567890123' }),
+          body: JSON.stringify({ barcodeImage: 'barcode-base64' }),
         }),
       );
     });
     await waitFor(() => expect(mutate).toHaveBeenCalled());
   });
 
-  it('a manually entered barcode is captured the same way', async () => {
-    render(<ShopPage />);
-
-    fireEvent.click(screen.getByText('Scan barcode'));
-    fireEvent.change(screen.getByLabelText('Or enter a barcode manually'), {
-      target: { value: '5012345678900' },
-    });
-    fireEvent.click(screen.getByText('Use barcode'));
-
-    await waitFor(() => screen.getByText('5012345678900'));
-  });
-
-  it('shows a retry banner when an upload fails, and retrying re-posts it', async () => {
+  it('shows a red retry banner when an upload fails, and retrying re-posts it', async () => {
     (fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
     render(<ShopPage />);
 
@@ -177,6 +143,7 @@ describe('ShopPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/1 item failed to upload/)).toBeInTheDocument();
     });
+    expect(screen.getByText(/1 item failed to upload/).closest('div')).toHaveClass('bg-red-950/80');
     expect(mutate).not.toHaveBeenCalled();
 
     mockPostOk();
@@ -186,6 +153,58 @@ describe('ShopPage', () => {
     expect(screen.queryByText(/failed to upload/)).not.toBeInTheDocument();
     // Original + retry.
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('turns the banner orange and hides Retry while a retry sweep is in flight', async () => {
+    (fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
+    render(<ShopPage />);
+
+    await captureAndSubmitOneItem();
+    await waitFor(() => screen.getByText(/1 item failed to upload/));
+
+    let resolveRetry!: (value: unknown) => void;
+    (fetch as jest.Mock).mockReturnValueOnce(new Promise((resolve) => { resolveRetry = resolve; }));
+    fireEvent.click(screen.getByText('Retry'));
+
+    await waitFor(() => expect(screen.getByText(/Retrying 1 failed upload/)).toBeInTheDocument());
+    expect(screen.getByText(/Retrying 1 failed upload/).closest('div')).toHaveClass('bg-orange-950/80');
+    expect(screen.queryByText('Retry')).not.toBeInTheDocument();
+
+    resolveRetry({ ok: true, json: async () => ({}) });
+    await waitFor(() => expect(screen.queryByText(/Retrying/)).not.toBeInTheDocument());
+  });
+
+  it('auto-retries the failed queue once a new submission succeeds', async () => {
+    (fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
+    render(<ShopPage />);
+
+    await captureAndSubmitOneItem();
+    await waitFor(() => screen.getByText(/1 item failed to upload/));
+
+    mockPostOk();
+    await captureAndSubmitOneItem();
+
+    // Original failing submit + the new successful one + the auto-retry of the failed one.
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(screen.queryByText(/failed to upload/)).not.toBeInTheDocument());
+  });
+
+  it('persists the failed queue to localStorage and reloads it on the next mount', async () => {
+    (fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
+    const { unmount } = render(<ShopPage />);
+
+    await captureAndSubmitOneItem();
+    await waitFor(() => screen.getByText(/1 item failed to upload/));
+
+    const stored = JSON.parse(window.localStorage.getItem('reciplease:shop-failed:house-1') ?? '[]');
+    expect(stored).toHaveLength(1);
+
+    unmount();
+    render(<ShopPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/1 item failed to upload/)).toBeInTheDocument();
+    });
   });
 
   it('counts an upload that throws as failed too', async () => {
@@ -216,12 +235,12 @@ describe('ShopPage', () => {
     await captureAndSubmitOneItem();
 
     await waitFor(() => expect(mutate).toHaveBeenCalled());
-    expect(screen.getByText('Scan barcode')).toBeInTheDocument();
+    expect(screen.getByLabelText('Take barcode photo')).toBeInTheDocument();
     expect(screen.getByLabelText('Take picture of expiration')).toBeInTheDocument();
     expect(screen.getByLabelText('Take picture of measure')).toBeInTheDocument();
   });
 
-  it('disables the footer button while an upload is still in flight', async () => {
+  it('disables the Process button while an upload is still in flight', async () => {
     let resolveUpload!: (value: unknown) => void;
     (fetch as jest.Mock).mockReturnValue(new Promise((resolve) => { resolveUpload = resolve; }));
     render(<ShopPage />);
@@ -232,7 +251,7 @@ describe('ShopPage', () => {
 
     resolveUpload({ ok: true, json: async () => ({}) });
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Process captured items' })).not.toBeDisabled(),
+      expect(screen.getByRole('button', { name: 'Process →' })).not.toBeDisabled(),
     );
   });
 
@@ -248,12 +267,12 @@ describe('ShopPage', () => {
     expect(screen.queryByText('Retry')).not.toBeInTheDocument();
   });
 
-  it('the footer button navigates to the processing page', () => {
+  it('the small top-right Process button navigates to the processing page', () => {
     const push = jest.fn();
     jest.spyOn(require('next/router'), 'useRouter').mockReturnValue({ push });
     render(<ShopPage />);
 
-    fireEvent.click(screen.getByText('Process captured items'));
+    fireEvent.click(screen.getByText('Process →'));
 
     expect(push).toHaveBeenCalledWith('/inventory/shop/process');
   });
