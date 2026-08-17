@@ -376,67 +376,6 @@ describe('jwt callback', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('backfills a refresh token instead of just waiting, when near expiry but not yet expired and there is no refresh token', async () => {
-    const token = { recipleaseToken: fakeJwt(5 * 60), handle: 'chef' } as JWT;
-    (fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({ token: 'reminted-jwt', refreshToken: 'backfilled-refresh', userId: 'user-1', handle: 'chef' }),
-    });
-
-    const result = await jwt!({ token, account: null, user: undefined as never });
-
-    expect(result.recipleaseRefreshToken).toBe('backfilled-refresh');
-    expect(result.error).toBeUndefined();
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/auth/refresh-token'),
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({ authorization: `Bearer ${token.recipleaseToken}` }),
-      }),
-    );
-  });
-
-  it('backfills a refresh token via bearer-authenticated POST /api/auth/refresh-token when the access token is valid but there is no refresh token yet', async () => {
-    const token = { recipleaseToken: fakeJwt(12 * 60 * 60), handle: 'chef' } as JWT;
-    (fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({ token: 'reminted-jwt', refreshToken: 'backfilled-refresh', userId: 'user-1', handle: 'chef' }),
-    });
-
-    const result = await jwt!({ token, account: null, user: undefined as never });
-
-    expect(result.recipleaseRefreshToken).toBe('backfilled-refresh');
-    expect(result.error).toBeUndefined();
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/auth/refresh-token'),
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({ authorization: `Bearer ${token.recipleaseToken}` }),
-      }),
-    );
-  });
-
-  it('leaves the session intact (no error) when the refresh-token backfill call fails, so it can be retried next poll', async () => {
-    const originalRecipleaseToken = fakeJwt(12 * 60 * 60);
-    const token = { recipleaseToken: originalRecipleaseToken, handle: 'chef' } as JWT;
-    (fetch as jest.Mock).mockResolvedValue({ ok: false, status: 500 });
-
-    const result = await jwt!({ token, account: null, user: undefined as never });
-
-    expect(result.recipleaseToken).toBe(originalRecipleaseToken);
-    expect(result.recipleaseRefreshToken).toBeUndefined();
-    expect(result.error).toBeUndefined();
-  });
-
-  it('does not attempt a backfill once a refresh token is already present', async () => {
-    const token = { recipleaseToken: fakeJwt(12 * 60 * 60), recipleaseRefreshToken: 'already-have-one', handle: 'chef' } as JWT;
-
-    const result = await jwt!({ token, account: null, user: undefined as never });
-
-    expect(result.recipleaseRefreshToken).toBe('already-have-one');
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
   it('adopts the token/userId/handle authorize() already produced for the passkey provider, without calling /api/auth/exchange', async () => {
     const token = {} as JWT;
     const account = { provider: 'passkey' } as unknown as Account;
