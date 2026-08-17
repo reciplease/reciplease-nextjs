@@ -13,11 +13,11 @@ import type { components } from '@/types/generated/api';
 // inside the window that SessionProvider's refetchInterval/focus revalidation (see
 // _app.tsx) will hit at least once while a tab is open, so an active user's token
 // renews silently well before it actually expires. Must stay smaller than the
-// backend's access-token TTL (application.yml, currently 20m) — otherwise every
+// backend's access-token TTL (application.yml, currently 6h) — otherwise every
 // token looks "near expiry" from the moment it's minted, so every poll redeems the
 // refresh token, and any two polls racing (multiple tabs, interval vs. focus) trip
 // reuse detection and revoke the whole session.
-const REFRESH_MARGIN_MILLIS = 5 * 60 * 1000;
+const REFRESH_MARGIN_MILLIS = 10 * 60 * 1000;
 
 type ExchangeResponseBody = components['schemas']['ExchangeResponse'];
 
