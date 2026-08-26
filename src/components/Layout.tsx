@@ -5,6 +5,7 @@ import PlannerFab from '@/components/PlannerFab';
 import { Inter } from 'next/font/google';
 import { useRouter } from 'next/router';
 import styles from '@/components/Layout.module.scss';
+import type { JSX } from 'react';
 
 const font = Inter({ subsets: ['latin'] });
 
