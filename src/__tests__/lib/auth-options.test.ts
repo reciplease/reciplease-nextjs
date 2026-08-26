@@ -66,10 +66,16 @@ describe('authOptions config', () => {
 });
 
 describe('exchangeIdentity', () => {
-  it('sends provider, providerId, and linkToken to the backend and returns the token/refreshToken/userId/handle on success', async () => {
+  it('sends provider, providerId, and linkToken to the backend and returns the token/refreshToken/its-expiry/userId/handle on success', async () => {
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
-      json: async () => ({ token: 'rcpls-jwt', refreshToken: 'rcpls-refresh', userId: 'user-1', handle: 'chef' }),
+      json: async () => ({
+        token: 'rcpls-jwt',
+        refreshToken: 'rcpls-refresh',
+        refreshTokenExpiresAt: '2026-09-25T16:09:16.739Z',
+        userId: 'user-1',
+        handle: 'chef',
+      }),
     });
 
     const result = await exchangeIdentity(
@@ -82,6 +88,7 @@ describe('exchangeIdentity', () => {
       ok: true,
       token: 'rcpls-jwt',
       refreshToken: 'rcpls-refresh',
+      refreshTokenExpiresAt: Date.parse('2026-09-25T16:09:16.739Z'),
       userId: 'user-1',
       handle: 'chef',
     });
@@ -112,10 +119,17 @@ describe('exchangeIdentity', () => {
       'me@gmail.com',
     );
 
-    expect(result).toEqual({ ok: true, token: 'rcpls-jwt', refreshToken: null, userId: 'user-1', handle: null });
+    expect(result).toEqual({
+      ok: true,
+      token: 'rcpls-jwt',
+      refreshToken: null,
+      refreshTokenExpiresAt: null,
+      userId: 'user-1',
+      handle: null,
+    });
   });
 
-  it('reports a null refreshToken when the backend returns none (a provider-linking exchange)', async () => {
+  it('reports a null refreshToken (and expiry) when the backend returns none (a provider-linking exchange)', async () => {
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({ token: 'rcpls-jwt', refreshToken: null, userId: 'user-1', handle: 'chef' }),
@@ -127,7 +141,14 @@ describe('exchangeIdentity', () => {
       'me@github.com',
     );
 
-    expect(result).toEqual({ ok: true, token: 'rcpls-jwt', refreshToken: null, userId: 'user-1', handle: 'chef' });
+    expect(result).toEqual({
+      ok: true,
+      token: 'rcpls-jwt',
+      refreshToken: null,
+      refreshTokenExpiresAt: null,
+      userId: 'user-1',
+      handle: 'chef',
+    });
   });
 
   it('reports an IdentityConflict on a 409 (linking an identity already claimed)', async () => {
@@ -168,12 +189,18 @@ describe('exchangeIdentity', () => {
 });
 
 describe('jwt callback', () => {
-  it('exchanges the provider identity and stores the Reciplease JWT/userId/handle on fresh sign-in', async () => {
+  it('exchanges the provider identity and stores the Reciplease JWT/userId/handle/refresh-token-expiry on fresh sign-in', async () => {
     const token = {} as JWT;
     const account = { provider: 'google', providerAccountId: 'sub-1' } as unknown as Account;
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
-      json: async () => ({ token: 'rcpls-jwt', refreshToken: 'rcpls-refresh', userId: 'user-1', handle: 'chef' }),
+      json: async () => ({
+        token: 'rcpls-jwt',
+        refreshToken: 'rcpls-refresh',
+        refreshTokenExpiresAt: '2026-09-25T16:09:16.739Z',
+        userId: 'user-1',
+        handle: 'chef',
+      }),
     });
 
     const result = await jwt!({ token, account, user: { email: 'me@gmail.com' } as never });
@@ -181,6 +208,7 @@ describe('jwt callback', () => {
     expect(result).toMatchObject({
       recipleaseToken: 'rcpls-jwt',
       recipleaseRefreshToken: 'rcpls-refresh',
+      recipleaseRefreshTokenExpiresAt: Date.parse('2026-09-25T16:09:16.739Z'),
       userId: 'user-1',
       handle: 'chef',
       error: undefined,
@@ -189,8 +217,12 @@ describe('jwt callback', () => {
     expect(body.email).toBe('me@gmail.com');
   });
 
-  it('does not stomp an existing refresh token when the exchange is a provider-linking call (refreshToken: null)', async () => {
-    const token = { recipleaseToken: 'existing-jwt', recipleaseRefreshToken: 'existing-refresh' } as JWT;
+  it('does not stomp an existing refresh token (or its expiry) when the exchange is a provider-linking call (refreshToken: null)', async () => {
+    const token = {
+      recipleaseToken: 'existing-jwt',
+      recipleaseRefreshToken: 'existing-refresh',
+      recipleaseRefreshTokenExpiresAt: 12345,
+    } as JWT;
     const account = { provider: 'github', providerAccountId: '999' } as unknown as Account;
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
@@ -201,6 +233,7 @@ describe('jwt callback', () => {
 
     expect(result.recipleaseToken).toBe('linked-jwt');
     expect(result.recipleaseRefreshToken).toBe('existing-refresh');
+    expect(result.recipleaseRefreshTokenExpiresAt).toBe(12345);
   });
 
   it('passes the existing recipleaseToken on the token as linkToken (linking a 2nd provider)', async () => {
@@ -337,7 +370,7 @@ describe('jwt callback', () => {
     expect(result.error).toBe('SessionExpired');
   });
 
-  it('silently redeems a refresh token via POST /api/auth/refresh, with the refresh token as a cookie header, when the access token is nearing expiry', async () => {
+  it('silently redeems a refresh token via POST /api/auth/refresh, with the refresh token as a cookie header, when the access token is nearing expiry, and stores the rotated refresh token\'s real expiry', async () => {
     const token = {
       recipleaseToken: fakeJwt(5 * 60),
       recipleaseRefreshToken: 'old-refresh',
@@ -346,13 +379,20 @@ describe('jwt callback', () => {
     } as JWT;
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
-      json: async () => ({ token: 'refreshed-jwt', refreshToken: 'rotated-refresh', userId: 'user-1', handle: 'chef' }),
+      json: async () => ({
+        token: 'refreshed-jwt',
+        refreshToken: 'rotated-refresh',
+        refreshTokenExpiresAt: '2026-09-25T16:09:16.739Z',
+        userId: 'user-1',
+        handle: 'chef',
+      }),
     });
 
     const result = await jwt!({ token, account: null, user: undefined as never });
 
     expect(result.recipleaseToken).toBe('refreshed-jwt');
     expect(result.recipleaseRefreshToken).toBe('rotated-refresh');
+    expect(result.recipleaseRefreshTokenExpiresAt).toBe(Date.parse('2026-09-25T16:09:16.739Z'));
     expect(result.error).toBeUndefined();
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/auth/refresh'),
@@ -424,13 +464,14 @@ describe('jwt callback', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('adopts the token/userId/handle authorize() already produced for the passkey provider, without calling /api/auth/exchange', async () => {
+  it('adopts the token/userId/handle/refresh-token-expiry authorize() already produced for the passkey provider, without calling /api/auth/exchange', async () => {
     const token = {} as JWT;
     const account = { provider: 'passkey' } as unknown as Account;
     const user = {
       id: 'user-1',
       recipleaseToken: 'passkey-jwt',
       recipleaseRefreshToken: 'passkey-refresh',
+      recipleaseRefreshTokenExpiresAt: Date.parse('2026-09-25T16:09:16.739Z'),
       handle: 'chef',
     } as never;
 
@@ -439,6 +480,7 @@ describe('jwt callback', () => {
     expect(result).toMatchObject({
       recipleaseToken: 'passkey-jwt',
       recipleaseRefreshToken: 'passkey-refresh',
+      recipleaseRefreshTokenExpiresAt: Date.parse('2026-09-25T16:09:16.739Z'),
       userId: 'user-1',
       handle: 'chef',
       error: undefined,
@@ -497,10 +539,16 @@ describe('passkey CredentialsProvider', () => {
     options: { authorize: (credentials: Record<string, string> | undefined) => Promise<unknown> };
   }).options;
 
-  it('calls login/finish for mode=login and returns a user with the minted token and refresh token', async () => {
+  it('calls login/finish for mode=login and returns a user with the minted token, refresh token, and its expiry', async () => {
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
-      json: async () => ({ token: 'rcpls-jwt', refreshToken: 'rcpls-refresh', userId: 'user-1', handle: 'chef' }),
+      json: async () => ({
+        token: 'rcpls-jwt',
+        refreshToken: 'rcpls-refresh',
+        refreshTokenExpiresAt: '2026-09-25T16:09:16.739Z',
+        userId: 'user-1',
+        handle: 'chef',
+      }),
     });
 
     const result = await passkeyProvider.authorize({ mode: 'login', challenge: 'chal-1', credential: '{"id":"cred-1"}' });
@@ -509,6 +557,7 @@ describe('passkey CredentialsProvider', () => {
       id: 'user-1',
       recipleaseToken: 'rcpls-jwt',
       recipleaseRefreshToken: 'rcpls-refresh',
+      recipleaseRefreshTokenExpiresAt: Date.parse('2026-09-25T16:09:16.739Z'),
       handle: 'chef',
     });
     expect(fetch).toHaveBeenCalledWith(
@@ -561,13 +610,19 @@ describe('google-onetap CredentialsProvider', () => {
     options: { authorize: (credentials: Record<string, string> | undefined) => Promise<unknown> };
   }).options;
 
-  it('verifies the ID token, exchanges the identity for provider "google", and returns a user with the minted token', async () => {
+  it('verifies the ID token, exchanges the identity for provider "google", and returns a user with the minted token and refresh token expiry', async () => {
     mockVerifyIdToken.mockResolvedValue({
       getPayload: () => ({ sub: 'google-sub-1', email: 'me@gmail.com' }),
     });
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
-      json: async () => ({ token: 'rcpls-jwt', refreshToken: 'rcpls-refresh', userId: 'user-1', handle: 'chef' }),
+      json: async () => ({
+        token: 'rcpls-jwt',
+        refreshToken: 'rcpls-refresh',
+        refreshTokenExpiresAt: '2026-09-25T16:09:16.739Z',
+        userId: 'user-1',
+        handle: 'chef',
+      }),
     });
 
     const result = await googleOneTapProvider.authorize({ credential: 'id-token-1' });
@@ -576,6 +631,7 @@ describe('google-onetap CredentialsProvider', () => {
       id: 'user-1',
       recipleaseToken: 'rcpls-jwt',
       recipleaseRefreshToken: 'rcpls-refresh',
+      recipleaseRefreshTokenExpiresAt: Date.parse('2026-09-25T16:09:16.739Z'),
       handle: 'chef',
     });
     expect(mockVerifyIdToken).toHaveBeenCalledWith(expect.objectContaining({ idToken: 'id-token-1' }));

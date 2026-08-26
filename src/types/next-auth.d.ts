@@ -11,6 +11,11 @@ declare module 'next-auth' {
     // where the backend returns refreshToken: null) — see jwt callback for how it's
     // adopted onto the token. Never surfaced on Session; see jwt.d.ts JWT below.
     recipleaseRefreshToken?: string;
+    // Epoch milliseconds the refresh token above actually expires at (backend
+    // ExchangeResponse.refreshTokenExpiresAt) — the authoritative source for how long
+    // the session cookie should last, used in place of a hardcoded duration. See jwt.ts
+    // JWT below and the [...nextauth] route wrapper, which applies it to the cookie.
+    recipleaseRefreshTokenExpiresAt?: number;
     handle?: string | null;
   }
 
@@ -40,6 +45,9 @@ declare module 'next-auth/jwt' {
     // cookie by the [...nextauth] route wrapper (see route.ts) — never read by client
     // JS via session(), only ever round-tripped server-side through this JWE.
     recipleaseRefreshToken?: string;
+    // Epoch milliseconds the refresh token above actually expires at — see
+    // the matching field on User above for where it comes from and how it's used.
+    recipleaseRefreshTokenExpiresAt?: number;
     userId?: string;
     handle?: string | null;
     error?: string;

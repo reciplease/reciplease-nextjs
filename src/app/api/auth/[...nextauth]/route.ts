@@ -64,6 +64,27 @@ function allSetCookies(res: Response): string[] {
 // (nothing to mirror). `found: true, value: ''` means it did — most notably
 // sign-out, which clears the cookie by writing an empty value — and should still
 // be treated as "no recipleaseToken" below, not skipped as if nothing happened.
+/**
+ * Rewrites the `Expires` attribute of every session-token Set-Cookie entry (base or
+ * chunked) to {@code expiresAtMillis} — the refresh token's actual expiry, straight from
+ * the backend (see auth-options.ts's recipleaseRefreshTokenExpiresAt). NextAuth itself
+ * always computes Expires from the static `session.maxAge` config (see next-auth's
+ * core/routes/session.js and callback.js — there's no per-request hook to override it),
+ * so this is the only place that can make the browser's actual cookie lifetime track the
+ * real, possibly-rotated refresh token expiry instead of that static ceiling.
+ */
+function withRewrittenSessionExpiry(setCookies: string[], expiresAtMillis: number): string[] {
+  const expiresHeader = new Date(expiresAtMillis).toUTCString();
+  return setCookies.map((raw) => {
+    const { name } = parseSetCookie(raw);
+    const isSessionCookie = SESSION_COOKIE_BASE_NAMES.some((base) => name === base || name.startsWith(`${base}.`));
+    if (!isSessionCookie) return raw;
+    return /;\s*Expires=[^;]+/i.test(raw)
+      ? raw.replace(/;\s*Expires=[^;]+/i, `; Expires=${expiresHeader}`)
+      : `${raw}; Expires=${expiresHeader}`;
+  });
+}
+
 function outgoingSessionToken(setCookies: string[]): { found: boolean; value: string } {
   for (const base of SESSION_COOKIE_BASE_NAMES) {
     let single: string | undefined;
@@ -113,14 +134,28 @@ async function mirrorRefreshCookie(res: Response): Promise<Response> {
   const attrs = ['HttpOnly', 'Path=/api/auth', 'SameSite=Lax'];
   if (process.env.NODE_ENV === 'production') attrs.push('Secure');
 
+  // The refresh token's real expiry, when the token carries one (every session minted
+  // since refreshTokenExpiresAt shipped) — the authoritative source for both cookie
+  // lifetimes below, in place of the hardcoded REFRESH_COOKIE_MAX_AGE_SECONDS fallback
+  // (kept only for a pre-migration session whose JWE predates this field).
+  const refreshExpiresAtMillis =
+    typeof token?.recipleaseRefreshTokenExpiresAt === 'number' ? token.recipleaseRefreshTokenExpiresAt : undefined;
+  const refreshMaxAgeSeconds =
+    refreshExpiresAtMillis !== undefined
+      ? Math.max(0, Math.round((refreshExpiresAtMillis - Date.now()) / 1000))
+      : REFRESH_COOKIE_MAX_AGE_SECONDS;
+
   let mirroredCookie: string;
   if (!token?.recipleaseToken) {
     mirroredCookie = `${REFRESH_COOKIE_NAME}=; Max-Age=0; ${attrs.join('; ')}`;
   } else if (token.recipleaseRefreshToken) {
-    mirroredCookie = `${REFRESH_COOKIE_NAME}=${token.recipleaseRefreshToken}; Max-Age=${REFRESH_COOKIE_MAX_AGE_SECONDS}; ${attrs.join('; ')}`;
+    mirroredCookie = `${REFRESH_COOKIE_NAME}=${token.recipleaseRefreshToken}; Max-Age=${refreshMaxAgeSeconds}; ${attrs.join('; ')}`;
   } else {
     return res;
   }
+
+  const outgoingSetCookies =
+    refreshExpiresAtMillis !== undefined ? withRewrittenSessionExpiry(setCookies, refreshExpiresAtMillis) : setCookies;
 
   // Rebuild headers rather than mutating res.headers in place: preserve every
   // existing header (including every pre-existing Set-Cookie, e.g. the session
@@ -130,7 +165,7 @@ async function mirrorRefreshCookie(res: Response): Promise<Response> {
   res.headers.forEach((value, key) => {
     if (key.toLowerCase() !== 'set-cookie') headers.set(key, value);
   });
-  for (const existing of setCookies) headers.append('set-cookie', existing);
+  for (const existing of outgoingSetCookies) headers.append('set-cookie', existing);
   headers.append('set-cookie', mirroredCookie);
 
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers });

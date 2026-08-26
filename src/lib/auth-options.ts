@@ -51,8 +51,31 @@ async function existingLinkToken(token: JWT): Promise<string | undefined> {
 }
 
 export type ExchangeResult =
-  | { ok: true; token: string; refreshToken: string | null; userId: string; handle: string | null }
+  | {
+      ok: true;
+      token: string;
+      refreshToken: string | null;
+      refreshTokenExpiresAt: number | null;
+      userId: string;
+      handle: string | null;
+    }
   | { ok: false; error: string };
+
+/** Builds an {@link ExchangeResult} from a raw {@link ExchangeResponseBody}. */
+function toExchangeResult(body: ExchangeResponseBody): ExchangeResult {
+  return {
+    ok: true,
+    token: body.token ?? '',
+    refreshToken: body.refreshToken ?? null,
+    // The refresh token's actual expiry, straight from the backend (reciplease.jwt.refresh-
+    // token-ttl) — used as the source of truth for the session cookie's own lifetime (see
+    // the [...nextauth] route wrapper) instead of a duration hardcoded here that could drift
+    // out of sync with that backend config.
+    refreshTokenExpiresAt: body.refreshTokenExpiresAt ? Date.parse(body.refreshTokenExpiresAt) : null,
+    userId: body.userId ?? '',
+    handle: body.handle ?? null,
+  };
+}
 
 export async function exchangeIdentity(
   account: Pick<Account, 'provider' | 'providerAccountId'>,
@@ -81,14 +104,7 @@ export async function exchangeIdentity(
       };
     }
 
-    const body: ExchangeResponseBody = await response.json();
-    return {
-      ok: true,
-      token: body.token ?? '',
-      refreshToken: body.refreshToken ?? null,
-      userId: body.userId ?? '',
-      handle: body.handle ?? null,
-    };
+    return toExchangeResult(await response.json());
   } catch {
     return { ok: false, error: 'ExchangeError' };
   }
@@ -109,14 +125,7 @@ async function redeemRefreshToken(refreshToken: string): Promise<ExchangeResult>
     });
     if (!response.ok) return { ok: false, error: 'ExchangeError' };
 
-    const body: ExchangeResponseBody = await response.json();
-    return {
-      ok: true,
-      token: body.token ?? '',
-      refreshToken: body.refreshToken ?? null,
-      userId: body.userId ?? '',
-      handle: body.handle ?? null,
-    };
+    return toExchangeResult(await response.json());
   } catch {
     return { ok: false, error: 'ExchangeError' };
   }
@@ -142,6 +151,7 @@ async function authorizePasskey(mode: 'signup' | 'login', challenge: string, cre
       id: body.userId ?? '',
       recipleaseToken: body.token,
       recipleaseRefreshToken: body.refreshToken ?? undefined,
+      recipleaseRefreshTokenExpiresAt: body.refreshTokenExpiresAt ? Date.parse(body.refreshTokenExpiresAt) : undefined,
       handle: body.handle ?? null,
     };
   } catch {
@@ -176,6 +186,7 @@ async function authorizeGoogleCredential(credential: string): Promise<User | nul
       id: result.userId,
       recipleaseToken: result.token,
       recipleaseRefreshToken: result.refreshToken ?? undefined,
+      recipleaseRefreshTokenExpiresAt: result.refreshTokenExpiresAt ?? undefined,
       handle: result.handle,
     };
   } catch {
@@ -234,16 +245,22 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
-  // Tracks the backend refresh token's own lifetime (30 days — reciplease.jwt.refresh-
-  // token-ttl), NOT the much shorter Reciplease access-token TTL: the access token
-  // already renews itself independently via the jwt() callback's redeemRefreshToken
-  // call below, using the refresh token carried inside this very cookie. If maxAge
-  // instead tracked the access-token TTL (as it used to), the outer NextAuth session
-  // cookie itself — never reissued until it's `updateAge` old — would expire under any
-  // user who simply didn't open the app for a stretch longer than that TTL, forcing a
-  // full re-login despite a still-valid refresh token. updateAge shorter than maxAge
-  // means a visit on any given day renews the cookie, so the session slides forward
-  // for as long as the refresh token stays valid instead of hard-expiring daily.
+  // A ceiling, not the real session lifetime: NextAuth always computes the session
+  // cookie's own Expires from this static config (no per-request override exists in
+  // next-auth v4's core), so it must be at least as long as the backend refresh token's
+  // actual lifetime (currently 30 days — reciplease.jwt.refresh-token-ttl) or it would
+  // cap sessions short. The [...nextauth] route wrapper (mirrorRefreshCookie) then
+  // rewrites the cookie's real Expires down to the refresh token's own
+  // recipleaseRefreshTokenExpiresAt on every response, so the true, exact expiry tracks
+  // that backend config automatically instead of duplicating it here by hand. NOT the
+  // much shorter Reciplease access-token TTL, which already renews itself independently
+  // via the jwt() callback's redeemRefreshToken call below. If maxAge instead tracked
+  // the access-token TTL (as it used to), the outer NextAuth session cookie itself —
+  // never reissued until it's `updateAge` old — would expire under any user who simply
+  // didn't open the app for a stretch longer than that TTL, forcing a full re-login
+  // despite a still-valid refresh token. updateAge shorter than maxAge means a visit on
+  // any given day renews the cookie, so the session slides forward for as long as the
+  // refresh token stays valid instead of hard-expiring daily.
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60, updateAge: 24 * 60 * 60 },
   // Use our own branded sign-in page instead of NextAuth's default UI.
   pages: { signIn: '/login', error: '/login' },
@@ -257,6 +274,7 @@ export const authOptions: NextAuthOptions = {
         if (user?.recipleaseToken) {
           token.recipleaseToken = user.recipleaseToken;
           token.recipleaseRefreshToken = user.recipleaseRefreshToken;
+          token.recipleaseRefreshTokenExpiresAt = user.recipleaseRefreshTokenExpiresAt;
           token.userId = user.id;
           token.handle = user.handle ?? null;
           token.error = undefined;
@@ -273,9 +291,12 @@ export const authOptions: NextAuthOptions = {
         if (result.ok) {
           token.recipleaseToken = result.token;
           // null on the wire when this was a provider-linking exchange (linkToken was
-          // set) rather than a fresh login — don't stomp a refresh token the user
-          // already had from their prior sign-in with the linked-from provider.
-          if (result.refreshToken !== null) token.recipleaseRefreshToken = result.refreshToken;
+          // set) rather than a fresh login — don't stomp a refresh token (or its expiry)
+          // the user already had from their prior sign-in with the linked-from provider.
+          if (result.refreshToken !== null) {
+            token.recipleaseRefreshToken = result.refreshToken;
+            token.recipleaseRefreshTokenExpiresAt = result.refreshTokenExpiresAt ?? undefined;
+          }
           token.userId = result.userId;
           token.handle = result.handle;
           token.error = undefined;
@@ -309,6 +330,7 @@ export const authOptions: NextAuthOptions = {
             if (refreshed.ok) {
               token.recipleaseToken = refreshed.token;
               token.recipleaseRefreshToken = refreshed.refreshToken ?? undefined;
+              token.recipleaseRefreshTokenExpiresAt = refreshed.refreshTokenExpiresAt ?? undefined;
               token.userId = refreshed.userId;
               token.handle = refreshed.handle;
               token.error = undefined;

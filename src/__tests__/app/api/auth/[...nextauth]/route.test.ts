@@ -82,7 +82,7 @@ describe('POST /api/auth/[...nextauth]', () => {
     expect(await response.text()).toBe('handled');
   });
 
-  it('mirrors recipleaseRefreshToken from the outgoing session cookie onto a dedicated reciplease-refresh cookie', async () => {
+  it('mirrors recipleaseRefreshToken from the outgoing session cookie onto a dedicated reciplease-refresh cookie, falling back to a 30-day Max-Age when the token carries no real expiry (a pre-migration session)', async () => {
     process.env = { ...ORIGINAL_ENV, NEXTAUTH_SECRET: 'shh', NODE_ENV: 'production' };
     mockHandler.mockResolvedValueOnce(
       new Response('handled', {
@@ -110,6 +110,41 @@ describe('POST /api/auth/[...nextauth]', () => {
     expect(mirrored).toContain(`Max-Age=${30 * 24 * 60 * 60}`);
     // The original session cookie itself must still be present.
     expect(setCookies.some((c: string) => c.startsWith('next-auth.session-token='))).toBe(true);
+  });
+
+  it("sizes both the mirrored reciplease-refresh cookie's Max-Age and the session cookie's own Expires from the token's actual recipleaseRefreshTokenExpiresAt, not a hardcoded duration", async () => {
+    process.env = { ...ORIGINAL_ENV, NEXTAUTH_SECRET: 'shh', NODE_ENV: 'production' };
+    const now = Date.parse('2026-08-26T12:00:00.000Z');
+    jest.useFakeTimers().setSystemTime(now);
+    const expiresAt = now + 5 * 24 * 60 * 60 * 1000; // 5 days out — deliberately not 30
+    mockHandler.mockResolvedValueOnce(
+      new Response('handled', {
+        headers: {
+          'set-cookie': 'next-auth.session-token=abc.def.ghi; Path=/; Expires=Thu, 01 Jan 2026 00:00:00 GMT; HttpOnly',
+        },
+      }),
+    );
+    mockDecode.mockResolvedValueOnce({
+      recipleaseToken: 'access-jwt',
+      recipleaseRefreshToken: 'refresh-jwt',
+      recipleaseRefreshTokenExpiresAt: expiresAt,
+    });
+    const { POST } = require('@/app/api/auth/[...nextauth]/route');
+    const request = new Request('http://localhost') as unknown as NextRequest;
+    const ctx = { params: Promise.resolve({ nextauth: ['session'] }) };
+
+    const response = await POST(request, ctx);
+    jest.useRealTimers();
+
+    const setCookies =
+      (response.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie?.() ?? [
+        response.headers.get('set-cookie') ?? '',
+      ];
+    const mirrored = setCookies.find((c: string) => c.startsWith('reciplease-refresh='));
+    expect(mirrored).toContain(`Max-Age=${5 * 24 * 60 * 60}`);
+    const sessionCookie = setCookies.find((c: string) => c.startsWith('next-auth.session-token='));
+    expect(sessionCookie).toContain(`Expires=${new Date(expiresAt).toUTCString()}`);
+    expect(sessionCookie).not.toContain('Thu, 01 Jan 2026');
   });
 
   it('omits Secure outside production', async () => {
