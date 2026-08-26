@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useActionState, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { hardNavigate } from '@/lib/navigate';
@@ -10,37 +10,22 @@ const HOME = '/recipes';
 export default function OnboardingHandle() {
   const router = useRouter();
   const [handle, setHandle] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!handle.trim()) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/me/handle', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ handle: handle.trim() }),
-      });
-      if (res.status === 409) {
-        setError('That handle is already taken.');
-        return;
-      }
-      if (!res.ok) {
-        setError('Something went wrong. Please try again.');
-        return;
-      }
-      // Full reload (not router.replace) so the new handle is read fresh: the
-      // handle is cached in SWR (/api/me), and a client-side nav would let
-      // AccessGate see the stale null handle and bounce straight back here — an
-      // infinite onboarding loop.
-      hardNavigate(HOME);
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  const [error, submit, submitting] = useActionState(async () => {
+    if (!handle.trim()) return null;
+    const res = await fetch('/api/me/handle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ handle: handle.trim() }),
+    });
+    if (res.status === 409) return 'That handle is already taken.';
+    if (!res.ok) return 'Something went wrong. Please try again.';
+    // Full reload (not router.replace) so the new handle is read fresh: the
+    // handle is cached in SWR (/api/me), and a client-side nav would let
+    // AccessGate see the stale null handle and bounce straight back here — an
+    // infinite onboarding loop.
+    hardNavigate(HOME);
+    return null;
+  }, null);
 
   return (
     <>
@@ -61,7 +46,7 @@ export default function OnboardingHandle() {
             </p>
           )}
 
-          <form onSubmit={submit} className="flex w-full flex-col gap-3">
+          <form action={submit} className="flex w-full flex-col gap-3">
             <input
               type="text"
               value={handle}

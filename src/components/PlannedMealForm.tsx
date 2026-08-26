@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useActionState, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
 import { apiFetch, useActiveHouse } from '@/lib/houses';
@@ -181,9 +181,6 @@ export default function PlannedMealForm({ initial, submitLabel, onSubmit, onDele
   const [newIngredientMeasure, setNewIngredientMeasure] = useState<MeasureId>('' as MeasureId);
   const [newIngredientAmount, setNewIngredientAmount] = useState('');
 
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
   function updateRow(key: number, updated: RowState) {
     setRows((prev) => prev.map((r) => (r.key === key ? updated : r)));
   }
@@ -219,17 +216,12 @@ export default function PlannedMealForm({ initial, submitLabel, onSubmit, onDele
     setNewIngredientAmount('');
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-
+  const [error, handleSubmit, submitting] = useActionState(async (): Promise<string | null> => {
     const filledRows = rows.filter((r) => r.name.trim());
     if (filledRows.some((r) => !r.amount || parseFloat(r.amount) <= 0)) {
-      setError('Enter an amount greater than 0 for each ingredient.');
-      return;
+      return 'Enter an amount greater than 0 for each ingredient.';
     }
 
-    setSubmitting(true);
     try {
       const items: PlannedMealFormItem[] = filledRows.map((row) => ({
         name: row.name.trim(),
@@ -246,18 +238,14 @@ export default function PlannedMealForm({ initial, submitLabel, onSubmit, onDele
         items,
       });
 
-      if (errorMessage) {
-        setError(errorMessage);
-      }
+      return errorMessage ?? null;
     } catch {
-      setError('An unexpected error occurred.');
-    } finally {
-      setSubmitting(false);
+      return 'An unexpected error occurred.';
     }
-  }
+  }, null);
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-6">
+    <form action={handleSubmit} className="grid gap-6">
       <div className="grid gap-2">
         <input
           type="text"
@@ -361,8 +349,8 @@ export default function PlannedMealForm({ initial, submitLabel, onSubmit, onDele
       <div className="flex items-center justify-between gap-3">
         {onDelete ? (
           <button
-            type="button"
-            onClick={onDelete}
+            type="submit"
+            formAction={onDelete}
             disabled={submitting}
             className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
           >

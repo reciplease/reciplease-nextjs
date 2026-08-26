@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useActionState } from 'react';
 import Metadata from '@/components/Metadata';
 import RecipeForm, { RecipeFormValues } from '@/components/RecipeForm';
 import Link from 'next/link';
@@ -28,26 +28,19 @@ export default function EditRecipe() {
     activeHouse?.role === 'OWNER' &&
     activeHouse.id === recipe.houseId;
 
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  async function handleDelete() {
-    if (!window.confirm(`Delete "${recipe?.name}"? This can't be undone.`)) return;
-    setDeleteError(null);
-    setDeleting(true);
+  const [deleteError, handleDelete, deleting] = useActionState(async (): Promise<string | null> => {
+    if (!window.confirm(`Delete "${recipe?.name}"? This can't be undone.`)) return null;
     try {
       const res = await apiFetch(`/api/recipes/${recipeId}`, { method: 'DELETE' });
       if (!res.ok) {
-        setDeleteError('Failed to delete recipe. Please try again.');
-        return;
+        return 'Failed to delete recipe. Please try again.';
       }
       router.push('/recipes');
+      return null;
     } catch {
-      setDeleteError('An unexpected error occurred.');
-    } finally {
-      setDeleting(false);
+      return 'An unexpected error occurred.';
     }
-  }
+  }, null);
 
   async function handleSubmit(values: RecipeFormValues) {
     const res = await apiFetch(`/api/recipes/${recipeId}`, {

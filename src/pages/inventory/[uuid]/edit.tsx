@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
@@ -79,9 +79,6 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
   const [expiration, setExpiration] = useState(item.expiration);
   const [barcode, setBarcode] = useState(item.barcode ?? '');
   const [image, setImage] = useState<string | null>(item.image ?? null);
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   async function handlePhotoSelected(file: File) {
     try {
@@ -93,28 +90,21 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
 
   const effectiveMeasureId = measureId || measures?.[0]?.measureId || '';
 
-  async function handleDelete() {
-    if (!window.confirm(`Delete ${item.name}? This can't be undone.`)) return;
-    setError(null);
-    setDeleting(true);
+  const [deleteError, handleDelete, deleting] = useActionState(async (): Promise<string | null> => {
+    if (!window.confirm(`Delete ${item.name}? This can't be undone.`)) return null;
     try {
       const res = await apiFetch(`/api/inventory/${uuid}`, { method: 'DELETE' });
       if (!res.ok) {
-        setError('Failed to delete item. Please try again.');
-        return;
+        return 'Failed to delete item. Please try again.';
       }
       router.push('/inventory');
+      return null;
     } catch {
-      setError('An unexpected error occurred.');
-    } finally {
-      setDeleting(false);
+      return 'An unexpected error occurred.';
     }
-  }
+  }, null);
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setSubmitting(true);
+  const [submitError, handleSubmit, submitting] = useActionState(async (): Promise<string | null> => {
     try {
       // `remaining` must be resent as-is — the backend defaults a missing
       // `remaining` to the new `amount`, which would wipe out how much of
@@ -135,16 +125,20 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        setError('Failed to save changes. Please try again.');
-        return;
+        return 'Failed to save changes. Please try again.';
       }
       router.push(`/inventory/${uuid}`);
+      return null;
     } catch {
-      setError('An unexpected error occurred.');
-    } finally {
-      setSubmitting(false);
+      return 'An unexpected error occurred.';
     }
-  }
+  }, null);
+
+  // Both actions render into the same alert spot, same as when they shared
+  // one error state. Both failing on this page is an edge case that briefly
+  // isn't worth extra state to order precisely — a save error takes display
+  // priority if both are present.
+  const error = submitError ?? deleteError;
 
   return (
     <>
@@ -152,7 +146,7 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
 
       <section>
         <h3 className="text-xl font-semibold mb-4">Edit {item.name}</h3>
-        <form onSubmit={handleSubmit} className="grid gap-2 max-w-sm">
+        <form action={handleSubmit} className="grid gap-2 max-w-sm">
           <label htmlFor="name">Name</label>
           <input
             id="name"
@@ -255,14 +249,18 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
           </button>
         </form>
 
-        <button
-          type="button"
-          disabled={deleting}
-          onClick={handleDelete}
-          className="mt-4 w-fit rounded border-2 border-red-600 px-2 py-1 text-sm text-red-600 hover:bg-red-600 hover:text-white disabled:opacity-50"
-        >
-          {deleting ? 'Deleting…' : 'Delete item'}
-        </button>
+        {/* A standalone one-button form, not onClick, so handleDelete's
+            useActionState dispatch runs inside a proper transition (needed
+            for `deleting` to track correctly). */}
+        <form action={handleDelete}>
+          <button
+            type="submit"
+            disabled={deleting}
+            className="mt-4 w-fit rounded border-2 border-red-600 px-2 py-1 text-sm text-red-600 hover:bg-red-600 hover:text-white disabled:opacity-50"
+          >
+            {deleting ? 'Deleting…' : 'Delete item'}
+          </button>
+        </form>
       </section>
     </>
   );

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useActionState, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useMeasures } from '@/lib/measures';
 
@@ -158,9 +158,6 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
   );
   const nextKey = useRef(rows.length);
 
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
   const measures = useMeasures();
 
   function setRowName(key: number, value: string) {
@@ -194,18 +191,13 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
     });
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-
+  const [error, handleSubmit, submitting] = useActionState(async (): Promise<string | null> => {
     const filledRows = rows.filter((r) => r.name.trim());
     const invalidAmounts = filledRows.filter((r) => !r.amount || parseFloat(r.amount) <= 0);
     if (invalidAmounts.length) {
-      setError('Enter an amount greater than 0 for each ingredient.');
-      return;
+      return 'Enter an amount greater than 0 for each ingredient.';
     }
 
-    setSubmitting(true);
     try {
       const cleanedSteps = steps.map((s) => s.trim()).filter(Boolean);
       const ingredients: RecipeFormIngredient[] = filledRows.map((row) => ({
@@ -223,18 +215,14 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
         sourceUrl: initial?.sourceUrl ?? null,
       });
 
-      if (errorMessage) {
-        setError(errorMessage);
-      }
+      return errorMessage ?? null;
     } catch {
-      setError('An unexpected error occurred.');
-    } finally {
-      setSubmitting(false);
+      return 'An unexpected error occurred.';
     }
-  }
+  }, null);
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-6">
+    <form action={handleSubmit} className="grid gap-6">
       <div className="grid gap-2">
         <input
           id="name"
@@ -346,8 +334,8 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
       <div className="flex items-center justify-between gap-3">
         {onDelete ? (
           <button
-            type="button"
-            onClick={onDelete}
+            type="submit"
+            formAction={onDelete}
             disabled={submitting}
             className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
           >

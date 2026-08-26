@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import useSWR from 'swr';
@@ -93,8 +93,6 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingInventor
   // Raw base64 JPEG for the item itself — from an OpenFoodFacts product photo
   // or a manually taken one. Best-effort, like the single-item scan flow.
   const [image, setImage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   // The barcode itself is decoded here, not during capture — this is where the
   // shopper isn't rushing and a bad photo (blur, glare, bad framing) can be
@@ -159,10 +157,8 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingInventor
 
   const missingFields = !name.trim() || !effectiveMeasure || !amount || !expiration;
 
-  async function handleComplete() {
-    if (!name.trim() || !effectiveMeasure || !amount || !expiration) return;
-    setSubmitting(true);
-    setError(null);
+  const [completeError, handleComplete, completing] = useActionState(async (): Promise<string | null> => {
+    if (!name.trim() || !effectiveMeasure || !amount || !expiration) return null;
     try {
       const body: CreateInventoryItem = {
         name: name.trim(),
@@ -179,37 +175,36 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingInventor
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        setError('Failed to add the item. Please try again.');
-        return;
+        return 'Failed to add the item. Please try again.';
       }
       // Straight on to the next item in the backlog rather than back to the
       // list — digitising is usually a full sweep of everything captured in
       // one trip, so returning to the list after each one would just mean
       // immediately tapping back in.
       router.push(await nextDestination(uuid));
+      return null;
     } catch {
-      setError('An unexpected error occurred.');
-    } finally {
-      setSubmitting(false);
+      return 'An unexpected error occurred.';
     }
-  }
+  }, null);
 
-  async function handleDiscard() {
-    setSubmitting(true);
-    setError(null);
+  const [discardError, handleDiscard, discarding] = useActionState(async (): Promise<string | null> => {
     try {
       const res = await apiFetch(`/api/inventory/pending/${uuid}`, { method: 'DELETE' });
       if (!res.ok) {
-        setError('Failed to discard. Please try again.');
-        return;
+        return 'Failed to discard. Please try again.';
       }
       router.push('/inventory/shop/process');
+      return null;
     } catch {
-      setError('An unexpected error occurred.');
-    } finally {
-      setSubmitting(false);
+      return 'An unexpected error occurred.';
     }
-  }
+  }, null);
+
+  // Both buttons previously shared one submitting/error pair — reproduce
+  // that here now that each action tracks its own.
+  const submitting = completing || discarding;
+  const error = completeError ?? discardError;
 
   return (
     <>
@@ -330,24 +325,28 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingInventor
 
         {error && <p role="alert" className="text-red-400 text-sm">{error}</p>}
 
-        <div className="flex gap-3 flex-wrap">
+        {/* A bare <form> (no default action) just so each button's own
+            formAction runs inside a proper transition — required for
+            useActionState's isPending to track correctly; see handleComplete
+            and handleDiscard above. Same flex/gap layout the plain div had. */}
+        <form className="flex gap-3 flex-wrap">
           <button
-            type="button"
-            onClick={handleComplete}
+            type="submit"
+            formAction={handleComplete}
             disabled={submitting || missingFields}
             className="px-6 py-2 bg-highlight text-white font-semibold rounded-lg disabled:opacity-40"
           >
             {submitting ? 'Adding…' : 'Add to inventory'}
           </button>
           <button
-            type="button"
-            onClick={handleDiscard}
+            type="submit"
+            formAction={handleDiscard}
             disabled={submitting}
             className="rounded-lg border-2 border-red-500 px-4 py-1.5 text-sm text-red-400 hover:bg-red-600 hover:text-white disabled:opacity-50"
           >
             Discard
           </button>
-        </div>
+        </form>
       </section>
     </>
   );

@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { useActionState, useState } from 'react';
 import { binInventoryItem } from '@/lib/inventory';
 
 interface ThrowAwayPanelProps {
@@ -13,28 +13,21 @@ interface ThrowAwayPanelProps {
 // trigger differs between those two call sites, not the panel.
 export default function ThrowAwayPanel({ uuid, item, onSaved, onClose }: ThrowAwayPanelProps) {
   const [amount, setAmount] = useState(String(item.remaining));
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setSubmitting(true);
+  const [error, handleSubmit, submitting] = useActionState(async (): Promise<string | null> => {
     try {
       const thrown = parseFloat(amount);
       const ok = await binInventoryItem(uuid, item, thrown);
       if (!ok) {
-        setError('Failed to update amount. Please try again.');
-        return;
+        return 'Failed to update amount. Please try again.';
       }
       onSaved();
       onClose();
+      return null;
     } catch {
-      setError('An unexpected error occurred.');
-    } finally {
-      setSubmitting(false);
+      return 'An unexpected error occurred.';
     }
-  }
+  }, null);
 
   return (
     <div
@@ -52,7 +45,7 @@ export default function ThrowAwayPanel({ uuid, item, onSaved, onClose }: ThrowAw
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="grid gap-3">
+        <form action={handleSubmit} className="grid gap-3">
           <div>
             <label htmlFor="amount-thrown-away" className="mb-1 block text-sm">
               Amount thrown away

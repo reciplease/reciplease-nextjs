@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useActionState } from 'react';
 import Metadata from '@/components/Metadata';
 import PlannedMealForm, { PlannedMealFormValues } from '@/components/PlannedMealForm';
 import Link from 'next/link';
@@ -28,26 +28,19 @@ export default function EditPlannedMeal() {
     activeHouse?.role === 'OWNER' &&
     activeHouse.id === meal.houseId;
 
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  async function handleDelete() {
-    if (!window.confirm(`Delete "${meal?.name}"? This can't be undone.`)) return;
-    setDeleteError(null);
-    setDeleting(true);
+  const [deleteError, handleDelete, deleting] = useActionState(async (): Promise<string | null> => {
+    if (!window.confirm(`Delete "${meal?.name}"? This can't be undone.`)) return null;
     try {
       const res = await apiFetch(`/api/planned-meals/${plannedMealId}`, { method: 'DELETE' });
       if (!res.ok) {
-        setDeleteError('Failed to delete meal. Please try again.');
-        return;
+        return 'Failed to delete meal. Please try again.';
       }
       router.push('/planner');
+      return null;
     } catch {
-      setDeleteError('An unexpected error occurred.');
-    } finally {
-      setDeleting(false);
+      return 'An unexpected error occurred.';
     }
-  }
+  }, null);
 
   async function handleSubmit(values: PlannedMealFormValues) {
     const items = values.items.map((item) => ({

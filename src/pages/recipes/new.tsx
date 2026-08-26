@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useActionState, useState } from 'react';
 import { useRouter } from 'next/router';
 import Metadata from '@/components/Metadata';
 import RecipeForm, { type RecipeFormInitial, type RecipeFormValues } from '@/components/RecipeForm';
@@ -8,15 +8,11 @@ import { apiFetch } from '@/lib/houses';
 export default function NewRecipe() {
   const router = useRouter();
   const [importUrl, setImportUrl] = useState('');
-  const [importing, setImporting] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
   const [formInitial, setFormInitial] = useState<RecipeFormInitial | undefined>(undefined);
   // Increment to remount RecipeForm when imported data replaces the blank form.
   const [formKey, setFormKey] = useState(0);
 
-  async function handleImport() {
-    setImportError(null);
-    setImporting(true);
+  const [importError, handleImport, importing] = useActionState(async (): Promise<string | null> => {
     try {
       const res = await fetch('/api/import-recipe', {
         method: 'POST',
@@ -25,18 +21,16 @@ export default function NewRecipe() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setImportError((body as { error?: string }).error ?? 'Failed to import. Please try again.');
-        return;
+        return (body as { error?: string }).error ?? 'Failed to import. Please try again.';
       }
       const imported: RecipeFormInitial = await res.json();
       setFormInitial({ ...imported, sourceUrl: importUrl });
       setFormKey((k) => k + 1);
+      return null;
     } catch {
-      setImportError('Failed to import. Please check the URL and try again.');
-    } finally {
-      setImporting(false);
+      return 'Failed to import. Please check the URL and try again.';
     }
-  }
+  }, null);
 
   async function handleSubmit(values: RecipeFormValues) {
     const createRes = await apiFetch('/api/recipes', {
@@ -80,7 +74,7 @@ export default function NewRecipe() {
       <Metadata title="New Recipe" description="Create a new recipe" />
 
       <section className="grid gap-y-6">
-        <div className={`grid gap-2${formInitial?.sourceUrl ? ' hidden' : ''}`}>
+        <form action={handleImport} className={`grid gap-2${formInitial?.sourceUrl ? ' hidden' : ''}`}>
           <label htmlFor="import-url" className="font-medium text-sm">
             Import from BBC Good Food or HelloFresh
           </label>
@@ -90,15 +84,11 @@ export default function NewRecipe() {
               type="url"
               value={importUrl}
               onChange={(e) => setImportUrl(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && importUrl.trim()) handleImport();
-              }}
               placeholder="Paste a recipe URL…"
               className="flex-1 p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
             />
             <button
-              type="button"
-              onClick={handleImport}
+              type="submit"
               disabled={importing || !importUrl.trim()}
             >
               {importing ? 'Importing…' : 'Import'}
@@ -109,7 +99,7 @@ export default function NewRecipe() {
               {importError}
             </p>
           )}
-        </div>
+        </form>
 
         <div className={`relative my-6 flex items-center gap-4${formInitial?.sourceUrl ? ' hidden' : ''}`}>
           <div className="flex-1 border-t border-[#333]" />
