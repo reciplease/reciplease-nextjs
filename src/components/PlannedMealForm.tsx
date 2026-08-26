@@ -81,38 +81,40 @@ function IngredientRow({
   onRemove: () => void;
 }) {
   return (
-    <li className="grid grid-cols-[1fr_7rem_6rem_2rem] gap-x-2 gap-y-1 border-b border-[#eee] pb-2">
+    <li className="grid grid-cols-2 sm:grid-cols-[1fr_7rem_6rem_2rem] gap-x-2 gap-y-1 border-b border-[#eee] pb-2">
       <input
         type="text"
         aria-label="Ingredient name"
         value={row.name}
         onChange={(e) => onChange({ ...row, name: e.target.value })}
         placeholder="Ingredient name…"
-        className="p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
+        className="col-span-2 sm:col-span-1 min-w-0 p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
       />
       <select
         aria-label="Measure"
         value={row.measureId || measures[0]?.measureId || ''}
         onChange={(e) => onChange({ ...row, measureId: e.target.value as MeasureId })}
-        className="w-full p-2 text-base border border-[#ccc] rounded"
+        className="w-full min-w-0 p-2 text-base border border-[#ccc] rounded"
       >
         {measures.map((m) => (
           <option key={m.measureId} value={m.measureId}>{m.plural}</option>
         ))}
       </select>
-      <input
-        type="number"
-        min="0"
-        step="any"
-        aria-label="Amount"
-        value={row.amount}
-        onChange={(e) => onChange({ ...row, amount: e.target.value })}
-        placeholder="Amount"
-        className="w-full p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
-      />
-      <button type="button" onClick={onRemove} aria-label="Remove ingredient">×</button>
+      <div className="flex gap-2">
+        <input
+          type="number"
+          min="0"
+          step="any"
+          aria-label="Amount"
+          value={row.amount}
+          onChange={(e) => onChange({ ...row, amount: e.target.value })}
+          placeholder="Amount"
+          className="w-full min-w-0 p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
+        />
+        <button type="button" onClick={onRemove} aria-label="Remove ingredient" className="shrink-0">×</button>
+      </div>
 
-      <div className="col-span-4 flex items-center gap-2 text-sm">
+      <div className="col-span-2 sm:col-span-4 flex flex-wrap items-center gap-2 text-sm">
         <label htmlFor={`allocate-${row.key}`} className="text-[#666] shrink-0">From stock:</label>
         <select
           id={`allocate-${row.key}`}
@@ -130,7 +132,7 @@ function IngredientRow({
               allocationAmount: String(Math.min(item.remaining, parseFloat(row.amount) || item.remaining)),
             });
           }}
-          className="flex-1 p-1.5 border border-[#ccc] rounded"
+          className="flex-1 min-w-0 p-1.5 border border-[#ccc] rounded"
         >
           <option value="">— none, add to shopping list —</option>
           {inventoryItems.map((item) => (
@@ -147,7 +149,7 @@ function IngredientRow({
             aria-label="Amount used from stock"
             value={row.allocationAmount ?? ''}
             onChange={(e) => onChange({ ...row, allocationAmount: e.target.value })}
-            className="w-24 p-1.5 border border-[#ccc] rounded"
+            className="w-24 min-w-0 p-1.5 border border-[#ccc] rounded"
           />
         )}
       </div>
@@ -281,19 +283,19 @@ export default function PlannedMealForm({ initial, submitLabel, onSubmit, onDele
 
       <div className="grid gap-2">
         <h4>Recipe (optional)</h4>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <select
             aria-label="Recipe"
             value={recipeId}
             onChange={(e) => setRecipeId(e.target.value)}
-            className="flex-1 p-2 text-base border border-[#ccc] rounded"
+            className="w-full sm:flex-1 min-w-0 p-2 text-base border border-[#ccc] rounded"
           >
             <option value="">— no recipe —</option>
             {(recipes ?? []).map((recipe) => (
               <option key={recipe.recipeId} value={recipe.recipeId}>{recipe.name}</option>
             ))}
           </select>
-          <button type="button" onClick={loadIngredientsFromRecipe} disabled={!recipeId}>
+          <button type="button" onClick={loadIngredientsFromRecipe} disabled={!recipeId} className="shrink-0">
             Load ingredients
           </button>
         </div>
@@ -301,20 +303,20 @@ export default function PlannedMealForm({ initial, submitLabel, onSubmit, onDele
 
       <div className="grid gap-2">
         <h4>Add an ingredient to buy</h4>
-        <div className="grid grid-cols-[1fr_7rem_6rem_5rem] gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-[1fr_7rem_6rem_5rem] gap-2">
           <input
             type="text"
             aria-label="New ingredient name"
             value={newIngredientName}
             onChange={(e) => setNewIngredientName(e.target.value)}
             placeholder="Ingredient name…"
-            className="p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
+            className="col-span-2 sm:col-span-1 min-w-0 p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
           />
           <select
             aria-label="New ingredient measure"
             value={newIngredientMeasure || measures[0]?.measureId || ''}
             onChange={(e) => setNewIngredientMeasure(e.target.value as MeasureId)}
-            className="p-2 text-base border border-[#ccc] rounded"
+            className="min-w-0 p-2 text-base border border-[#ccc] rounded"
           >
             {measures.map((m) => (
               <option key={m.measureId} value={m.measureId}>{m.plural}</option>
@@ -328,9 +330,9 @@ export default function PlannedMealForm({ initial, submitLabel, onSubmit, onDele
             value={newIngredientAmount}
             onChange={(e) => setNewIngredientAmount(e.target.value)}
             placeholder="Amount"
-            className="p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
+            className="min-w-0 p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
           />
-          <button type="button" onClick={addIngredientToBuy}>Add</button>
+          <button type="button" onClick={addIngredientToBuy} className="col-span-2 sm:col-span-1">Add</button>
         </div>
       </div>
 
