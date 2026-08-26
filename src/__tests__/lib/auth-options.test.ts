@@ -50,8 +50,17 @@ afterAll(() => {
 });
 
 describe('authOptions config', () => {
-  it('uses JWT sessions and a custom sign-in page', () => {
-    expect(authOptions.session).toEqual({ strategy: 'jwt', maxAge: 24 * 60 * 60 });
+  it('uses JWT sessions with a maxAge that outlives the refresh token, sliding forward on activity within a day, and a custom sign-in page', () => {
+    // maxAge must track the backend refresh token's own lifetime (30 days —
+    // reciplease.jwt.refresh-token-ttl), not the much shorter access-token TTL:
+    // the access token already refreshes itself independently via the jwt()
+    // callback below. Otherwise the outer NextAuth session cookie — which is
+    // never reissued until it's `updateAge` old — expires under a user who
+    // simply doesn't open the app for a stretch longer than maxAge, forcing a
+    // full re-login despite a still-valid 30-day refresh token: the bug this
+    // guards against. updateAge shorter than maxAge lets a visit within any
+    // given day extend the cookie, producing a sliding session.
+    expect(authOptions.session).toEqual({ strategy: 'jwt', maxAge: 30 * 24 * 60 * 60, updateAge: 24 * 60 * 60 });
     expect(authOptions.pages).toEqual({ signIn: '/login', error: '/login' });
   });
 });

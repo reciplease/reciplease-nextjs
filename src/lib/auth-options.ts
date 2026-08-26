@@ -234,11 +234,17 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
-  // Matches the backend Reciplease JWT's own 24h expiry (ReciplaseJwtService.EXPIRY) —
-  // otherwise NextAuth's own session cookie (30-day default) would outlive the token
-  // embedded inside it, and an inactive user's cookie would still decode as
-  // "authenticated" long after the token it carries has actually died.
-  session: { strategy: 'jwt', maxAge: 24 * 60 * 60 },
+  // Tracks the backend refresh token's own lifetime (30 days — reciplease.jwt.refresh-
+  // token-ttl), NOT the much shorter Reciplease access-token TTL: the access token
+  // already renews itself independently via the jwt() callback's redeemRefreshToken
+  // call below, using the refresh token carried inside this very cookie. If maxAge
+  // instead tracked the access-token TTL (as it used to), the outer NextAuth session
+  // cookie itself — never reissued until it's `updateAge` old — would expire under any
+  // user who simply didn't open the app for a stretch longer than that TTL, forcing a
+  // full re-login despite a still-valid refresh token. updateAge shorter than maxAge
+  // means a visit on any given day renews the cookie, so the session slides forward
+  // for as long as the refresh token stays valid instead of hard-expiring daily.
+  session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60, updateAge: 24 * 60 * 60 },
   // Use our own branded sign-in page instead of NextAuth's default UI.
   pages: { signIn: '/login', error: '/login' },
   callbacks: {
