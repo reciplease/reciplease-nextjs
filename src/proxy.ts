@@ -34,7 +34,9 @@ import { isJwtExpired } from '@/lib/jwt';
  * plain path logic instead.
  */
 function isPublicPage(pathname: string): boolean {
-  if (pathname === '/recipes' || pathname === '/settings') return true;
+  // /login must stay public too — otherwise an unauthenticated visitor hits
+  // loginRedirect() *from* /login and gets redirected back to /login forever.
+  if (pathname === '/login' || pathname === '/recipes' || pathname === '/settings') return true;
   if (pathname === '/recipes/new') return false;
   if (/^\/recipes\/[^/]+$/.test(pathname)) return true;
   if (/^\/invite\/[^/]+$/.test(pathname)) return true;

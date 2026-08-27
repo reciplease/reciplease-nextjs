@@ -54,19 +54,20 @@ describe('Login page', () => {
     expect(signIn).toHaveBeenCalledWith('google', { callbackUrl: '/recipes' });
   });
 
-  it('renders the Google Identity Services button and hides the fallback once GSI loads', () => {
-    const renderButton = jest.fn();
+  it('shows the One Tap overlay on mount and on click once GSI loads, keeping the styled button', () => {
     const prompt = jest.fn();
     (window as unknown as { google: unknown }).google = {
-      accounts: { id: { initialize: jest.fn(), renderButton, prompt } },
+      accounts: { id: { initialize: jest.fn(), prompt } },
     };
     useRouter.mockReturnValue({ query: {} });
 
     render(<Login />);
 
-    expect(renderButton).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ text: 'signin_with' }));
-    expect(prompt).toHaveBeenCalled();
-    expect(screen.queryByRole('button', { name: /sign in with google/i })).not.toBeInTheDocument();
+    expect(prompt).toHaveBeenCalledTimes(1);
+    const button = screen.getByRole('button', { name: /sign in with google/i });
+    fireEvent.click(button);
+    expect(prompt).toHaveBeenCalledTimes(2);
+    expect(signIn).not.toHaveBeenCalledWith('google', expect.anything());
   });
 
   it('signs in via the google-onetap provider with the credential GSI returns', () => {
@@ -77,7 +78,6 @@ describe('Login page', () => {
           initialize: jest.fn(({ callback }) => {
             capturedCallback = callback;
           }),
-          renderButton: jest.fn(),
           prompt: jest.fn(),
         },
       },
@@ -88,14 +88,6 @@ describe('Login page', () => {
     capturedCallback?.({ credential: 'id-token-abc' });
 
     expect(signIn).toHaveBeenCalledWith('google-onetap', { credential: 'id-token-abc', callbackUrl: '/inventory' });
-  });
-
-  it('keeps showing the fallback Google button when window.google never becomes available', () => {
-    useRouter.mockReturnValue({ query: {} });
-
-    render(<Login />);
-
-    expect(screen.getByRole('button', { name: /sign in with google/i })).toBeInTheDocument();
   });
 
   it('does not show an error message by default', () => {
