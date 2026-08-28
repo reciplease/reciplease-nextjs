@@ -39,7 +39,7 @@ describe('Header', () => {
       status: 'authenticated',
     });
     render(<Header />);
-    for (const name of ['Recipes', 'Inventory', 'Planner']) {
+    for (const name of ['Recipes', 'Pantry', 'Planner']) {
       const link = screen.getByRole('link', { name });
       expect(link).toBeInTheDocument();
       // Each nav item carries an icon so the link still reads on mobile,
@@ -80,10 +80,10 @@ describe('Header', () => {
   it('marks the current route as active', () => {
     useSession.mockReturnValue({ data: null, status: 'unauthenticated' });
     process.env.NEXT_PUBLIC_AUTH_DISABLED = 'true';
-    useRouter.mockReturnValue({ pathname: '/inventory' });
+    useRouter.mockReturnValue({ pathname: '/pantry' });
     render(<Header />);
     // The current route's link is marked aria-current="page"; others aren't.
-    expect(screen.getByRole('link', { name: 'Inventory' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Pantry' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Recipes' })).not.toHaveAttribute('aria-current');
   });
 

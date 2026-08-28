@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { useAuthenticated } from '@/lib/useAuthenticated';
 
 // Shared presentation/behaviour for the floating action buttons. Section-specific
-// FABs (RecipeFab, InventoryFab) wrap this with their own destination and label.
+// FABs (RecipeFab, PantryFab) wrap this with their own destination and label.
 // Hidden when signed out and on the destination page itself.
 export default function Fab({ href, label }: { href: string; label: string }) {
   const authenticated = useAuthenticated();

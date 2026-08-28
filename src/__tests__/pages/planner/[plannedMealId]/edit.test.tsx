@@ -30,7 +30,7 @@ const meal: PlannedMeal = {
   name: 'Dinner',
   date: '2026-06-06',
   items: [
-    { ingredient: { name: 'bread', measure: items.measureId, amount: 2 }, allocations: [{ inventoryItemId: 'inv-1', amount: 2 }] },
+    { ingredient: { name: 'bread', measure: items.measureId, amount: 2 }, allocations: [{ pantryItemId: 'inv-1', amount: 2 }] },
   ],
 };
 
@@ -38,7 +38,7 @@ function mockMealSWR(result: { isLoading: boolean; data: PlannedMeal | undefined
   useSWR.mockImplementation((key: unknown) => {
     const url = Array.isArray(key) ? key[0] : key;
     if (url === '/api/recipes') return { data: [] };
-    if (url === '/api/inventory') return { data: [] };
+    if (url === '/api/pantry') return { data: [] };
     if (url === '/api/measures') return { data: [items] };
     return result;
   });

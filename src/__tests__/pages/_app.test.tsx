@@ -69,7 +69,7 @@ describe('_app', () => {
 
   it('renders standalone on the scanner page', () => {
     const { App, useRouterMock } = loadApp();
-    useRouterMock.mockReturnValue({ pathname: '/inventory/scan' });
+    useRouterMock.mockReturnValue({ pathname: '/pantry/scan' });
 
     render(<App Component={TestComponent} pageProps={{}} />);
 
@@ -105,7 +105,7 @@ describe('_app', () => {
 
   it('renders other pages inside Layout and AccessGate', () => {
     const { App, useRouterMock } = loadApp();
-    useRouterMock.mockReturnValue({ pathname: '/inventory' });
+    useRouterMock.mockReturnValue({ pathname: '/pantry' });
 
     render(<App Component={TestComponent} pageProps={{}} />);
 
@@ -116,7 +116,7 @@ describe('_app', () => {
 
   it('injects a fake session and disables refetch-on-focus when NEXT_PUBLIC_FAKE_AUTH is true', () => {
     const { App, useRouterMock } = loadApp({ NEXT_PUBLIC_FAKE_AUTH: 'true' });
-    useRouterMock.mockReturnValue({ pathname: '/inventory' });
+    useRouterMock.mockReturnValue({ pathname: '/pantry' });
 
     render(<App Component={TestComponent} pageProps={{}} />);
 
@@ -130,7 +130,7 @@ describe('_app', () => {
 
   it('prefers a session passed in pageProps over the fake session', () => {
     const { App, useRouterMock } = loadApp({ NEXT_PUBLIC_FAKE_AUTH: 'true' });
-    useRouterMock.mockReturnValue({ pathname: '/inventory' });
+    useRouterMock.mockReturnValue({ pathname: '/pantry' });
     const session = { user: { handle: 'real-handle' }, expires: '2999-12-31T23:59:59.999Z' };
 
     render(<App Component={TestComponent} pageProps={{ session }} />);

@@ -28,7 +28,7 @@ afterAll(() => {
 describe('middleware', () => {
   it('bypasses auth when NEXT_PUBLIC_AUTH_DISABLED is true', async () => {
     process.env.NEXT_PUBLIC_AUTH_DISABLED = 'true';
-    const req = new NextRequest('http://localhost/inventory');
+    const req = new NextRequest('http://localhost/pantry');
 
     const response = await middleware(req);
 
@@ -38,7 +38,7 @@ describe('middleware', () => {
 
   it('bypasses auth when NEXT_PUBLIC_FAKE_AUTH is true', async () => {
     process.env.NEXT_PUBLIC_FAKE_AUTH = 'true';
-    const req = new NextRequest('http://localhost/inventory');
+    const req = new NextRequest('http://localhost/pantry');
 
     await middleware(req);
 
@@ -58,7 +58,7 @@ describe('middleware', () => {
 
   it('no session + gated page: redirects to /login', async () => {
     mockGetToken.mockResolvedValue(null);
-    const req = new NextRequest('http://localhost/inventory');
+    const req = new NextRequest('http://localhost/pantry');
 
     const response = await middleware(req);
 
@@ -69,7 +69,7 @@ describe('middleware', () => {
 
   it('a token with an unrecoverable error redirects a gated page even though the outer cookie decoded fine', async () => {
     mockGetToken.mockResolvedValue({ sub: '123', error: 'SessionExpired' });
-    const req = new NextRequest('http://localhost/inventory');
+    const req = new NextRequest('http://localhost/pantry');
 
     const response = await middleware(req);
 
@@ -78,7 +78,7 @@ describe('middleware', () => {
 
   it('valid unexpired access token: passes through', async () => {
     mockGetToken.mockResolvedValue({ sub: '123', recipleaseToken: fakeJwt(3600) });
-    const req = new NextRequest('http://localhost/inventory');
+    const req = new NextRequest('http://localhost/pantry');
 
     const response = await middleware(req);
 
@@ -95,7 +95,7 @@ describe('middleware', () => {
         headers: { 'set-cookie': 'next-auth.session-token=rotated; Path=/; HttpOnly' },
       }),
     );
-    const req = new NextRequest('http://localhost/inventory');
+    const req = new NextRequest('http://localhost/pantry');
 
     const response = await middleware(req);
 
@@ -117,7 +117,7 @@ describe('middleware', () => {
     (global.fetch as jest.Mock).mockResolvedValue(
       new Response(JSON.stringify({ error: 'SessionExpired' }), { status: 200 }),
     );
-    const req = new NextRequest('http://localhost/inventory');
+    const req = new NextRequest('http://localhost/pantry');
 
     const response = await middleware(req);
 
@@ -179,7 +179,7 @@ describe('middleware', () => {
   it('silent-refresh network failures are treated as a failed refresh, not a crash', async () => {
     mockGetToken.mockResolvedValue({ sub: '123', recipleaseToken: fakeJwt(-60) });
     (global.fetch as jest.Mock).mockRejectedValue(new Error('network down'));
-    const req = new NextRequest('http://localhost/inventory');
+    const req = new NextRequest('http://localhost/pantry');
 
     const response = await middleware(req);
 
@@ -191,7 +191,7 @@ describe('config.matcher', () => {
   const matcher = new RegExp(`^${config.matcher[0]}$`);
 
   it('matches protected app pages and now also the public pages, unlike the old proxy.ts matcher', () => {
-    expect(matcher.test('/inventory')).toBe(true);
+    expect(matcher.test('/pantry')).toBe(true);
     expect(matcher.test('/planner')).toBe(true);
     expect(matcher.test('/settings')).toBe(true);
     expect(matcher.test('/recipes')).toBe(true);

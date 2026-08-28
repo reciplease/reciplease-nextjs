@@ -106,7 +106,7 @@ export default function InvitePage({ code, initialPreview }: Props) {
     <>
       <Metadata
         title={`You're invited to ${preview.houseName}`}
-        description={`Join ${preview.houseName} on Reciplease to share recipes, plan meals, and manage pantry inventory together.`}
+        description={`Join ${preview.houseName} on Reciplease to share recipes, plan meals, and manage your pantry together.`}
       />
       <section>
         <h3 className="mb-4 text-2xl font-semibold">You&apos;re invited to {preview.houseName}</h3>

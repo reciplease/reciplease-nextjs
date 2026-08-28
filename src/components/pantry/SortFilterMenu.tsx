@@ -1,0 +1,86 @@
+export type PantrySortBy = 'name' | 'dateAdded' | 'expiration';
+
+export interface PantryFilters {
+  partiallyEaten: boolean;
+}
+
+export const DEFAULT_PANTRY_FILTERS: PantryFilters = { partiallyEaten: false };
+
+const SORT_OPTIONS: { value: PantrySortBy; label: string }[] = [
+  { value: 'name', label: 'Name (A–Z)' },
+  { value: 'dateAdded', label: 'Date added (newest first)' },
+  { value: 'expiration', label: 'Expiration' },
+];
+
+interface SortFilterMenuProps {
+  sortBy: PantrySortBy;
+  onSortByChange: (sortBy: PantrySortBy) => void;
+  filters: PantryFilters;
+  onFiltersChange: (filters: PantryFilters) => void;
+  onClose: () => void;
+}
+
+// Bottom-sheet modal, same structure as ThrowAwayPanel — a backdrop that
+// closes on click, and a sheet that stops propagation so interacting with
+// its own controls doesn't dismiss it. Replaces the old single "Show
+// expiration" checkbox, which could only ever express one on/off view and
+// had no room to grow (e.g. no way to add a filter alongside it).
+export default function SortFilterMenu({ sortBy, onSortByChange, filters, onFiltersChange, onClose }: SortFilterMenuProps) {
+  return (
+    // z-[60], not z-50: PantryFab (and its siblings for other sections) render
+    // as a `z-50` sibling of the page content, after it in the DOM — at equal
+    // z-index that paints on top of everything inside <main>, including this
+    // modal, and would otherwise sit over the "Clear filter" button.
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50" onClick={onClose}>
+      <div
+        className="w-full max-w-[80ch] rounded-t-lg border-2 border-secondary bg-black p-4 text-white"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h4 className="text-lg font-semibold">Sort &amp; filter</h4>
+          <button type="button" aria-label="Close" onClick={onClose} className="cursor-pointer text-xl leading-none">
+            ×
+          </button>
+        </div>
+
+        <fieldset className="grid gap-2 border-0 p-0">
+          <legend className="mb-1 text-sm font-medium">Sort by</legend>
+          {SORT_OPTIONS.map((option) => (
+            <label key={option.value} className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="pantry-sort-by"
+                value={option.value}
+                checked={sortBy === option.value}
+                onChange={() => onSortByChange(option.value)}
+              />
+              {option.label}
+            </label>
+          ))}
+        </fieldset>
+
+        <fieldset className="mt-4 grid gap-2 border-0 p-0">
+          <div className="flex items-center justify-between">
+            <legend className="text-sm font-medium">Filter</legend>
+            <button
+              type="button"
+              onClick={() => onFiltersChange(DEFAULT_PANTRY_FILTERS)}
+              disabled={filters.partiallyEaten === DEFAULT_PANTRY_FILTERS.partiallyEaten}
+              className="border-0 bg-transparent p-0 text-sm underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-40"
+            >
+              Clear filter
+            </button>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={filters.partiallyEaten}
+              onChange={(e) => onFiltersChange({ ...filters, partiallyEaten: e.target.checked })}
+            />
+            Partially eaten
+          </label>
+        </fieldset>
+      </div>
+    </div>
+  );
+}

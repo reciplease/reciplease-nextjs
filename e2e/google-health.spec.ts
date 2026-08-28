@@ -16,7 +16,7 @@ async function mockSession(page: Page) {
 
 const mockMeasures = [{ measureId: 'ITEMS', singular: 'item', plural: 'items', short: 'item' }];
 
-const inventoryItem = {
+const pantryItem = {
   uuid: 'item-1',
   name: 'Bananas',
   measure: 'ITEMS',
@@ -71,14 +71,14 @@ test.describe('Google Health linking (settings page)', () => {
   });
 });
 
-test.describe('Logging an inventory item as eaten', () => {
+test.describe('Logging a pantry item as eaten', () => {
   test.beforeEach(async ({ page }) => {
     await mockSession(page);
     await page.route('/api/houses', (route) => route.fulfill({ json: [{ id: 'house-1', name: 'Home', role: 'OWNER' }] }));
     await page.route('/api/measures', (route) => route.fulfill({ json: mockMeasures }));
-    await page.route('/api/inventory/item-1', (route) => {
+    await page.route('/api/pantry/item-1', (route) => {
       if (route.request().method() === 'GET') {
-        route.fulfill({ json: inventoryItem });
+        route.fulfill({ json: pantryItem });
       } else {
         route.continue();
       }
@@ -86,7 +86,7 @@ test.describe('Logging an inventory item as eaten', () => {
   });
 
   test('the item detail page shows only the log-eaten FAB, not the section-wide scan FAB', async ({ page }) => {
-    await page.goto('/inventory/item-1');
+    await page.goto('/pantry/item-1');
 
     await expect(page.getByRole('button', { name: 'Log eaten' })).toBeVisible();
     await expect(page.getByRole('link', { name: /scan/i })).not.toBeVisible();
@@ -94,23 +94,23 @@ test.describe('Logging an inventory item as eaten', () => {
 
   // EatFlow's food-matching/Google Health-logging sub-flow was pulled out —
   // see TODO.md ("Google Health eat logging") — pending a design that covers
-  // both a single inventory item and a full planned meal. These tests now
+  // both a single pantry item and a full planned meal. These tests now
   // just cover the plain remaining-amount decrement.
   test('submitting an amount decrements remaining', async ({ page }) => {
     // A second page.route() on the same URL shadows the beforeEach one — its
     // own route.continue() would hit the real network instead of falling back
     // to the earlier handler — so this one covers both GET and PUT itself.
     let putBody: unknown;
-    await page.route('/api/inventory/item-1', (route) => {
+    await page.route('/api/pantry/item-1', (route) => {
       if (route.request().method() === 'PUT') {
         putBody = route.request().postDataJSON();
-        route.fulfill({ json: { ...inventoryItem, remaining: 4 } });
+        route.fulfill({ json: { ...pantryItem, remaining: 4 } });
       } else {
-        route.fulfill({ json: inventoryItem });
+        route.fulfill({ json: pantryItem });
       }
     });
 
-    await page.goto('/inventory/item-1');
+    await page.goto('/pantry/item-1');
     await page.getByRole('button', { name: 'Log eaten' }).click();
 
     await page.getByLabel('Amount eaten').fill('2');
@@ -125,16 +125,16 @@ test.describe('Logging an inventory item as eaten', () => {
 
   test('"Ate it all" pre-fills the amount, then submits the full remaining amount', async ({ page }) => {
     let putBody: unknown;
-    await page.route('/api/inventory/item-1', (route) => {
+    await page.route('/api/pantry/item-1', (route) => {
       if (route.request().method() === 'PUT') {
         putBody = route.request().postDataJSON();
-        route.fulfill({ json: { ...inventoryItem, remaining: 0 } });
+        route.fulfill({ json: { ...pantryItem, remaining: 0 } });
       } else {
-        route.fulfill({ json: inventoryItem });
+        route.fulfill({ json: pantryItem });
       }
     });
 
-    await page.goto('/inventory/item-1');
+    await page.goto('/pantry/item-1');
     await page.getByRole('button', { name: 'Log eaten' }).click();
 
     await page.getByRole('button', { name: 'Ate it all' }).click();

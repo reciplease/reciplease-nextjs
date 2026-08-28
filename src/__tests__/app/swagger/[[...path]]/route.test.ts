@@ -86,11 +86,11 @@ describe('swagger proxy', () => {
     (accessToken as jest.Mock).mockResolvedValue(undefined);
     mockUpstream();
 
-    const request = new NextRequest('http://localhost/swagger/api/inventory', {
+    const request = new NextRequest('http://localhost/swagger/api/pantry', {
       method: 'POST',
       body: 'payload',
     });
-    await POST(request, { params: Promise.resolve({ path: ['api', 'inventory'] }) });
+    await POST(request, { params: Promise.resolve({ path: ['api', 'pantry'] }) });
 
     const [, init] = (fetch as jest.Mock).mock.calls[0];
     expect(init.method).toBe('POST');

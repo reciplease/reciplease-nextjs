@@ -10,8 +10,8 @@ type RowState = {
   name: string;
   measureId: MeasureId;
   amount: string;
-  inventoryItemId?: string;
-  inventoryItemName?: string;
+  pantryItemId?: string;
+  pantryItemName?: string;
   allocationAmount?: string;
 };
 
@@ -19,7 +19,7 @@ export type PlannedMealFormItem = {
   name: string;
   measureId: MeasureId;
   amount: number;
-  inventoryItemId?: string;
+  pantryItemId?: string;
   allocationAmount?: number;
 };
 
@@ -39,7 +39,7 @@ const recipesFetcher = async (url: string): Promise<Recipe[]> => {
   return backendRecipes.map(toRecipe);
 };
 
-const inventoryFetcher = async (url: string): Promise<InventoryItem[]> => {
+const pantryFetcher = async (url: string): Promise<PantryItem[]> => {
   const res = await apiFetch(url);
   if (!res.ok) return [];
   return res.json();
@@ -55,14 +55,14 @@ function itemsToRows(items: PlannedMealFormItem[]): RowState[] {
     name: item.name,
     measureId: item.measureId,
     amount: String(item.amount),
-    inventoryItemId: item.inventoryItemId,
+    pantryItemId: item.pantryItemId,
     allocationAmount: item.allocationAmount !== undefined ? String(item.allocationAmount) : undefined,
   }));
 }
 
 /**
  * One planned-ingredient row. Rows can originate from picking an existing
- * inventory item (fully allocated), typing a freeform ingredient to buy (no
+ * pantry item (fully allocated), typing a freeform ingredient to buy (no
  * allocation), or a recipe's own ingredient list (partially allocated by
  * attaching stock afterwards) — all three end up as the same row shape, since
  * a PlannedIngredient doesn't care where it came from.
@@ -70,13 +70,13 @@ function itemsToRows(items: PlannedMealFormItem[]): RowState[] {
 function IngredientRow({
   row,
   measures,
-  inventoryItems,
+  pantryItems,
   onChange,
   onRemove,
 }: {
   row: RowState;
   measures: Measure[];
-  inventoryItems: InventoryItem[];
+  pantryItems: PantryItem[];
   onChange: (row: RowState) => void;
   onRemove: () => void;
 }) {
@@ -118,30 +118,30 @@ function IngredientRow({
         <label htmlFor={`allocate-${row.key}`} className="text-[#666] shrink-0">From stock:</label>
         <select
           id={`allocate-${row.key}`}
-          value={row.inventoryItemId ?? ''}
+          value={row.pantryItemId ?? ''}
           onChange={(e) => {
-            const item = inventoryItems.find((i) => i.uuid === e.target.value);
+            const item = pantryItems.find((i) => i.uuid === e.target.value);
             if (!item) {
-              onChange({ ...row, inventoryItemId: undefined, inventoryItemName: undefined, allocationAmount: undefined });
+              onChange({ ...row, pantryItemId: undefined, pantryItemName: undefined, allocationAmount: undefined });
               return;
             }
             onChange({
               ...row,
-              inventoryItemId: item.uuid,
-              inventoryItemName: item.name,
+              pantryItemId: item.uuid,
+              pantryItemName: item.name,
               allocationAmount: String(Math.min(item.remaining, parseFloat(row.amount) || item.remaining)),
             });
           }}
           className="flex-1 min-w-0 p-1.5 border border-[#ccc] rounded"
         >
           <option value="">— none, add to shopping list —</option>
-          {inventoryItems.map((item) => (
+          {pantryItems.map((item) => (
             <option key={item.uuid} value={item.uuid}>
               {item.brand ? `${item.brand} ` : ''}{item.name} ({item.remaining} {item.measure} left)
             </option>
           ))}
         </select>
-        {row.inventoryItemId && (
+        {row.pantryItemId && (
           <input
             type="number"
             min="0"
@@ -169,7 +169,7 @@ export default function PlannedMealForm({ initial, submitLabel, onSubmit, onDele
   const activeHouse = useActiveHouse();
   const measures = useMeasures();
   const { data: recipes } = useSWR(activeHouse ? ['/api/recipes', activeHouse.id] : null, () => recipesFetcher('/api/recipes'));
-  const { data: inventoryItems } = useSWR(activeHouse ? ['/api/inventory', activeHouse.id] : null, () => inventoryFetcher('/api/inventory'));
+  const { data: pantryItems } = useSWR(activeHouse ? ['/api/pantry', activeHouse.id] : null, () => pantryFetcher('/api/pantry'));
 
   const [name, setName] = useState(initial?.name ?? '');
   const [date, setDate] = useState(initial?.date ?? toDateInputValue(new Date()));
@@ -227,8 +227,8 @@ export default function PlannedMealForm({ initial, submitLabel, onSubmit, onDele
         name: row.name.trim(),
         measureId: (row.measureId || measures[0]?.measureId || '') as MeasureId,
         amount: parseFloat(row.amount),
-        inventoryItemId: row.inventoryItemId,
-        allocationAmount: row.inventoryItemId ? parseFloat(row.allocationAmount || row.amount) : undefined,
+        pantryItemId: row.pantryItemId,
+        allocationAmount: row.pantryItemId ? parseFloat(row.allocationAmount || row.amount) : undefined,
       }));
 
       const errorMessage = await onSubmit({
@@ -335,7 +335,7 @@ export default function PlannedMealForm({ initial, submitLabel, onSubmit, onDele
                 key={row.key}
                 row={row}
                 measures={measures}
-                inventoryItems={inventoryItems ?? []}
+                pantryItems={pantryItems ?? []}
                 onChange={(updated) => updateRow(row.key, updated)}
                 onRemove={() => removeRow(row.key)}
               />

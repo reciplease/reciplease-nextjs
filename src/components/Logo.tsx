@@ -1,6 +1,6 @@
 // The Reciplease book logo, inlined as SVG (rather than served from /public)
 // so the cover can pick up the section accent: its fill is var(--color-highlight),
-// which the inventory section overrides to green via the Layout wrapper.
+// which the pantry section overrides to green via the Layout wrapper.
 export default function Logo({ size = 44 }: { size?: number }) {
   return (
     <svg

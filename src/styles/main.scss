@@ -14,17 +14,17 @@
   --color-secondary: #383e56; // navy — the book outline (also manifest theme_color)
   // A lighter tint of the secondary, handy for muted surfaces/borders.
   --color-secondary-muted: #6b7393;
-  --color-inventory-highlight: #2f6f4c; // darker green — the inventory section accent
+  --color-pantry-highlight: #2f6f4c; // darker green — the pantry section accent
   --color-planner-highlight: #2c5282; // dark blue — the planner section accent
 }
 
-// The inventory/planner sections recolour their accent to green/dark blue.
+// The pantry/planner sections recolour their accent to green/dark blue.
 // Applying one of these classes on a wrapper overrides --color-highlight for
 // everything beneath it (nav underline, FAB, focus rings, bg-highlight/
 // border-highlight utilities, …). Used by the Layout for in-chrome pages and
-// (inventory only) by the standalone full-screen scanner.
-.inventory-theme {
-  --color-highlight: var(--color-inventory-highlight);
+// (pantry only) by the standalone full-screen scanner.
+.pantry-theme {
+  --color-highlight: var(--color-pantry-highlight);
 }
 
 .planner-theme {
@@ -88,7 +88,7 @@ body {
 
 // Reserve the scrollbar's width at all times, whether or not the page
 // actually needs to scroll. Without this, the centred content-grid column
-// shifts sideways when navigating between a tall page (e.g. inventory, which
+// shifts sideways when navigating between a tall page (e.g. pantry, which
 // scrolls) and a short one (e.g. recipes/planner, which doesn't) — the
 // classic Windows-style reserved-width scrollbar comes and goes with them.
 html {

@@ -22,7 +22,7 @@ const mockMeals: PlannedMeal[] = [
     name: 'Dinner',
     date: '2026-06-06',
     items: [
-      { ingredient: { name: 'bread', measure: 'item' as MeasureId, amount: 2 }, allocations: [{ inventoryItemId: 'i1', amount: 2 }] },
+      { ingredient: { name: 'bread', measure: 'item' as MeasureId, amount: 2 }, allocations: [{ pantryItemId: 'i1', amount: 2 }] },
       { ingredient: { name: 'butter', measure: 'g' as MeasureId, amount: 15 }, allocations: [] },
     ],
   },
@@ -69,7 +69,7 @@ describe('Planner', () => {
     expect(names).toEqual(['Leftover rice night', 'Dinner']);
   });
 
-  it('flags ingredients with no inventory allocation as to buy', () => {
+  it('flags ingredients with no pantry allocation as to buy', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
     useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined });
     render(<Planner />);

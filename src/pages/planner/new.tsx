@@ -13,8 +13,8 @@ export default function NewPlannedMeal() {
         measure: item.measureId,
         amount: item.amount,
       },
-      allocations: item.inventoryItemId
-        ? [{ inventoryItemId: item.inventoryItemId, amount: item.allocationAmount ?? item.amount }]
+      allocations: item.pantryItemId
+        ? [{ pantryItemId: item.pantryItemId, amount: item.allocationAmount ?? item.amount }]
         : [],
     }));
 

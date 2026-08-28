@@ -30,7 +30,7 @@ function toPlannedIngredient(b: BackendPlannedIngredient): PlannedIngredient {
       amount: b.ingredient?.amount ?? 0,
     },
     allocations: (b.allocations ?? []).map((a) => ({
-      inventoryItemId: a.inventoryItemId ?? '',
+      pantryItemId: a.pantryItemId ?? '',
       amount: a.amount ?? 0,
       barcode: a.barcode,
     })),

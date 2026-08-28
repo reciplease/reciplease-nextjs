@@ -156,7 +156,7 @@ export default function Login() {
         <section className='flex w-full max-w-96 flex-col items-center gap-4 rounded-2xl bg-white px-8 py-10 text-center shadow-[0_10px_40px_rgba(0,0,0,0.08)] dark:bg-[#2b2a26] dark:shadow-[0_10px_40px_rgba(0,0,0,0.4)]'>
           <h1 className='m-0 text-[2rem] font-bold tracking-tight'>Reciplease</h1>
           <p className='m-0 text-[0.95rem] text-[#5f5a50] dark:text-[#b7b1a4]'>
-            Your recipes and kitchen inventory, in one place.
+            Your recipes and pantry, in one place.
           </p>
 
           {error && (

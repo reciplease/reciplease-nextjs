@@ -6,7 +6,7 @@ type Props = {
 };
 
 // Tap-a-pill picker for candidate values (name or brand) sourced from
-// OpenFoodFacts or a prior inventory match.
+// OpenFoodFacts or a prior pantry match.
 export default function CandidatePills({ candidates, value, onSelect, label }: Props) {
   if (candidates.length === 0) return null;
 

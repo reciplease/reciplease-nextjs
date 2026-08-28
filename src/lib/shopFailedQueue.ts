@@ -4,7 +4,7 @@
 // tab- or session-scoped.
 const storageKey = (houseId: string) => `reciplease:shop-failed:${houseId}`;
 
-export function loadFailedQueue(houseId: string): CreatePendingInventoryItem[] {
+export function loadFailedQueue(houseId: string): CreatePendingPantryItem[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = window.localStorage.getItem(storageKey(houseId));
@@ -14,7 +14,7 @@ export function loadFailedQueue(houseId: string): CreatePendingInventoryItem[] {
   }
 }
 
-export function saveFailedQueue(houseId: string, items: CreatePendingInventoryItem[]): void {
+export function saveFailedQueue(houseId: string, items: CreatePendingPantryItem[]): void {
   if (typeof window === 'undefined') return;
   if (items.length === 0) {
     window.localStorage.removeItem(storageKey(houseId));

@@ -37,7 +37,7 @@ export type RecipeFormInitial = {
 
 /**
  * One auto-growing ingredient row: a free-text name, a measure, and an amount.
- * Recipe ingredients are self-contained (not tied to any catalog or inventory),
+ * Recipe ingredients are self-contained (not tied to any catalog or pantry),
  * so the name is just typed in. The parent appends a fresh empty row as soon as
  * this one gets a name, so the user never clicks "add".
  */

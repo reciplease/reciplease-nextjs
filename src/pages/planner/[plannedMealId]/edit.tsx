@@ -49,8 +49,8 @@ export default function EditPlannedMeal() {
         measure: item.measureId,
         amount: item.amount,
       },
-      allocations: item.inventoryItemId
-        ? [{ inventoryItemId: item.inventoryItemId, amount: item.allocationAmount ?? item.amount }]
+      allocations: item.pantryItemId
+        ? [{ pantryItemId: item.pantryItemId, amount: item.allocationAmount ?? item.amount }]
         : [],
     }));
 
@@ -129,7 +129,7 @@ export default function EditPlannedMeal() {
               name: item.ingredient.name,
               measureId: item.ingredient.measure,
               amount: item.ingredient.amount,
-              inventoryItemId: item.allocations[0]?.inventoryItemId,
+              pantryItemId: item.allocations[0]?.pantryItemId,
               allocationAmount: item.allocations[0]?.amount,
             })),
           }}

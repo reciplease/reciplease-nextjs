@@ -30,7 +30,7 @@ const mockRecipe: Recipe = {
   steps: [],
 };
 
-const mockInventoryItem: InventoryItem = {
+const mockPantryItem: PantryItem = {
   uuid: 'inv-1',
   name: 'Bread',
   measure: items.measureId,
@@ -49,7 +49,7 @@ describe('NewPlannedMeal', () => {
     useSWR.mockImplementation((key: unknown) => {
       const k = Array.isArray(key) ? key[0] : key;
       if (k === '/api/recipes') return { data: [mockRecipe] };
-      if (k === '/api/inventory') return { data: [mockInventoryItem] };
+      if (k === '/api/pantry') return { data: [mockPantryItem] };
       if (k === '/api/measures') return { data: [grams, items] };
       return { data: undefined };
     });

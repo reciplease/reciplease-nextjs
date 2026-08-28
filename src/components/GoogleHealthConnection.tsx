@@ -38,7 +38,7 @@ export default function GoogleHealthConnection() {
     <fieldset className="mb-8">
       <legend className="text-lg font-medium">Google Health</legend>
       <p className="mb-3 text-sm opacity-70">
-        Link Google Health to log food you eat from your inventory straight to your food diary.
+        Link Google Health to log food you eat from your pantry straight to your food diary.
       </p>
 
       {googleHealthStatus === 'error' && (

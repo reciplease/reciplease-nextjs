@@ -1,5 +1,5 @@
 // Downscales and re-encodes an image as JPEG, returning the raw base64 payload
-// (no `data:` prefix — callers add that only when rendering). Keeps inventory
+// (no `data:` prefix — callers add that only when rendering). Keeps pantry
 // item thumbnails small enough to store directly on the document in Mongo.
 // Browser-only (uses Image/canvas), so it's exercised manually rather than in
 // Jest/jsdom.

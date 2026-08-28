@@ -22,7 +22,7 @@ describe('apiFetch', () => {
     document.cookie = 'reciplease-house-id=house-1';
     global.fetch = jest.fn().mockResolvedValue({ ok: true });
 
-    await apiFetch('/api/inventory');
+    await apiFetch('/api/pantry');
 
     const [, init] = (fetch as jest.Mock).mock.calls[0];
     expect((init.headers as Headers).get('X-RCPLS-House-Id')).toBe('house-1');

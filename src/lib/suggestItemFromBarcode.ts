@@ -7,7 +7,7 @@ export type ItemSuggestion = {
   // when nothing was found, matching `name`'s own empty-default.
   brand: string;
   measureId: string | null;
-  source: 'inventory' | 'openfoodfacts' | null;
+  source: 'pantry' | 'openfoodfacts' | null;
   candidates: string[];
   brandCandidates: string[];
   // OpenFoodFacts product photo, if any — left to the caller to fetch/compress
@@ -15,7 +15,7 @@ export type ItemSuggestion = {
   imageUrl: string | null;
 };
 
-// Suggests a name/measure for a scanned barcode: first from a previous inventory
+// Suggests a name/measure for a scanned barcode: first from a previous pantry
 // item with the same barcode (including expired ones, which still carry it), then
 // falling back to OpenFoodFacts. Shared by the single-item scan flow and the
 // shopping-trip processing flow.
@@ -31,15 +31,15 @@ export async function suggestItemFromBarcode(barcode: string): Promise<ItemSugge
   };
 
   try {
-    const res = await apiFetch('/api/inventory');
+    const res = await apiFetch('/api/pantry');
     if (res.ok) {
-      const items: InventoryItem[] = await res.json();
+      const items: PantryItem[] = await res.json();
       const prior = items.find((it) => it.barcode === barcode);
       if (prior) {
         suggestion.name = prior.name;
         suggestion.brand = prior.brand ?? '';
         suggestion.measureId = prior.measure;
-        suggestion.source = 'inventory';
+        suggestion.source = 'pantry';
       }
     }
   } catch {

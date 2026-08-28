@@ -1,9 +1,9 @@
 import { test, expect, Page } from '@playwright/test';
 
-// These deliberately mock recipes/inventory with long names — that's what
+// These deliberately mock recipes/pantry with long names — that's what
 // exposed the "Load ingredients" button being pushed off-screen on mobile
 // (a flex-1 <select> won't shrink below its content's width unless given
-// min-w-0, so a long recipe/inventory-item name blew the row wider than the
+// min-w-0, so a long recipe/pantry-item name blew the row wider than the
 // viewport and shoved the button out of view).
 
 async function mockSession(page: Page) {
@@ -30,12 +30,12 @@ async function mockSession(page: Page) {
       ],
     }),
   );
-  await page.route('**/api/inventory', (route) =>
+  await page.route('**/api/pantry', (route) =>
     route.fulfill({
       json: [
         {
           uuid: 'i1',
-          name: 'A Fairly Long Branded Inventory Item Name',
+          name: 'A Fairly Long Branded Pantry Item Name',
           brand: 'Some Brand',
           remaining: 5,
           measure: 'g',
@@ -51,7 +51,7 @@ test.describe('Planner form — plan a meal', () => {
     await page.goto('/planner/new');
   });
 
-  test('never causes horizontal page overflow, even with long recipe/inventory names', async ({ page }) => {
+  test('never causes horizontal page overflow, even with long recipe/pantry names', async ({ page }) => {
     await page.getByLabel('Recipe', { exact: true }).selectOption('r1');
     await page.getByRole('button', { name: 'Load ingredients' }).click();
     await expect(page.getByLabel('Ingredient name', { exact: true }).first()).toHaveValue('Plain flour');
@@ -91,7 +91,7 @@ test.describe('Planner form — plan a meal', () => {
     await expect(page.getByLabel('Amount', { exact: true }).first()).toHaveValue('50');
   });
 
-  test('the "From stock" allocation row with a long inventory item name stays on-screen', async ({ page }) => {
+  test('the "From stock" allocation row with a long pantry item name stays on-screen', async ({ page }) => {
     await page.getByLabel('Recipe', { exact: true }).selectOption('r1');
     await page.getByRole('button', { name: 'Load ingredients' }).click();
 

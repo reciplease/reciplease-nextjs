@@ -13,7 +13,7 @@ describe('suggestItemFromBarcode', () => {
     (lookupProduct as jest.Mock).mockReset();
   });
 
-  it('suggests from a prior inventory item with the same barcode', async () => {
+  it('suggests from a prior pantry item with the same barcode', async () => {
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => [
@@ -27,7 +27,7 @@ describe('suggestItemFromBarcode', () => {
       name: 'Whole milk',
       brand: 'Arla',
       measureId: 'ml',
-      source: 'inventory',
+      source: 'pantry',
       candidates: [],
       brandCandidates: [],
       imageUrl: null,
@@ -35,7 +35,7 @@ describe('suggestItemFromBarcode', () => {
     expect(lookupProduct).not.toHaveBeenCalled();
   });
 
-  it('defaults brand to an empty string when the prior inventory item has none', async () => {
+  it('defaults brand to an empty string when the prior pantry item has none', async () => {
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => [
@@ -70,7 +70,7 @@ describe('suggestItemFromBarcode', () => {
     });
   });
 
-  it('falls back to OpenFoodFacts when the inventory lookup fails', async () => {
+  it('falls back to OpenFoodFacts when the pantry lookup fails', async () => {
     (fetch as jest.Mock).mockRejectedValue(new Error('network'));
     (lookupProduct as jest.Mock).mockResolvedValue({
       nameCandidates: ['Milk'],

@@ -57,7 +57,7 @@ export default function ShoppingListPage() {
         </div>
 
         <p className="text-sm text-[#666]">
-          Ingredients planned in the next two weeks that aren&apos;t already covered by your inventory.
+          Ingredients planned in the next two weeks that aren&apos;t already covered by your pantry.
         </p>
 
         {items.length === 0 ? (

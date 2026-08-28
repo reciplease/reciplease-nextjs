@@ -3,7 +3,7 @@ import { HOUSE_COOKIE, readHouseCookie, useHouses } from '@/lib/houses';
 
 // Writes the active house as a cookie (so server-side BFF routes can forward it
 // to the backend as X-RCPLS-House-Id) and reloads, since switching houses
-// changes which inventory/recipes/planned-recipes every page should show —
+// changes which pantry/recipes/planned-recipes every page should show —
 // simpler and more robust than trying to re-fetch every consumer in place.
 function selectHouse(houseId: string) {
   document.cookie = `${HOUSE_COOKIE}=${houseId}; path=/; max-age=31536000; samesite=lax`;

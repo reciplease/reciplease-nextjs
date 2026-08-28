@@ -37,16 +37,16 @@ describe('Login page', () => {
   });
 
   it('uses the callbackUrl from the query string when provided', () => {
-    useRouter.mockReturnValue({ query: { callbackUrl: '/inventory' } });
+    useRouter.mockReturnValue({ query: { callbackUrl: '/pantry' } });
 
     render(<Login />);
 
     fireEvent.click(screen.getByRole('button', { name: /sign in with google/i }));
-    expect(signIn).toHaveBeenCalledWith('google', { callbackUrl: '/inventory' });
+    expect(signIn).toHaveBeenCalledWith('google', { callbackUrl: '/pantry' });
   });
 
   it('falls back to the default callback url when callbackUrl is not a string', () => {
-    useRouter.mockReturnValue({ query: { callbackUrl: ['/inventory'] } });
+    useRouter.mockReturnValue({ query: { callbackUrl: ['/pantry'] } });
 
     render(<Login />);
 
@@ -82,12 +82,12 @@ describe('Login page', () => {
         },
       },
     };
-    useRouter.mockReturnValue({ query: { callbackUrl: '/inventory' } });
+    useRouter.mockReturnValue({ query: { callbackUrl: '/pantry' } });
 
     render(<Login />);
     capturedCallback?.({ credential: 'id-token-abc' });
 
-    expect(signIn).toHaveBeenCalledWith('google-onetap', { credential: 'id-token-abc', callbackUrl: '/inventory' });
+    expect(signIn).toHaveBeenCalledWith('google-onetap', { credential: 'id-token-abc', callbackUrl: '/pantry' });
   });
 
   it('does not show an error message by default', () => {
@@ -129,12 +129,12 @@ describe('Login page', () => {
   });
 
   it('uses the callbackUrl from the query string for GitHub sign-in too', () => {
-    useRouter.mockReturnValue({ query: { callbackUrl: '/inventory' } });
+    useRouter.mockReturnValue({ query: { callbackUrl: '/pantry' } });
 
     render(<Login />);
 
     fireEvent.click(screen.getByRole('button', { name: /sign in with github/i }));
-    expect(signIn).toHaveBeenCalledWith('github', { callbackUrl: '/inventory' });
+    expect(signIn).toHaveBeenCalledWith('github', { callbackUrl: '/pantry' });
   });
 
   it('signs in with a passkey using the result of the browser ceremony', async () => {
