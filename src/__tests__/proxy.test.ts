@@ -176,6 +176,26 @@ describe('middleware', () => {
     expect(response.headers.get('location')).toBeNull();
   });
 
+  it('redirects the legacy /inventory route to /pantry before any auth check runs', async () => {
+    const req = new NextRequest('http://localhost/inventory');
+
+    const response = await middleware(req);
+
+    expect(response.status).toBe(308);
+    expect(response.headers.get('location')).toBe('http://localhost/pantry');
+    expect(mockGetToken).not.toHaveBeenCalled();
+  });
+
+  it('redirects legacy /inventory/:path* to the matching /pantry/:path*, preserving the query string', async () => {
+    const req = new NextRequest('http://localhost/inventory/abc123/edit?foo=bar');
+
+    const response = await middleware(req);
+
+    expect(response.status).toBe(308);
+    expect(response.headers.get('location')).toBe('http://localhost/pantry/abc123/edit?foo=bar');
+    expect(mockGetToken).not.toHaveBeenCalled();
+  });
+
   it('silent-refresh network failures are treated as a failed refresh, not a crash', async () => {
     mockGetToken.mockResolvedValue({ sub: '123', recipleaseToken: fakeJwt(-60) });
     (global.fetch as jest.Mock).mockRejectedValue(new Error('network down'));

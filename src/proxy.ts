@@ -91,6 +91,17 @@ export default async function middleware(req: NextRequest) {
   }
 
   const pathname = req.nextUrl.pathname;
+
+  // The Inventory section was renamed to Pantry. This middleware's matcher covers
+  // /inventory/** too (nothing excludes it), so it runs *before* next.config.js's
+  // `redirects()` ever gets a chance to — without this, an old /inventory bookmark
+  // would hit the auth gate below first and bounce to /login instead of /pantry.
+  if (pathname === '/inventory' || pathname.startsWith('/inventory/')) {
+    const url = new URL(pathname.replace('/inventory', '/pantry'), req.url);
+    url.search = req.nextUrl.search;
+    return NextResponse.redirect(url, 308);
+  }
+
   const publicPage = isPublicPage(pathname);
 
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
