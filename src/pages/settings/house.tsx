@@ -11,8 +11,9 @@ import {
 } from '@/lib/houses';
 import { useState } from 'react';
 import useSWR from 'swr';
+import type { components } from '@/types/generated/api';
 
-type Role = 'OWNER' | 'READ_ONLY';
+type Role = components['schemas']['HouseMember']['role'];
 
 function RoleSelect({
   value,
