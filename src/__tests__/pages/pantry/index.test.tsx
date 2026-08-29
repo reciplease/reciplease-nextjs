@@ -9,6 +9,7 @@ jest.mock('@/lib/houses', () => ({
 }));
 
 global.fetch = jest.fn();
+afterEach(() => window.localStorage.clear());
 jest.mock('next/link', () => ({ children, href, className }: { children: React.ReactNode; href: string; className?: string }) => (
   <a href={href} className={className}>{children}</a>
 ));

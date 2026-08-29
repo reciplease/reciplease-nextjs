@@ -12,6 +12,7 @@ import SortFilterMenu, {
 import { apiFetch, useActiveHouse, usePendingCapturedItemsCount } from '@/lib/houses';
 import { useMeasures, findMeasure } from '@/lib/measures';
 import { daysUntil, formatDaysLeft, daysLeftColor } from '@/lib/pantry';
+import { usePersistentState } from '@/lib/usePersistentState';
 
 const sortFilterIconProps = {
   width: 20,
@@ -159,8 +160,8 @@ export default function PantryList() {
   const pendingCapturedCount = usePendingCapturedItemsCount();
   const [throwingAway, setThrowingAway] = useState<PantryItem | null>(null);
   const [sortFilterMenuOpen, setSortFilterMenuOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<PantrySortBy>('name');
-  const [filters, setFilters] = useState<PantryFilters>(DEFAULT_PANTRY_FILTERS);
+  const [sortBy, setSortBy] = usePersistentState<PantrySortBy>('pantry:sortBy', 'name');
+  const [filters, setFilters] = usePersistentState<PantryFilters>('pantry:filters', DEFAULT_PANTRY_FILTERS);
 
   if (!activeHouse || isLoading) {
     return (
