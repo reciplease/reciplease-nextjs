@@ -13,6 +13,16 @@ import { compressToBase64, toDataUrl } from '@/lib/imageCapture';
 import { apiFetch, useActiveHouse } from '@/lib/houses';
 import { useMeasures } from '@/lib/measures';
 import { toIsoDate } from '@/lib/week';
+import { CompleteBody } from '@/types/generated/zod';
+
+// This form never collects `remaining` — the backend defaults a missing
+// `remaining` to `amount` on complete — so it's dropped from the generated
+// body schema, matching the same omission in pantry/scan.tsx. The generated
+// `amount` constraint is `>= 0`; this form additionally rejects zero, since
+// a zero-amount pantry item isn't meaningful.
+const CompleteFormSchema = CompleteBody.omit({ remaining: true }).extend({
+  amount: CompleteBody.shape.amount.gt(0, 'Amount must be greater than 0.'),
+});
 
 const fetcher = (url: string): Promise<PendingPantryItem> =>
   apiFetch(url).then((res) => {
@@ -158,21 +168,24 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingPantryIt
   const missingFields = !name.trim() || !effectiveMeasure?.measureId || !amount || !expiration;
 
   const [completeError, handleComplete, completing] = useActionState(async (): Promise<string | null> => {
-    if (!name.trim() || !effectiveMeasure?.measureId || !amount || !expiration) return null;
+    if (missingFields) return null;
+    const result = CompleteFormSchema.safeParse({
+      name: name.trim(),
+      measure: effectiveMeasure?.measureId,
+      amount: parseFloat(amount),
+      expiration,
+      ...(brand.trim() ? { brand: brand.trim() } : {}),
+      ...(barcode ? { barcode } : {}),
+      ...(image ? { image } : {}),
+    });
+    if (!result.success) {
+      return result.error.issues[0]?.message ?? 'Please check the form for errors.';
+    }
     try {
-      const body: CreatePantryItem = {
-        name: name.trim(),
-        measure: effectiveMeasure.measureId,
-        amount: parseFloat(amount),
-        expiration,
-        ...(brand.trim() ? { brand: brand.trim() } : {}),
-        ...(barcode ? { barcode } : {}),
-        ...(image ? { image } : {}),
-      };
       const res = await apiFetch(`/api/pantry/pending/${uuid}/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify(result.data),
       });
       if (!res.ok) {
         return 'Failed to add the item. Please try again.';

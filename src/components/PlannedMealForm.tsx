@@ -1,9 +1,36 @@
 import { useActionState, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
+import { z } from 'zod';
 import { apiFetch, useActiveHouse } from '@/lib/houses';
 import { useMeasures } from '@/lib/measures';
 import { toRecipe, type BackendRecipe } from '@/lib/recipes';
+import { PlanMealBody } from '@/types/generated/zod';
+
+/**
+ * PlanMealBody and UpdatePlannedMealBody (from the generated OpenAPI zod
+ * schemas) are structurally identical for our purposes — both describe
+ * { recipeId?, name (min 1), date, items?: [{ ingredient: { name, measure,
+ * amount >= 0 }, allocations: [{ pantryItemId, barcode?, amount >= 0 }] }] }.
+ * We use PlanMealBody as the shared source of truth and narrow it down to
+ * this form's actual submitted shape (a single allocation per row, rather
+ * than an array of allocations), reusing its business-rule constraints
+ * (name required, amounts >= 0) rather than re-deriving them by hand.
+ */
+const plannedMealFormSchema = z.object({
+  name: PlanMealBody.shape.name,
+  date: PlanMealBody.shape.date,
+  recipeId: z.string().optional(),
+  items: z.array(
+    z.object({
+      name: z.string(),
+      measureId: z.string(),
+      amount: z.number().positive('Enter an amount greater than 0 for each ingredient.'),
+      pantryItemId: z.string().optional(),
+      allocationAmount: z.number().min(0).optional(),
+    })
+  ),
+});
 
 type RowState = {
   key: number;
@@ -218,23 +245,39 @@ export default function PlannedMealForm({ initial, submitLabel, onSubmit, onDele
 
   const [error, handleSubmit, submitting] = useActionState(async (): Promise<string | null> => {
     const filledRows = rows.filter((r) => r.name.trim());
-    if (filledRows.some((r) => !r.amount || parseFloat(r.amount) <= 0)) {
-      return 'Enter an amount greater than 0 for each ingredient.';
+
+    const result = plannedMealFormSchema.safeParse({
+      name: name.trim(),
+      date,
+      recipeId,
+      items: filledRows.map((row) => ({
+        name: row.name.trim(),
+        measureId: row.measureId || measures[0]?.measureId || '',
+        amount: parseFloat(row.amount),
+        pantryItemId: row.pantryItemId,
+        allocationAmount: row.pantryItemId
+          ? parseFloat(row.allocationAmount || row.amount)
+          : undefined,
+      })),
+    });
+
+    if (!result.success) {
+      return result.error.issues[0]?.message ?? 'Please check the form for errors.';
     }
 
     try {
-      const items: PlannedMealFormItem[] = filledRows.map((row) => ({
-        name: row.name.trim(),
-        measureId: (row.measureId || measures[0]?.measureId || '') as MeasureId,
-        amount: parseFloat(row.amount),
-        pantryItemId: row.pantryItemId,
-        allocationAmount: row.pantryItemId ? parseFloat(row.allocationAmount || row.amount) : undefined,
+      const items: PlannedMealFormItem[] = result.data.items.map((item) => ({
+        name: item.name,
+        measureId: item.measureId as MeasureId,
+        amount: item.amount,
+        pantryItemId: item.pantryItemId,
+        allocationAmount: item.allocationAmount,
       }));
 
       const errorMessage = await onSubmit({
-        name: name.trim(),
-        date,
-        recipeId,
+        name: result.data.name,
+        date: result.data.date,
+        recipeId: result.data.recipeId ?? '',
         items,
       });
 

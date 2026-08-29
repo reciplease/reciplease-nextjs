@@ -13,6 +13,16 @@ import { formatDate } from '@/lib/formatDate';
 import { apiFetch } from '@/lib/houses';
 import { useMeasures } from '@/lib/measures';
 import { toIsoDate } from '@/lib/week';
+import { CreatePantryItemBody, createPantryItemBodyBarcodeRegExp } from '@/types/generated/zod';
+
+// This form never collects `remaining` — the backend defaults a missing
+// `remaining` to `amount` on create — so it's dropped from the generated
+// body schema. The generated `amount` constraint is `>= 0`; this form
+// additionally rejects zero, since a zero-amount pantry item isn't
+// meaningful.
+const CreatePantryItemFormSchema = CreatePantryItemBody.omit({ remaining: true }).extend({
+  amount: CreatePantryItemBody.shape.amount.gt(0, 'Amount must be greater than 0.'),
+});
 
 // Load scanner adapters client-side only (they use browser APIs)
 const BarcodeScanner = dynamic(() => import('@/components/scanner/BarcodeScanner'), { ssr: false });
@@ -57,6 +67,7 @@ export default function ScanPage() {
   // Manual barcode entry (when there's no camera, or you only have the number).
   const [manualBarcode, setManualBarcode] = useState('');
   const [looking, setLooking] = useState(false);
+  const [manualBarcodeError, setManualBarcodeError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [successFlash, setSuccessFlash] = useState(false);
@@ -128,23 +139,34 @@ export default function ScanPage() {
   function handleManualBarcode() {
     const trimmed = manualBarcode.trim();
     if (!trimmed || looking) return;
+    if (!createPantryItemBodyBarcodeRegExp.test(trimmed)) {
+      setManualBarcodeError('Enter a valid barcode (8 or 12–14 digits).');
+      return;
+    }
+    setManualBarcodeError(null);
     handleBarcodeDetected(trimmed);
   }
 
   async function handleSave() {
     if (!name.trim() || !measure?.measureId || !expiration || !amount) return;
+    const candidate = {
+      name: name.trim(),
+      measure: measure.measureId,
+      amount: parseFloat(amount),
+      expiration,
+      ...(brand.trim() ? { brand: brand.trim() } : {}),
+      ...(barcode ? { barcode } : {}),
+      ...(image ? { image } : {}),
+    };
+    const validation = CreatePantryItemFormSchema.safeParse(candidate);
+    if (!validation.success) {
+      setSaveError(validation.error.issues[0]?.message ?? 'Please check the form and try again.');
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     try {
-      const body: CreatePantryItem = {
-        name: name.trim(),
-        measure: measure.measureId,
-        amount: parseFloat(amount),
-        expiration,
-        ...(brand.trim() ? { brand: brand.trim() } : {}),
-        ...(barcode ? { barcode } : {}),
-        ...(image ? { image } : {}),
-      };
+      const body: CreatePantryItem = candidate;
       const res = await apiFetch('/api/pantry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

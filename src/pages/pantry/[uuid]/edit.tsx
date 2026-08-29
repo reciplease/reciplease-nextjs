@@ -6,6 +6,15 @@ import MdyDateInput from '@/components/MdyDateInput';
 import PantryImage from '@/components/PantryImage';
 import { compressToBase64 } from '@/lib/imageCapture';
 import { apiFetch, useActiveHouse } from '@/lib/houses';
+import { UpdatePantryItemBody } from '@/types/generated/zod';
+
+// The generated schema only enforces `amount >= 0` (matching the backend's
+// validation). The form additionally rejects zero — a zero-amount pantry
+// item isn't meaningful — by tightening that one field on top of the
+// generated constraints, rather than editing the generated file.
+const EditPantryItemSchema = UpdatePantryItemBody.extend({
+  amount: UpdatePantryItemBody.shape.amount.gt(0, 'Amount must be greater than 0.'),
+});
 
 const itemFetcher = (url: string): Promise<PantryItem> =>
   apiFetch(url).then((res) => {
@@ -119,6 +128,10 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
         ...(barcode.trim() ? { barcode: barcode.trim() } : {}),
         ...(image ? { image } : {}),
       };
+      const validation = EditPantryItemSchema.safeParse(body);
+      if (!validation.success) {
+        return validation.error.issues[0]?.message ?? 'Please check the form and try again.';
+      }
       const res = await apiFetch(`/api/pantry/${uuid}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

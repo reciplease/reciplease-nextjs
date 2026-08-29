@@ -2,6 +2,7 @@ import { useActionState, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { hardNavigate } from '@/lib/navigate';
+import { SetHandleBody } from '@/types/generated/zod';
 
 // Same post-login destination login.tsx defaults to when there's no explicit
 // callbackUrl.
@@ -11,11 +12,18 @@ export default function OnboardingHandle() {
   const router = useRouter();
   const [handle, setHandle] = useState('');
   const [error, submit, submitting] = useActionState(async () => {
-    if (!handle.trim()) return null;
+    const trimmedHandle = handle.trim();
+    if (!trimmedHandle) return null;
+
+    const result = SetHandleBody.shape.handle.safeParse(trimmedHandle);
+    if (!result.success) {
+      return result.error.issues[0]?.message ?? 'Invalid handle';
+    }
+
     const res = await fetch('/api/me/handle', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ handle: handle.trim() }),
+      body: JSON.stringify({ handle: result.data }),
     });
     if (res.status === 409) return 'That handle is already taken.';
     if (!res.ok) return 'Something went wrong. Please try again.';

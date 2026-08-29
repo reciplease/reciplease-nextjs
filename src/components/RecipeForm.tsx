@@ -1,6 +1,31 @@
 import { useActionState, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
+import { z } from 'zod';
 import { useMeasures } from '@/lib/measures';
+import {
+  createRecipeBodyTwoNameMax,
+  createRecipeBodyTwoSourceUrlRegExp,
+} from '@/types/generated/zod';
+
+// CreateRecipeBody/UpdateRecipeBody in the generated file are ZodIntersections
+// (they don't expose `.pick()`), so this form-specific schema is assembled from
+// the same underlying business-rule constants (name length, source URL pattern)
+// rather than by picking fields off the generated schema directly. The
+// ingredient amount rule (> 0) is stricter than the backend's `min(0)`, matching
+// this form's existing UX.
+const recipeFormSchema = z.object({
+  name: z.string().trim().min(1, 'Enter a recipe name.').max(
+    createRecipeBodyTwoNameMax,
+    `Recipe name must be at most ${createRecipeBodyTwoNameMax} characters.`,
+  ),
+  sourceUrl: z.string().regex(createRecipeBodyTwoSourceUrlRegExp, 'Enter a valid URL.').nullish(),
+  steps: z.array(z.string()),
+  ingredients: z.array(z.object({
+    name: z.string().trim().min(1),
+    measureId: z.string(),
+    amount: z.coerce.number().gt(0, 'Enter an amount greater than 0 for each ingredient.'),
+  })),
+});
 
 type IngredientRowState = {
   key: number;
@@ -193,23 +218,34 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
 
   const [error, handleSubmit, submitting] = useActionState(async (): Promise<string | null> => {
     const filledRows = rows.filter((r) => r.name.trim());
-    const invalidAmounts = filledRows.filter((r) => !r.amount || parseFloat(r.amount) <= 0);
-    if (invalidAmounts.length) {
-      return 'Enter an amount greater than 0 for each ingredient.';
+    const cleanedSteps = steps.map((s) => s.trim()).filter(Boolean);
+
+    const result = recipeFormSchema.safeParse({
+      name,
+      sourceUrl: initial?.sourceUrl ?? null,
+      steps: cleanedSteps,
+      ingredients: filledRows.map((row) => ({
+        name: row.name,
+        measureId: row.measureId || measures?.[0]?.measureId || '',
+        amount: row.amount,
+      })),
+    });
+
+    if (!result.success) {
+      return result.error.issues[0]?.message ?? 'Invalid input';
     }
 
     try {
-      const cleanedSteps = steps.map((s) => s.trim()).filter(Boolean);
-      const ingredients: RecipeFormIngredient[] = filledRows.map((row) => ({
-        name: row.name.trim(),
-        measureId: (row.measureId || measures?.[0]?.measureId || '') as MeasureId,
-        amount: parseFloat(row.amount),
+      const ingredients: RecipeFormIngredient[] = result.data.ingredients.map((ingredient) => ({
+        name: ingredient.name,
+        measureId: ingredient.measureId as MeasureId,
+        amount: ingredient.amount,
       }));
 
       const errorMessage = await onSubmit({
-        name: name.trim(),
+        name: result.data.name,
         description: description.trim() || null,
-        steps: cleanedSteps,
+        steps: result.data.steps,
         ingredients,
         isPublic,
         sourceUrl: initial?.sourceUrl ?? null,

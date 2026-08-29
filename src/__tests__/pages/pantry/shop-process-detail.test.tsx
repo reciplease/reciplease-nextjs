@@ -150,10 +150,10 @@ describe('ProcessDetailPage', () => {
           method: 'POST',
           body: JSON.stringify({
             name: 'Oat Milk',
+            brand: 'Oatly',
             measure: 'g',
             amount: 500,
             expiration: '2027-06-01',
-            brand: 'Oatly',
             barcode: '1234567890123',
           }),
         }),
