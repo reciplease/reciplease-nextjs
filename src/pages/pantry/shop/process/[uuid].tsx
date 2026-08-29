@@ -155,10 +155,10 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingPantryIt
   const effectiveMeasure =
     measure ?? measures.find((m) => m.measureId === suggestedMeasureId) ?? null;
 
-  const missingFields = !name.trim() || !effectiveMeasure || !amount || !expiration;
+  const missingFields = !name.trim() || !effectiveMeasure?.measureId || !amount || !expiration;
 
   const [completeError, handleComplete, completing] = useActionState(async (): Promise<string | null> => {
-    if (!name.trim() || !effectiveMeasure || !amount || !expiration) return null;
+    if (!name.trim() || !effectiveMeasure?.measureId || !amount || !expiration) return null;
     try {
       const body: CreatePantryItem = {
         name: name.trim(),

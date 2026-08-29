@@ -25,15 +25,17 @@ describe('EditRecipe data fetching', () => {
     const recipe: Recipe = {
       recipeId: full(RECIPE_SHORT_ID),
       recipeShortId: RECIPE_SHORT_ID,
-      owned: true,
+      owned: 'true',
       houseId: 'house-1',
-      createdBy: null,
-      updatedBy: null,
+      createdBy: undefined,
+      updatedBy: undefined,
       isPublic: false,
       name: 'Tacos',
       description: 'Tasty tacos',
+      sourceUrl: '',
       ingredients: [],
       steps: [],
+      updatedAt: '2026-06-06T18:00:00Z',
     };
     (fetch as jest.Mock).mockImplementation((url: string) => {
       if (url === `/api/recipes/${full(RECIPE_SHORT_ID)}`) {

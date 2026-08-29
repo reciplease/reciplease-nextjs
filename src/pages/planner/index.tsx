@@ -7,6 +7,7 @@ import { apiFetch, useActiveHouse } from '@/lib/houses';
 import { formatDate } from '@/lib/formatDate';
 import { toPlannedMeal, type BackendPlannedMeal } from '@/lib/plannedMeals';
 import { addDays, mondayOf, toIsoDate } from '@/lib/week';
+import { shorten } from '@/lib/recipe-id';
 
 const fetcher = async (url: string): Promise<PlannedMeal[]> => {
   const res = await apiFetch(url);
@@ -113,7 +114,7 @@ function MealListItem({ meal, editable, onEaten }: { meal: PlannedMeal; editable
         <h4 className="font-medium">{meal.name}</h4>
         <div className="ml-auto flex items-baseline gap-3">
           {meal.recipe && (
-            <Link href={`/recipes/${meal.recipe.recipeShortId}`} className="text-sm underline">
+            <Link href={`/recipes/${shorten(meal.recipe.recipeId)}`} className="text-sm underline">
               {meal.recipe.name}
             </Link>
           )}

@@ -25,6 +25,7 @@ const mockMeals: PlannedMeal[] = [
       { ingredient: { name: 'bread', measure: 'item' as MeasureId, amount: 2 }, allocations: [{ pantryItemId: 'i1', amount: 2 }] },
       { ingredient: { name: 'butter', measure: 'g' as MeasureId, amount: 15 }, allocations: [] },
     ],
+    eatenAt: '',
   },
   {
     plannedMealId: 'meal-2',
@@ -33,6 +34,7 @@ const mockMeals: PlannedMeal[] = [
     name: 'Leftover rice night',
     date: '2026-06-05',
     items: [],
+    eatenAt: '',
   },
 ];
 

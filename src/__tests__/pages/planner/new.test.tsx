@@ -19,24 +19,28 @@ const items: Measure = { measureId: 'item', singular: 'item', plural: 'items', s
 const mockRecipe: Recipe = {
   recipeId: 'recipe-1',
   recipeShortId: 'r1',
-  owned: true,
+  owned: 'true',
   houseId: 'h1',
-  createdBy: null,
-  updatedBy: null,
+  createdBy: undefined,
+  updatedBy: undefined,
   isPublic: false,
   name: 'Toast',
-  description: null,
-  ingredients: [{ name: 'bread', measure: items.measureId, amount: 2 }],
+  description: '',
+  sourceUrl: '',
+  ingredients: [{ name: 'bread', measure: items.measureId ?? 'item', amount: 2 }],
   steps: [],
+  updatedAt: '2026-06-06T18:00:00Z',
 };
 
 const mockPantryItem: PantryItem = {
   uuid: 'inv-1',
   name: 'Bread',
-  measure: items.measureId,
+  measure: items.measureId ?? 'item',
   amount: 4,
   remaining: 4,
   expiration: '2099-12-31',
+  createdAt: '2024-01-01T00:00:00Z',
+  updatedAt: '2024-01-01T00:00:00Z',
 };
 
 describe('NewPlannedMeal', () => {

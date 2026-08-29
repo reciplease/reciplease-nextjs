@@ -1,4 +1,5 @@
 import { BACKEND_URL } from '@/lib/backend-url';
+import type { components } from '@/types/generated/api';
 
 // Server-only helpers for the Google Health OAuth token lifecycle. The Java
 // backend never holds the Google OAuth client secret — this app does (it
@@ -82,11 +83,7 @@ export async function storeGoogleHealthTokens(
   }
 }
 
-type BackendConnection = {
-  connected: boolean;
-  expiresAt: string | null;
-  refreshToken: string | null;
-};
+type BackendConnection = components['schemas']['GoogleHealthConnectionStatusDto'];
 
 const FRESHNESS_WINDOW_MS = 60_000;
 

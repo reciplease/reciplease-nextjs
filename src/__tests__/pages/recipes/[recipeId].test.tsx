@@ -20,18 +20,20 @@ const items: Measure = { measureId: 'ITEMS', singular: 'item', plural: 'items', 
 const recipe: Recipe = {
   recipeId: '111111111111111111111111',
   recipeShortId: 'EREREREREREREREREREREQ',
-  owned: true,
+  owned: 'true',
   houseId: 'house-1',
-  createdBy: null,
-  updatedBy: null,
+  createdBy: undefined,
+  updatedBy: undefined,
   isPublic: false,
   name: 'Tacos',
   description: 'Tasty tacos',
+  sourceUrl: '',
   ingredients: [
-    { name: 'Beef', measure: grams.measureId, amount: 500 },
-    { name: 'Tortilla', measure: items.measureId, amount: 1 },
+    { name: 'Beef', measure: grams.measureId ?? 'GRAMS', amount: 500 },
+    { name: 'Tortilla', measure: items.measureId ?? 'ITEMS', amount: 1 },
   ],
   steps: ['Brown the beef', 'Warm the tortillas'],
+  updatedAt: '',
 };
 
 function mockRecipe(state: { isLoading: boolean; data: Recipe | undefined; error: Error | undefined }) {

@@ -9,7 +9,7 @@ describe('toRecipe', () => {
   it('maps a full owned backend recipe, deriving the short id', () => {
     const backend: BackendRecipe = {
       recipeId,
-      owned: true,
+      owned: 'true',
       houseId: 'house-1',
       isPublic: true,
       name: 'Tacos',
@@ -25,7 +25,7 @@ describe('toRecipe', () => {
     expect(toRecipe(backend)).toEqual({
       recipeId,
       recipeShortId,
-      owned: true,
+      owned: 'true',
       houseId: 'house-1',
       isPublic: true,
       name: 'Tacos',
@@ -42,23 +42,27 @@ describe('toRecipe', () => {
   it('maps a public backend recipe with no owner info', () => {
     const backend: BackendRecipe = {
       recipeId,
-      owned: false,
+      owned: 'false',
+      isPublic: false,
       name: 'Tacos',
-      description: undefined,
-      steps: undefined,
+      description: '',
+      sourceUrl: '',
+      steps: [],
+      ingredients: [],
+      updatedAt: '2026-06-10T12:00:00.000Z',
     };
 
     expect(toRecipe(backend)).toEqual({
       recipeId,
       recipeShortId,
-      owned: false,
+      owned: 'false',
       isPublic: false,
       name: 'Tacos',
-      description: null,
-      sourceUrl: null,
+      description: '',
+      sourceUrl: '',
       steps: [],
       ingredients: [],
-      updatedAt: undefined,
+      updatedAt: '2026-06-10T12:00:00.000Z',
     });
   });
 });

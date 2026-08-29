@@ -24,8 +24,8 @@ const pendingItems: PendingPantryItem[] = [
     measureImage: 'bWVhcw==',
     updatedAt: '2026-08-17T10:15:00Z',
   },
-  { uuid: 'p2' },
-  { uuid: 'p3', legacyBarcode: '5012345678900' },
+  { uuid: 'p2', updatedAt: '' },
+  { uuid: 'p3', legacyBarcode: '5012345678900', updatedAt: '' },
 ];
 
 describe('ProcessListPage', () => {

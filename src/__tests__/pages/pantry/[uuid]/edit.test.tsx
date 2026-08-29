@@ -25,11 +25,13 @@ const item: PantryItem = {
   uuid,
   name: 'Bread',
   brand: 'Warburtons',
-  measure: items.measureId,
+  measure: items.measureId ?? 'ITEMS',
   amount: 1,
   remaining: 1,
   expiration: '2099-12-31',
   barcode: '0123456789012',
+  createdAt: '2024-01-01T00:00:00Z',
+  updatedAt: '2024-01-01T00:00:00Z',
 };
 
 function mockItemSWR(result: { isLoading: boolean; data: PantryItem | undefined; error: Error | undefined }) {

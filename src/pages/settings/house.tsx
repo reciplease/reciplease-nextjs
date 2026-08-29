@@ -80,7 +80,7 @@ export default function HouseSettingsPage() {
     }
   }
 
-  async function removeMember(userId: string, handle: string | null) {
+  async function removeMember(userId: string, handle: string | null | undefined) {
     if (!window.confirm(`Remove ${handle ?? 'this member'} from ${activeHouse?.name}?`)) return;
     setUpdatingUserId(userId);
     setError(null);

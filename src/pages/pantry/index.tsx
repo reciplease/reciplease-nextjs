@@ -195,9 +195,10 @@ export default function PantryList() {
     (a, b) => (b.createdAt ? Date.parse(b.createdAt) : 0) - (a.createdAt ? Date.parse(a.createdAt) : 0),
   );
 
-  // Nearest expiration first.
+  // Nearest expiration first. Items with no expiration date sort last —
+  // there's nothing to go stale, so they're never urgent.
   const withDaysLeft: ItemWithDaysLeft[] = [...filteredItems]
-    .map((item) => ({ ...item, daysLeft: daysUntil(item.expiration) }))
+    .map((item) => ({ ...item, daysLeft: item.expiration ? daysUntil(item.expiration) : Infinity }))
     .sort((a, b) => a.daysLeft - b.daysLeft);
 
   const expired = withDaysLeft.filter((item) => item.daysLeft < 0);

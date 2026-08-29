@@ -14,6 +14,8 @@ const item: PantryItem = {
   amount: 500,
   remaining: 500,
   expiration: '2099-12-31',
+  createdAt: '2024-01-01T00:00:00Z',
+  updatedAt: '2024-01-01T00:00:00Z',
 };
 
 const onSaved = jest.fn();

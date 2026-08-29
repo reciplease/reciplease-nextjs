@@ -30,8 +30,9 @@ const meal: PlannedMeal = {
   name: 'Dinner',
   date: '2026-06-06',
   items: [
-    { ingredient: { name: 'bread', measure: items.measureId, amount: 2 }, allocations: [{ pantryItemId: 'inv-1', amount: 2 }] },
+    { ingredient: { name: 'bread', measure: items.measureId ?? 'item', amount: 2 }, allocations: [{ pantryItemId: 'inv-1', amount: 2 }] },
   ],
+  eatenAt: '2026-06-06T18:00:00Z',
 };
 
 function mockMealSWR(result: { isLoading: boolean; data: PlannedMeal | undefined; error: Error | undefined }) {

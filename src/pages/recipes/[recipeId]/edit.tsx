@@ -24,7 +24,7 @@ export default function EditRecipe() {
   } = useSWR(recipeId ? `/api/recipes/${recipeId}` : null, fetcher);
   const activeHouse = useActiveHouse();
   const editable =
-    !!recipe?.owned &&
+    recipe?.owned === 'true' &&
     activeHouse?.role === 'OWNER' &&
     activeHouse.id === recipe.houseId;
 
@@ -117,7 +117,7 @@ export default function EditRecipe() {
             name: recipe.name,
             description: recipe.description,
             steps: recipe.steps,
-            isPublic: recipe.isPublic,
+            isPublic: recipe.isPublic ?? false,
             sourceUrl: recipe.sourceUrl,
             ingredients: recipe.ingredients.map((ingredient) => ({
               name: ingredient.name,

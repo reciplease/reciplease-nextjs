@@ -27,18 +27,20 @@ const recipeId = full(recipeShortId);
 const recipe: Recipe = {
   recipeId,
   recipeShortId,
-  owned: true,
+  owned: 'true',
   houseId: 'house-1',
-  createdBy: null,
-  updatedBy: null,
+  createdBy: undefined,
+  updatedBy: undefined,
   isPublic: false,
   name: 'Tacos',
   description: 'Tasty tacos',
+  sourceUrl: null as unknown as string,
   ingredients: [
-    { name: 'Beef', measure: grams.measureId, amount: 500 },
-    { name: 'Tortilla', measure: items.measureId, amount: 1 },
+    { name: 'Beef', measure: grams.measureId ?? 'GRAMS', amount: 500 },
+    { name: 'Tortilla', measure: items.measureId ?? 'ITEMS', amount: 1 },
   ],
   steps: ['Brown the beef', 'Warm the tortillas'],
+  updatedAt: '2026-06-06T18:00:00Z',
 };
 
 function mockRecipeSWR(result: { isLoading: boolean; data: Recipe | undefined; error: Error | undefined }) {

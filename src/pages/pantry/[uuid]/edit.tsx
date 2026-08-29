@@ -76,7 +76,7 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
   const [brand, setBrand] = useState(item.brand ?? '');
   const [measureId, setMeasureId] = useState<MeasureId>(item.measure);
   const [amount, setAmount] = useState(String(item.amount));
-  const [expiration, setExpiration] = useState(item.expiration);
+  const [expiration, setExpiration] = useState(item.expiration ?? '');
   const [barcode, setBarcode] = useState(item.barcode ?? '');
   const [image, setImage] = useState<string | null>(item.image ?? null);
 

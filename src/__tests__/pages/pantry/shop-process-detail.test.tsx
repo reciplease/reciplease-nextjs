@@ -35,6 +35,7 @@ const pendingItem: PendingPantryItem = {
   barcodeImage: 'YmFyY29kZQ==',
   expirationImage: 'ZXhw',
   measureImage: 'bWVhcw==',
+  updatedAt: '2024-01-01T00:00:00Z',
 };
 
 const push = jest.fn();
@@ -101,7 +102,7 @@ describe('ProcessDetailPage', () => {
   });
 
   it('shows placeholders and skips the lookup when nothing was captured', () => {
-    setup({ uuid: 'p2' });
+    setup({ uuid: 'p2', updatedAt: '2024-01-01T00:00:00Z' });
 
     expect(screen.getAllByText('No photo captured')).toHaveLength(2);
     expect(mockDecodeFromImageUrl).not.toHaveBeenCalled();
@@ -119,7 +120,7 @@ describe('ProcessDetailPage', () => {
   });
 
   it('uses legacyBarcode directly for items captured before the photo-based flow, without attempting to decode', async () => {
-    setup({ uuid: 'p2', legacyBarcode: '5012345678900', expirationImage: 'ZXhw' });
+    setup({ uuid: 'p2', legacyBarcode: '5012345678900', expirationImage: 'ZXhw', updatedAt: '2024-01-01T00:00:00Z' });
 
     expect(screen.getByText('5012345678900')).toBeInTheDocument();
     expect(mockDecodeFromImageUrl).not.toHaveBeenCalled();
@@ -187,7 +188,7 @@ describe('ProcessDetailPage', () => {
   });
 
   it('disables completion until name, measure, amount and expiration are all set', async () => {
-    setup({ uuid: 'p2' });
+    setup({ uuid: 'p2', updatedAt: '2024-01-01T00:00:00Z' });
 
     const complete = screen.getByRole('button', { name: /Add to pantry/ });
     expect(complete).toBeDisabled();

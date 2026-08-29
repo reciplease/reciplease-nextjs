@@ -3,14 +3,12 @@ import useSWR from 'swr';
 import { useAuthenticated } from '@/lib/useAuthenticated';
 import type { components } from '@/types/generated/api';
 
-// The backend always returns these fields for a house/member/invite — `Required`
-// strips the optionality the generated schema carries (springdoc doesn't mark
-// any field as always-present), while still tying the shape to the live spec.
-export type House = Required<components['schemas']['House']>;
-export type HouseMember = Required<components['schemas']['HouseMember']>;
-export type PendingInvite = Required<components['schemas']['HouseInvite']>;
-export type ApiKey = Required<components['schemas']['ApiKey']>;
-export type CreatedApiKey = Required<components['schemas']['CreatedApiKey']>;
+export type House = components['schemas']['House'];
+// `handle` is genuinely optional/nullable here — a member may not have set one.
+export type HouseMember = components['schemas']['HouseMember'];
+export type PendingInvite = components['schemas']['HouseInvite'];
+export type ApiKey = components['schemas']['ApiKey'];
+export type CreatedApiKey = components['schemas']['CreatedApiKey'];
 
 export const HOUSE_COOKIE = 'reciplease-house-id';
 // Mirrors org.reciplease.configuration.HouseAccess.HOUSE_HEADER on the backend.

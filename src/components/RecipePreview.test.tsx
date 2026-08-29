@@ -22,12 +22,14 @@ jest.mock(
 const recipe: Recipe = {
   recipeId: 'dbdc02be-a311-4aee-b974-c88d3c61f51b',
   recipeShortId: 'abc123',
-  owned: false,
+  owned: 'false',
   isPublic: true,
   name: 'Toast',
   description: 'A staple and classic',
+  sourceUrl: '',
   ingredients: [],
   steps: [],
+  updatedAt: '2026-06-06T18:00:00Z',
 };
 
 describe('RecipePreview', () => {
@@ -42,7 +44,7 @@ describe('RecipePreview', () => {
   });
 
   it('falls back when description is null', () => {
-    render(<RecipePreview recipe={{ ...recipe, description: null }} />);
+    render(<RecipePreview recipe={{ ...recipe, description: null as unknown as string }} />);
     expect(screen.getByText('No description found')).toBeInTheDocument();
   });
 

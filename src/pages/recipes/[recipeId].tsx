@@ -33,7 +33,7 @@ export default function Recipe() {
   // to — being an OWNER elsewhere doesn't grant edit rights on someone else's
   // (possibly public) recipe.
   const editable =
-    !!recipe?.owned &&
+    recipe?.owned === 'true' &&
     activeHouse?.role === 'OWNER' &&
     activeHouse.id === recipe.houseId;
 
@@ -90,10 +90,10 @@ export default function Recipe() {
         {recipe.updatedAt && (
           <p className="text-sm text-[#666]">
             Last updated: {formatTimestamp(recipe.updatedAt)}
-            {recipe.owned && recipe.updatedBy?.handle && ` by ${recipe.updatedBy.handle}`}
+            {recipe.owned === 'true' && recipe.updatedBy?.handle && ` by ${recipe.updatedBy.handle}`}
           </p>
         )}
-        {recipe.owned && recipe.createdBy?.handle && (
+        {recipe.owned === 'true' && recipe.createdBy?.handle && (
           <p className="text-sm text-[#666]">Created by {recipe.createdBy.handle}</p>
         )}
         <p className="my-4">{recipe.description}</p>

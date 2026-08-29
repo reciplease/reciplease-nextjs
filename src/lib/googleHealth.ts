@@ -1,13 +1,9 @@
 import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
 import { apiFetch } from '@/lib/houses';
+import type { components } from '@/types/generated/api';
 
-// Hand-written rather than pulled from the generated OpenAPI types: the Google
-// Health backend endpoints haven't landed yet, so this is a reasonable contract
-// to build the frontend against. Reconcile with `@/types/generated/api` once the
-// backend ships and springdoc has a real schema for these.
-
-export type GoogleHealthConnection = { connected: boolean };
+export type GoogleHealthConnection = components['schemas']['GoogleHealthConnectionStatusDto'];
 
 // Best guess at Google Health's meal type enum — needs verification against
 // the live API once available (developers.google.com/health).

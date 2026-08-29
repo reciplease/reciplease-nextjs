@@ -59,7 +59,7 @@ export default function PantryItemPage() {
     );
   }
 
-  const expired = isExpired(item.expiration);
+  const expired = item.expiration !== undefined && isExpired(item.expiration);
 
   return (
     <>
@@ -99,10 +99,12 @@ export default function PantryItemPage() {
           <p>
             Amount: {item.remaining} of {item.amount} {displayMeasure(item, measures)}
           </p>
-          <p>
-            Expires: {formatDate(item.expiration)}
-            {expired && ' — expired'}
-          </p>
+          {item.expiration && (
+            <p>
+              Expires: {formatDate(item.expiration)}
+              {expired && ' — expired'}
+            </p>
+          )}
           {item.barcode && (
             <p className="text-sm text-[#666]">Barcode: {item.barcode}</p>
           )}

@@ -65,15 +65,15 @@ export type ExchangeResult =
 function toExchangeResult(body: ExchangeResponseBody): ExchangeResult {
   return {
     ok: true,
-    token: body.token ?? '',
+    token: body.token,
     refreshToken: body.refreshToken ?? null,
     // The refresh token's actual expiry, straight from the backend (reciplease.jwt.refresh-
     // token-ttl) — used as the source of truth for the session cookie's own lifetime (see
     // the [...nextauth] route wrapper) instead of a duration hardcoded here that could drift
     // out of sync with that backend config.
     refreshTokenExpiresAt: body.refreshTokenExpiresAt ? Date.parse(body.refreshTokenExpiresAt) : null,
-    userId: body.userId ?? '',
-    handle: body.handle ?? null,
+    userId: body.userId,
+    handle: body.handle,
   };
 }
 

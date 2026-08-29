@@ -132,7 +132,7 @@ export default function ScanPage() {
   }
 
   async function handleSave() {
-    if (!name.trim() || !measure || !expiration || !amount) return;
+    if (!name.trim() || !measure?.measureId || !expiration || !amount) return;
     setSaving(true);
     setSaveError(null);
     try {
