@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import useSWR from 'swr';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Metadata from '@/components/Metadata';
@@ -8,13 +7,9 @@ import EatFlow from '@/components/pantry/EatFlow';
 import ThrowAwayFlow from '@/components/pantry/ThrowAwayFlow';
 import { formatDate, formatTimestamp } from '@/lib/formatDate';
 import { useMeasures, findMeasure } from '@/lib/measures';
-import { apiFetch, useActiveHouse } from '@/lib/houses';
-
-const fetcher = (url: string): Promise<PantryItem> =>
-  apiFetch(url).then((res) => {
-    if (!res.ok) throw new Error('Not found');
-    return res.json();
-  });
+import { useActiveHouse } from '@/lib/houses';
+import { useFindPantryItemById } from '@/types/generated/client';
+import { isSuccessResponse } from '@/lib/apiClientMutator';
 
 function isExpired(expiration: string): boolean {
   return new Date(expiration) < new Date();
@@ -24,8 +19,15 @@ export default function PantryItemPage() {
   const router = useRouter();
   const uuid = router.query.uuid as string | undefined;
   const activeHouse = useActiveHouse();
-  const swrKey = uuid && activeHouse ? [`/api/pantry/${uuid}`, activeHouse.id] : null;
-  const { data: item, error, isLoading, mutate } = useSWR(swrKey, () => fetcher(`/api/pantry/${uuid}`));
+  // Note: the generated hook's cache key isn't house-scoped (unlike the
+  // hand-written `[url, houseId]` key this replaced) — switching house no
+  // longer forces a refetch of whatever item uuid happens to be in the URL.
+  // Left as-is per the migration's accepted key-shape trade-off.
+  const { data: itemResponse, error, isLoading, mutate } = useFindPantryItemById(uuid as string, {
+    swr: { enabled: Boolean(uuid) && Boolean(activeHouse) },
+  });
+  const item = itemResponse && isSuccessResponse(itemResponse) ? itemResponse.data : undefined;
+  const itemError = error || (itemResponse && !isSuccessResponse(itemResponse));
   const measures = useMeasures();
 
   // Covers both a stale/bad link straight to a deleted item and eating/binning
@@ -36,10 +38,10 @@ export default function PantryItemPage() {
   // Uses the same raw conditions as the render check below rather than a
   // shared boolean, so that check can still narrow `item`'s type.
   useEffect(() => {
-    if (router.isReady && activeHouse && !isLoading && (error || !item || !uuid)) {
+    if (router.isReady && activeHouse && !isLoading && (itemError || !item || !uuid)) {
       router.replace('/pantry');
     }
-  }, [router, activeHouse, isLoading, error, item, uuid]);
+  }, [router, activeHouse, isLoading, itemError, item, uuid]);
 
   if (!router.isReady || !activeHouse || isLoading) {
     return (
@@ -50,7 +52,7 @@ export default function PantryItemPage() {
     );
   }
 
-  if (error || !item || !uuid) {
+  if (itemError || !item || !uuid) {
     return (
       <>
         <Metadata title="Not Found" description="Pantry item not found" />

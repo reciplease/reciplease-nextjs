@@ -5,17 +5,40 @@ jest.mock('swr');
 jest.mock('@/lib/houses', () => ({
   useActiveHouse: () => ({ id: 'h1', name: 'Home', role: 'OWNER' }),
   usePendingCapturedItemsCount: () => 0,
-  apiFetch: (url: string, init?: RequestInit) => fetch(url, init),
 }));
 
-global.fetch = jest.fn();
 afterEach(() => window.localStorage.clear());
 jest.mock('next/link', () => ({ children, href, className }: { children: React.ReactNode; href: string; className?: string }) => (
   <a href={href} className={className}>{children}</a>
 ));
 jest.mock('@/components/Metadata', () => () => null);
 
+// The generated client (src/types/generated/client.ts) calls this mutator
+// directly rather than `fetch` — mocking it here keeps the generated request
+// building/response envelope handling exercised for real, while giving the
+// tests a single, low-level seam to assert against (same role `global.fetch`
+// played before this page migrated off hand-written apiFetch calls).
+const mockApiClientMutator = jest.fn();
+jest.mock('@/lib/apiClientMutator', () => ({
+  apiClientMutator: (...args: unknown[]) => mockApiClientMutator(...args),
+  isSuccessResponse: (response: { status: number }) => response.status >= 200 && response.status < 300,
+  describeErrorStatus: (status: number) => {
+    if (status === 401) return 'Please sign in again.';
+    if (status === 403) return "You don't have permission to do that.";
+    if (status === 404) return "That couldn't be found.";
+    if (status >= 400 && status < 500) return 'Please check your input and try again.';
+    return 'Something went wrong. Please try again.';
+  },
+}));
+
 const useSWR = require('swr').default;
+
+// The generated hooks pass their key to `swr` as a thunk
+// (`() => isEnabled ? [...] : null`), not a plain key — resolve it the same
+// way the real `swr` package would before matching on it.
+function resolveKey(key: unknown): unknown {
+  return typeof key === 'function' ? (key as () => unknown)() : key;
+}
 
 const grams: Measure = { measureId: 'GRAMS', singular: 'gram', plural: 'grams', short: 'g' };
 const items: Measure = { measureId: 'ITEMS', singular: 'item', plural: 'items', short: 'item' };
@@ -27,8 +50,9 @@ function mockPantry(state: {
   mutate?: jest.Mock;
 }) {
   useSWR.mockImplementation((key: unknown) => {
-    if (key === '/api/measures') return { data: [items, grams], isLoading: false };
-    return { mutate: jest.fn(), ...state };
+    if (resolveKey(key) === '/api/measures') return { data: [items, grams], isLoading: false };
+    const itemsResponse = state.data ? { data: state.data, status: 200, headers: new Headers() } : undefined;
+    return { mutate: jest.fn(), ...state, data: itemsResponse };
   });
 }
 
@@ -86,8 +110,8 @@ function openSortFilterMenu() {
 
 describe('PantryList', () => {
   beforeEach(() => {
-    (fetch as jest.Mock).mockReset();
-    (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    mockApiClientMutator.mockReset();
+    mockApiClientMutator.mockResolvedValue({ data: {}, status: 200, headers: new Headers() });
   });
 
   it('shows loading state', () => {
@@ -239,7 +263,7 @@ describe('PantryList', () => {
     fireEvent.submit(screen.getByLabelText('Amount thrown away').closest('form')!);
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(
+      expect(mockApiClientMutator).toHaveBeenCalledWith(
         '/api/pantry/uuid-1',
         expect.objectContaining({ method: 'PUT' }),
       );
@@ -248,7 +272,7 @@ describe('PantryList', () => {
   });
 
   it('treats binning the last of an item (204, no body) as success and refetches the list', async () => {
-    (fetch as jest.Mock).mockResolvedValue({ ok: true, status: 204, json: async () => ({}) });
+    mockApiClientMutator.mockResolvedValue({ data: undefined, status: 204, headers: new Headers() });
     const mutate = jest.fn();
     mockPantry({ isLoading: false, data: mockItems, error: undefined, mutate });
     render(<PantryList />);

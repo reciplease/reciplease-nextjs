@@ -9,17 +9,32 @@ jest.mock('@/lib/imageCapture', () => ({
 }));
 jest.mock('swr');
 jest.mock('@/lib/houses', () => ({
-  apiFetch: (...args: unknown[]) => (global.fetch as jest.Mock)(...args),
   useActiveHouse: () => ({ id: 'house-1', name: 'Home' }),
+}));
+
+// The generated client (src/types/generated/client.ts) calls this mutator
+// directly rather than `fetch` — mocking it here keeps the generated request
+// building/response envelope handling exercised for real, while giving the
+// tests a single, low-level seam to assert against (same role `global.fetch`
+// played before this page migrated off hand-written apiFetch calls).
+const mockApiClientMutator = jest.fn();
+jest.mock('@/lib/apiClientMutator', () => ({
+  apiClientMutator: (...args: unknown[]) => mockApiClientMutator(...args),
+  isSuccessResponse: (response: { status: number }) => response.status >= 200 && response.status < 300,
+  describeErrorStatus: (status: number) => {
+    if (status === 401) return 'Please sign in again.';
+    if (status === 403) return "You don't have permission to do that.";
+    if (status === 404) return "That couldn't be found.";
+    if (status >= 400 && status < 500) return 'Please check your input and try again.';
+    return 'Something went wrong. Please try again.';
+  },
 }));
 
 const { compressToBase64 } = require('@/lib/imageCapture');
 const useSWR = require('swr').default;
 
-global.fetch = jest.fn();
-
 function mockPostOk() {
-  (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+  mockApiClientMutator.mockResolvedValue({ data: {}, status: 200, headers: new Headers() });
 }
 
 async function capturePhoto(label: string, base64: string) {
@@ -46,10 +61,10 @@ describe('ShopPage', () => {
   const mutate = jest.fn();
 
   beforeEach(() => {
-    (fetch as jest.Mock).mockReset();
+    mockApiClientMutator.mockReset();
     (compressToBase64 as jest.Mock).mockReset();
     mutate.mockReset();
-    useSWR.mockReturnValue({ data: [], mutate, isLoading: false });
+    useSWR.mockReturnValue({ data: { data: [], status: 200, headers: new Headers() }, mutate, isLoading: false });
   });
 
   it('starts with all three captures available and a running count of zero', () => {
@@ -62,7 +77,11 @@ describe('ShopPage', () => {
 
   it('counts pre-existing pending items for the house, not just this session', () => {
     useSWR.mockReturnValue({
-      data: [{ uuid: 'p1' }, { uuid: 'p2' }] as PendingPantryItem[],
+      data: {
+        data: [{ uuid: 'p1' }, { uuid: 'p2' }] as PendingPantryItem[],
+        status: 200,
+        headers: new Headers(),
+      },
       mutate,
       isLoading: false,
     });
@@ -99,7 +118,7 @@ describe('ShopPage', () => {
 
     await captureAndSubmitOneItem();
 
-    expect(fetch).toHaveBeenCalledWith(
+    expect(mockApiClientMutator).toHaveBeenCalledWith(
       '/api/pantry/pending',
       expect.objectContaining({
         method: 'POST',
@@ -123,7 +142,7 @@ describe('ShopPage', () => {
     fireEvent.click(screen.getByText('Submit'));
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(
+      expect(mockApiClientMutator).toHaveBeenCalledWith(
         '/api/pantry/pending',
         expect.objectContaining({
           method: 'POST',
@@ -135,7 +154,7 @@ describe('ShopPage', () => {
   });
 
   it('shows a red retry banner when an upload fails, and retrying re-posts it', async () => {
-    (fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
+    mockApiClientMutator.mockRejectedValueOnce(new Error('500 Internal Server Error'));
     render(<ShopPage />);
 
     await captureAndSubmitOneItem();
@@ -152,30 +171,30 @@ describe('ShopPage', () => {
     await waitFor(() => expect(mutate).toHaveBeenCalled());
     expect(screen.queryByText(/failed to upload/)).not.toBeInTheDocument();
     // Original + retry.
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(mockApiClientMutator).toHaveBeenCalledTimes(2);
   });
 
   it('turns the banner orange and hides Retry while a retry sweep is in flight', async () => {
-    (fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
+    mockApiClientMutator.mockRejectedValueOnce(new Error('500 Internal Server Error'));
     render(<ShopPage />);
 
     await captureAndSubmitOneItem();
     await waitFor(() => screen.getByText(/1 item failed to upload/));
 
     let resolveRetry!: (value: unknown) => void;
-    (fetch as jest.Mock).mockReturnValueOnce(new Promise((resolve) => { resolveRetry = resolve; }));
+    mockApiClientMutator.mockReturnValueOnce(new Promise((resolve) => { resolveRetry = resolve; }));
     fireEvent.click(screen.getByText('Retry'));
 
     await waitFor(() => expect(screen.getByText(/Retrying 1 failed upload/)).toBeInTheDocument());
     expect(screen.getByText(/Retrying 1 failed upload/).closest('div')).toHaveClass('bg-orange-950/80');
     expect(screen.queryByText('Retry')).not.toBeInTheDocument();
 
-    resolveRetry({ ok: true, json: async () => ({}) });
+    resolveRetry({ data: {}, status: 200, headers: new Headers() });
     await waitFor(() => expect(screen.queryByText(/Retrying/)).not.toBeInTheDocument());
   });
 
   it('auto-retries the failed queue once a new submission succeeds', async () => {
-    (fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
+    mockApiClientMutator.mockRejectedValueOnce(new Error('500 Internal Server Error'));
     render(<ShopPage />);
 
     await captureAndSubmitOneItem();
@@ -185,12 +204,12 @@ describe('ShopPage', () => {
     await captureAndSubmitOneItem();
 
     // Original failing submit + the new successful one + the auto-retry of the failed one.
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(mockApiClientMutator).toHaveBeenCalledTimes(3));
     await waitFor(() => expect(screen.queryByText(/failed to upload/)).not.toBeInTheDocument());
   });
 
   it('persists the failed queue to localStorage and reloads it on the next mount', async () => {
-    (fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
+    mockApiClientMutator.mockRejectedValueOnce(new Error('500 Internal Server Error'));
     const { unmount } = render(<ShopPage />);
 
     await captureAndSubmitOneItem();
@@ -208,7 +227,7 @@ describe('ShopPage', () => {
   });
 
   it('counts an upload that throws as failed too', async () => {
-    (fetch as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    mockApiClientMutator.mockRejectedValueOnce(new Error('offline'));
     render(<ShopPage />);
 
     await captureAndSubmitOneItem();
@@ -223,7 +242,7 @@ describe('ShopPage', () => {
 
     fireEvent.click(screen.getByText('Submit'));
 
-    expect(fetch).not.toHaveBeenCalled();
+    expect(mockApiClientMutator).not.toHaveBeenCalled();
     expect(mutate).not.toHaveBeenCalled();
     expect(screen.getByText('0 items captured')).toBeInTheDocument();
   });
@@ -242,21 +261,21 @@ describe('ShopPage', () => {
 
   it('disables the Process button while an upload is still in flight', async () => {
     let resolveUpload!: (value: unknown) => void;
-    (fetch as jest.Mock).mockReturnValue(new Promise((resolve) => { resolveUpload = resolve; }));
+    mockApiClientMutator.mockReturnValue(new Promise((resolve) => { resolveUpload = resolve; }));
     render(<ShopPage />);
 
     await captureAndSubmitOneItem();
 
     expect(screen.getByRole('button', { name: /Uploading/ })).toBeDisabled();
 
-    resolveUpload({ ok: true, json: async () => ({}) });
+    resolveUpload({ data: {}, status: 200, headers: new Headers() });
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Process →' })).not.toBeDisabled(),
     );
   });
 
   it('explains a permission failure instead of offering a retry', async () => {
-    (fetch as jest.Mock).mockResolvedValue({ ok: false, status: 403 });
+    mockApiClientMutator.mockResolvedValue({ data: { timestamp: '', status: 403, error: 'Forbidden', path: '' }, status: 403, headers: new Headers() });
     render(<ShopPage />);
 
     await captureAndSubmitOneItem();

@@ -1,11 +1,23 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import EatFlow from '@/components/pantry/EatFlow';
 
-jest.mock('@/lib/houses', () => ({
-  apiFetch: (url: string, init?: RequestInit) => fetch(url, init),
+// The generated client (src/types/generated/client.ts) calls this mutator
+// directly rather than `fetch` — mocking it here keeps the generated request
+// building/response envelope handling exercised for real, while giving the
+// tests a single, low-level seam to assert against (same role `global.fetch`
+// played before this component migrated off hand-written apiFetch calls).
+const mockApiClientMutator = jest.fn();
+jest.mock('@/lib/apiClientMutator', () => ({
+  apiClientMutator: (...args: unknown[]) => mockApiClientMutator(...args),
+  isSuccessResponse: (response: { status: number }) => response.status >= 200 && response.status < 300,
+  describeErrorStatus: (status: number) => {
+    if (status === 401) return 'Please sign in again.';
+    if (status === 403) return "You don't have permission to do that.";
+    if (status === 404) return "That couldn't be found.";
+    if (status >= 400 && status < 500) return 'Please check your input and try again.';
+    return 'Something went wrong. Please try again.';
+  },
 }));
-
-global.fetch = jest.fn();
 
 const item: PantryItem = {
   uuid: 'uuid-1',
@@ -25,8 +37,8 @@ function openPanel() {
 }
 
 beforeEach(() => {
-  (fetch as jest.Mock).mockReset();
-  (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+  mockApiClientMutator.mockReset();
+  mockApiClientMutator.mockResolvedValue({ data: {}, status: 200, headers: new Headers() });
   onSaved.mockReset();
 });
 
@@ -39,7 +51,7 @@ describe('EatFlow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(
+      expect(mockApiClientMutator).toHaveBeenCalledWith(
         '/api/pantry/uuid-1',
         expect.objectContaining({
           method: 'PUT',
@@ -63,7 +75,7 @@ describe('EatFlow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ate it all' }));
 
     expect(screen.getByLabelText('Amount eaten')).toHaveValue(500);
-    expect(fetch).not.toHaveBeenCalled();
+    expect(mockApiClientMutator).not.toHaveBeenCalled();
     expect(onSaved).not.toHaveBeenCalled();
   });
 
@@ -75,7 +87,7 @@ describe('EatFlow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(
+      expect(mockApiClientMutator).toHaveBeenCalledWith(
         '/api/pantry/uuid-1',
         expect.objectContaining({
           method: 'PUT',
@@ -101,7 +113,7 @@ describe('EatFlow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(
+      expect(mockApiClientMutator).toHaveBeenCalledWith(
         '/api/pantry/uuid-1',
         expect.objectContaining({
           method: 'PUT',
@@ -118,8 +130,8 @@ describe('EatFlow', () => {
     });
   });
 
-  it('shows an error and keeps the panel open when the save fails', async () => {
-    (fetch as jest.Mock).mockResolvedValue({ ok: false });
+  it('shows an error and keeps the panel open when the request rejects (network failure)', async () => {
+    mockApiClientMutator.mockRejectedValue(new Error('500 Internal Server Error'));
     render(<EatFlow uuid="uuid-1" item={item} onSaved={onSaved} />);
     openPanel();
 
@@ -127,6 +139,23 @@ describe('EatFlow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Failed to update amount. Please try again.');
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Amount eaten')).toBeInTheDocument();
+  });
+
+  it('shows an error and keeps the panel open when the update resolves with a non-2xx status', async () => {
+    mockApiClientMutator.mockResolvedValue({
+      data: { timestamp: '', status: 500, error: 'Internal Server Error', path: '/api/pantry/uuid-1' },
+      status: 500,
+      headers: new Headers(),
+    });
+    render(<EatFlow uuid="uuid-1" item={item} onSaved={onSaved} />);
+    openPanel();
+
+    fireEvent.change(screen.getByLabelText('Amount eaten'), { target: { value: '100' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Something went wrong. Please try again.');
     expect(onSaved).not.toHaveBeenCalled();
     expect(screen.getByLabelText('Amount eaten')).toBeInTheDocument();
   });

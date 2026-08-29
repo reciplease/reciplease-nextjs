@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import useSWR from 'swr';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
 import PantryImage from '@/components/PantryImage';
@@ -9,10 +8,12 @@ import SortFilterMenu, {
   type PantryFilters,
   type PantrySortBy,
 } from '@/components/pantry/SortFilterMenu';
-import { apiFetch, useActiveHouse, usePendingCapturedItemsCount } from '@/lib/houses';
+import { useActiveHouse, usePendingCapturedItemsCount } from '@/lib/houses';
 import { useMeasures, findMeasure } from '@/lib/measures';
 import { daysUntil, formatDaysLeft, daysLeftColor } from '@/lib/pantry';
 import { usePersistentState } from '@/lib/usePersistentState';
+import { useFindAllPantryItems } from '@/types/generated/client';
+import { isSuccessResponse } from '@/lib/apiClientMutator';
 
 const sortFilterIconProps = {
   width: 20,
@@ -39,9 +40,6 @@ function SortFilterIcon() {
     </svg>
   );
 }
-
-const fetcher = (url: string): Promise<PantryItem[]> =>
-  apiFetch(url).then((res) => res.json());
 
 type ItemWithDaysLeft = PantryItem & { daysLeft: number };
 
@@ -152,10 +150,15 @@ export default function PantryList() {
   // X-RCPLS-House-Id header, which is only known once houses have loaded. Keying
   // by house id also refetches if the user switches house.
   const activeHouse = useActiveHouse();
-  const { data: items, error, isLoading, mutate } = useSWR(
-    activeHouse ? ['/api/pantry', activeHouse.id] : null,
-    () => fetcher('/api/pantry'),
-  );
+  // Note: the generated hook's cache key isn't house-scoped (unlike the
+  // hand-written `[url, houseId]` key this replaced) — switching house no
+  // longer forces a refetch here. Left as-is per the migration's accepted
+  // key-shape trade-off.
+  const { data: itemsResponse, error, isLoading, mutate } = useFindAllPantryItems(undefined, {
+    swr: { enabled: Boolean(activeHouse) },
+  });
+  const items = itemsResponse && isSuccessResponse(itemsResponse) ? itemsResponse.data : undefined;
+  const itemsError = error || (itemsResponse && !isSuccessResponse(itemsResponse));
   const measures = useMeasures();
   const pendingCapturedCount = usePendingCapturedItemsCount();
   const [throwingAway, setThrowingAway] = useState<PantryItem | null>(null);
@@ -172,7 +175,7 @@ export default function PantryList() {
     );
   }
 
-  if (error || !items) {
+  if (itemsError || !items) {
     return (
       <>
         <Metadata title="Pantry" description="Your ingredient pantry" />

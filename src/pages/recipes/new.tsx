@@ -2,8 +2,9 @@ import { useActionState, useState } from 'react';
 import { useRouter } from 'next/router';
 import Metadata from '@/components/Metadata';
 import RecipeForm, { type RecipeFormInitial, type RecipeFormValues } from '@/components/RecipeForm';
-import { toRecipe, type BackendRecipe } from '@/lib/recipes';
-import { apiFetch } from '@/lib/houses';
+import { toRecipe } from '@/lib/recipes';
+import { createRecipe, addRecipeIngredient, PublicRecipeOwned } from '@/types/generated/client';
+import { isSuccessResponse, describeErrorStatus } from '@/lib/apiClientMutator';
 
 export default function NewRecipe() {
   const router = useRouter();
@@ -33,35 +34,40 @@ export default function NewRecipe() {
   }, null);
 
   async function handleSubmit(values: RecipeFormValues) {
-    const createRes = await apiFetch('/api/recipes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: values.name,
-        description: values.description,
-        steps: values.steps,
-        isPublic: values.isPublic,
-        sourceUrl: values.sourceUrl,
-      }),
+    // createRecipe's generated body type is `NonReadonly<PublicRecipe>`, which
+    // correctly excludes the readonly `recipeId`/`ingredients`/`updatedAt`
+    // fields (verified against the generated utility types), but still
+    // requires `owned` (a fixed "false" discriminant on PublicRecipe — see
+    // PublicRecipeOwned). The backend ignores it on create (the discriminant
+    // is server-computed), but the type requires it, so it's supplied here.
+    // `description`/`sourceUrl` are non-nullable strings on PublicRecipe
+    // (sourceUrl's pattern explicitly allows ''), while the form tracks them
+    // as `string | null`, so null coalesces to ''.
+    const createResponse = await createRecipe({
+      name: values.name,
+      description: values.description ?? '',
+      steps: values.steps,
+      isPublic: values.isPublic,
+      sourceUrl: values.sourceUrl ?? '',
+      owned: PublicRecipeOwned.false,
+      // Ingredients attach one-by-one afterwards (see the loop below); the
+      // generated body type still requires the field even though the
+      // backend ignores it on create.
+      ingredients: [],
     });
-    if (!createRes.ok) {
-      return 'Failed to create recipe. Please try again.';
+    if (!isSuccessResponse(createResponse)) {
+      return describeErrorStatus(createResponse.status);
     }
-    const backendRecipe: BackendRecipe = await createRes.json();
-    const recipe = toRecipe(backendRecipe);
+    const recipe: Recipe = toRecipe(createResponse.data);
 
     // Ingredients attach one-by-one on the backend.
     for (const ingredient of values.ingredients) {
-      const res = await apiFetch(`/api/recipes/${recipe.recipeId}/ingredients`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: ingredient.name,
-          measure: ingredient.measureId,
-          amount: ingredient.amount,
-        }),
+      const addResponse = await addRecipeIngredient(recipe.recipeId, {
+        name: ingredient.name,
+        measure: ingredient.measureId,
+        amount: ingredient.amount,
       });
-      if (!res.ok) {
+      if (!isSuccessResponse(addResponse)) {
         return 'Recipe saved, but some ingredients could not be added.';
       }
     }

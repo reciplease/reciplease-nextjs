@@ -3,25 +3,25 @@ import Metadata from '@/components/Metadata';
 import PlannedMealForm, { PlannedMealFormValues } from '@/components/PlannedMealForm';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import useSWR from 'swr';
 import { full } from '@/lib/recipe-id';
-import { useActiveHouse, apiFetch } from '@/lib/houses';
-import { toPlannedMeal, type BackendPlannedMeal } from '@/lib/plannedMeals';
-
-const fetcher = async (url: string): Promise<PlannedMeal> => {
-  const backendMeal: BackendPlannedMeal = await apiFetch(url).then((res) => res.json());
-  return toPlannedMeal(backendMeal);
-};
+import { useActiveHouse } from '@/lib/houses';
+import { toPlannedMeal } from '@/lib/plannedMeals';
+import { useFindPlannedMealById, deletePlannedMealById, updatePlannedMeal } from '@/types/generated/client';
+import { isSuccessResponse, describeErrorStatus } from '@/lib/apiClientMutator';
 
 export default function EditPlannedMeal() {
   const router = useRouter();
   const plannedMealShortId = router.query.plannedMealId as PlannedMealShortId | undefined;
   const plannedMealId = plannedMealShortId ? full(plannedMealShortId) : undefined;
   const {
-    data: meal,
+    data: mealResponse,
     error,
     isLoading,
-  } = useSWR(plannedMealId ? `/api/planned-meals/${plannedMealId}` : null, fetcher);
+  } = useFindPlannedMealById(plannedMealId as string, {
+    swr: { enabled: Boolean(plannedMealId) },
+  });
+  const meal = mealResponse && isSuccessResponse(mealResponse) ? toPlannedMeal(mealResponse.data) : undefined;
+  const mealError = error || (mealResponse && !isSuccessResponse(mealResponse));
   const activeHouse = useActiveHouse();
   const editable =
     !!meal &&
@@ -30,16 +30,12 @@ export default function EditPlannedMeal() {
 
   const [deleteError, handleDelete, deleting] = useActionState(async (): Promise<string | null> => {
     if (!window.confirm(`Delete "${meal?.name}"? This can't be undone.`)) return null;
-    try {
-      const res = await apiFetch(`/api/planned-meals/${plannedMealId}`, { method: 'DELETE' });
-      if (!res.ok) {
-        return 'Failed to delete meal. Please try again.';
-      }
-      router.push('/planner');
-      return null;
-    } catch {
-      return 'An unexpected error occurred.';
+    const result = await deletePlannedMealById(plannedMealId as string);
+    if (!isSuccessResponse(result)) {
+      return describeErrorStatus(result.status);
     }
+    router.push('/planner');
+    return null;
   }, null);
 
   async function handleSubmit(values: PlannedMealFormValues) {
@@ -54,19 +50,14 @@ export default function EditPlannedMeal() {
         : [],
     }));
 
-    const res = await apiFetch(`/api/planned-meals/${plannedMealId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        recipeId: values.recipeId || undefined,
-        name: values.name,
-        date: values.date,
-        items,
-      }),
+    const result = await updatePlannedMeal(plannedMealId as string, {
+      recipeId: values.recipeId || undefined,
+      name: values.name,
+      date: values.date,
+      items,
     });
-
-    if (!res.ok) {
-      return 'Failed to save changes. Please try again.';
+    if (!isSuccessResponse(result)) {
+      return describeErrorStatus(result.status);
     }
 
     router.push('/planner');
@@ -84,7 +75,7 @@ export default function EditPlannedMeal() {
     );
   }
 
-  if (error || !meal) {
+  if (mealError || !meal) {
     return (
       <>
         <Metadata title="No Meal Found" description="No planned meal found" />

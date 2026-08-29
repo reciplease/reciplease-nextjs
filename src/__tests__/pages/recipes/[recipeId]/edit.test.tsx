@@ -5,7 +5,6 @@ import { full } from '@/lib/recipe-id';
 jest.mock('swr');
 jest.mock('@/lib/houses', () => ({
   useActiveHouse: jest.fn(),
-  apiFetch: (url: string, init?: RequestInit) => fetch(url, init),
 }));
 jest.mock('next/router', () => ({ useRouter: jest.fn() }));
 jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; href: string }) => (
@@ -13,10 +12,37 @@ jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; h
 ));
 jest.mock('@/components/Metadata', () => () => null);
 
+// The generated client (src/types/generated/client.ts) calls this mutator
+// directly rather than `fetch` — mocking it here keeps the generated request
+// building/response envelope handling exercised for real, while giving the
+// tests a single, low-level seam to assert against.
+const mockApiClientMutator = jest.fn();
+jest.mock('@/lib/apiClientMutator', () => ({
+  apiClientMutator: (...args: unknown[]) => mockApiClientMutator(...args),
+  isSuccessResponse: (response: { status: number }) => response.status >= 200 && response.status < 300,
+  describeErrorStatus: (status: number) => {
+    if (status === 401) return 'Please sign in again.';
+    if (status === 403) return "You don't have permission to do that.";
+    if (status === 404) return "That couldn't be found.";
+    if (status >= 400 && status < 500) return 'Please check your input and try again.';
+    return 'Something went wrong. Please try again.';
+  },
+}));
+
 const useSWR = require('swr').default as jest.Mock;
 const { useActiveHouse } = require('@/lib/houses');
 const useRouter = require('next/router').useRouter as jest.Mock;
-global.fetch = jest.fn();
+
+// The generated useFindRecipeById hook passes its key to `swr` as a thunk,
+// not a plain key — resolve it the same way the real `swr` package would
+// before matching on it.
+function resolveKey(key: unknown): unknown {
+  return typeof key === 'function' ? (key as () => unknown)() : key;
+}
+
+function wrap<T>(data: T) {
+  return { data, status: 200, headers: new Headers() };
+}
 
 const grams: Measure = { measureId: 'GRAMS', singular: 'gram', plural: 'grams', short: 'g' };
 const items: Measure = { measureId: 'ITEMS', singular: 'item', plural: 'items', short: 'item' };
@@ -44,9 +70,10 @@ const recipe: Recipe = {
 };
 
 function mockRecipeSWR(result: { isLoading: boolean; data: Recipe | undefined; error: Error | undefined }) {
-  useSWR.mockImplementation((url: string) => {
+  useSWR.mockImplementation((key: unknown) => {
+    const url = resolveKey(key);
     if (url === '/api/measures') return { data: [grams, items] };
-    return result;
+    return { ...result, data: result.data ? wrap(result.data) : undefined };
   });
 }
 
@@ -55,7 +82,7 @@ describe('EditRecipe page', () => {
   const back = jest.fn();
 
   beforeEach(() => {
-    (fetch as jest.Mock).mockReset();
+    mockApiClientMutator.mockReset();
     push.mockReset();
     back.mockReset();
     useRouter.mockReturnValue({ push, back, isReady: true, query: { recipeId: recipeShortId } });
@@ -144,55 +171,48 @@ describe('EditRecipe page', () => {
 
   it('saves changes and redirects to the recipe page on success', async () => {
     mockRecipeSWR({ isLoading: false, data: recipe, error: undefined });
-    (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
+    mockApiClientMutator.mockResolvedValue({ data: recipe, status: 200, headers: new Headers() });
     render(<EditRecipe />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(
+      expect(mockApiClientMutator).toHaveBeenCalledWith(
         `/api/recipes/${recipeId}`,
-        expect.objectContaining({
-          method: 'PUT',
-          body: JSON.stringify({
-            name: 'Tacos',
-            description: 'Tasty tacos',
-            steps: ['Brown the beef', 'Warm the tortillas'],
-            isPublic: false,
-            sourceUrl: null,
-            ingredients: [
-              { name: 'Beef', measure: 'GRAMS', amount: 500 },
-              { name: 'Tortilla', measure: 'ITEMS', amount: 1 },
-            ],
-          }),
-        }),
+        expect.objectContaining({ method: 'PUT' }),
       );
       expect(push).toHaveBeenCalledWith(`/recipes/${recipeShortId}`);
+    });
+
+    const [, options] = mockApiClientMutator.mock.calls.find(([url]) => url === `/api/recipes/${recipeId}`)!;
+    expect(JSON.parse(options.body)).toEqual({
+      name: 'Tacos',
+      description: 'Tasty tacos',
+      steps: ['Brown the beef', 'Warm the tortillas'],
+      isPublic: false,
+      sourceUrl: '',
+      owned: 'false',
+      ingredients: [
+        { name: 'Beef', measure: 'GRAMS', amount: 500 },
+        { name: 'Tortilla', measure: 'ITEMS', amount: 1 },
+      ],
     });
   });
 
   it('shows an error message when save fails', async () => {
     mockRecipeSWR({ isLoading: false, data: recipe, error: undefined });
-    (fetch as jest.Mock).mockResolvedValue({ ok: false });
+    mockApiClientMutator.mockResolvedValue({
+      data: { timestamp: '2026-06-06T18:00:00Z', status: 500, error: 'Internal Server Error', path: `/api/recipes/${recipeId}` },
+      status: 500,
+      headers: new Headers(),
+    });
     render(<EditRecipe />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent('Failed to save changes. Please try again.');
+      expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong. Please try again.');
     });
     expect(push).not.toHaveBeenCalled();
-  });
-
-  it('shows an unexpected error message if saving throws', async () => {
-    mockRecipeSWR({ isLoading: false, data: recipe, error: undefined });
-    (fetch as jest.Mock).mockRejectedValue(new Error('network down'));
-    render(<EditRecipe />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
-
-    await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent('An unexpected error occurred.');
-    });
   });
 });

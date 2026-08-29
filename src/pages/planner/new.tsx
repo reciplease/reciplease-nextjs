@@ -1,7 +1,8 @@
 import { useRouter } from 'next/router';
 import Metadata from '@/components/Metadata';
 import PlannedMealForm, { PlannedMealFormValues } from '@/components/PlannedMealForm';
-import { apiFetch } from '@/lib/houses';
+import { planMeal } from '@/types/generated/client';
+import { isSuccessResponse, describeErrorStatus } from '@/lib/apiClientMutator';
 
 export default function NewPlannedMeal() {
   const router = useRouter();
@@ -18,20 +19,19 @@ export default function NewPlannedMeal() {
         : [],
     }));
 
-    const res = await apiFetch('/api/planned-meals', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        recipeId: values.recipeId || undefined,
-        name: values.name,
-        date: values.date,
-        items,
-      }),
+    const result = await planMeal({
+      recipeId: values.recipeId || undefined,
+      name: values.name,
+      date: values.date,
+      items,
     });
-
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      return (body as { message?: string }).message ?? 'Failed to plan meal. Please try again.';
+    if (!isSuccessResponse(result)) {
+      // The generated mutator resolves rather than throws on an HTTP-level
+      // error; result.data is an ErrorResponse for non-2xx responses (e.g.
+      // "A meal named 'Dinner' is already planned for this date"), but we
+      // don't have a more specific message to surface than the status-based
+      // default here.
+      return describeErrorStatus(result.status);
     }
 
     router.push('/planner');

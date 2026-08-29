@@ -20,6 +20,14 @@ jest.mock('@/lib/suggestItemFromBarcode', () => ({ suggestItemFromBarcode: jest.
 const mockApiClientMutator = jest.fn();
 jest.mock('@/lib/apiClientMutator', () => ({
   apiClientMutator: (...args: unknown[]) => mockApiClientMutator(...args),
+  isSuccessResponse: (response: { status: number }) => response.status >= 200 && response.status < 300,
+  describeErrorStatus: (status: number) => {
+    if (status === 401) return 'Please sign in again.';
+    if (status === 403) return "You don't have permission to do that.";
+    if (status === 404) return "That couldn't be found.";
+    if (status >= 400 && status < 500) return 'Please check your input and try again.';
+    return 'Something went wrong. Please try again.';
+  },
 }));
 
 const mockDecodeFromImageUrl = jest.fn();

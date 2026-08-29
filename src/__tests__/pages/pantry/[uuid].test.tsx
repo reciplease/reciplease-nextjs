@@ -4,7 +4,6 @@ import PantryItemPage from '@/pages/pantry/[uuid]';
 jest.mock('swr');
 jest.mock('@/lib/houses', () => ({
   useActiveHouse: () => ({ id: 'h1', name: 'Home', role: 'OWNER' }),
-  apiFetch: (url: string, init?: RequestInit) => fetch(url, init),
 }));
 jest.mock('next/router', () => ({ useRouter: jest.fn() }));
 jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; href: string }) => (
@@ -23,7 +22,13 @@ jest.mock('@/components/pantry/ThrowAwayFlow', () => ({ item }: { item: PantryIt
 
 const useSWR = require('swr').default;
 const useRouter = require('next/router').useRouter as jest.Mock;
-global.fetch = jest.fn();
+
+// The generated SWR hook (useFindPantryItemById) passes its key to `swr` as a
+// thunk (`() => isEnabled ? [...] : null`), not a plain key — resolve it the
+// same way the real `swr` package would before matching on it.
+function resolveKey(key: unknown): unknown {
+  return typeof key === 'function' ? (key as () => unknown)() : key;
+}
 
 const ML: Measure = { measureId: 'ml', singular: 'millilitre', plural: 'millilitres', short: 'ml' };
 
@@ -41,9 +46,10 @@ const item: PantryItem = {
 const mutate = jest.fn();
 
 function mockItem(state: { isLoading?: boolean; data?: PantryItem; error?: unknown }) {
-  useSWR.mockImplementation((key: string) => {
-    if (key === '/api/measures') return { data: [ML], isLoading: false };
-    return { isLoading: false, data: undefined, error: undefined, mutate, ...state };
+  useSWR.mockImplementation((key: unknown) => {
+    if (resolveKey(key) === '/api/measures') return { data: [ML], isLoading: false };
+    const itemResponse = state.data ? { data: state.data, status: 200, headers: new Headers() } : undefined;
+    return { isLoading: false, error: undefined, mutate, ...state, data: itemResponse };
   });
 }
 
@@ -52,7 +58,6 @@ describe('PantryItemPage', () => {
   const replace = jest.fn();
 
   beforeEach(() => {
-    (fetch as jest.Mock).mockReset();
     push.mockReset();
     replace.mockReset();
     mutate.mockReset();

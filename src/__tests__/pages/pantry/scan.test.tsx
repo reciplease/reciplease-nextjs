@@ -32,10 +32,26 @@ jest.mock('@/components/Metadata', () => () => null);
 jest.mock('@/lib/openfoodfacts', () => ({ lookupProduct: jest.fn() }));
 jest.mock('swr');
 
+// The generated client (src/types/generated/client.ts) calls this mutator
+// directly rather than `fetch` — mocking it here keeps the generated request
+// building/response envelope handling exercised for real, while giving the
+// tests a single, low-level seam to assert against (same role `global.fetch`
+// played before this page migrated off hand-written apiFetch calls).
+const mockApiClientMutator = jest.fn();
+jest.mock('@/lib/apiClientMutator', () => ({
+  apiClientMutator: (...args: unknown[]) => mockApiClientMutator(...args),
+  isSuccessResponse: (response: { status: number }) => response.status >= 200 && response.status < 300,
+  describeErrorStatus: (status: number) => {
+    if (status === 401) return 'Please sign in again.';
+    if (status === 403) return "You don't have permission to do that.";
+    if (status === 404) return "That couldn't be found.";
+    if (status >= 400 && status < 500) return 'Please check your input and try again.';
+    return 'Something went wrong. Please try again.';
+  },
+}));
+
 const useSWR = require('swr').default;
 const { lookupProduct } = require('@/lib/openfoodfacts');
-
-global.fetch = jest.fn();
 
 const mockMeasures: Measure[] = [
   { measureId: 'g', singular: 'gram', plural: 'grams', short: 'g' },
@@ -82,7 +98,8 @@ function pickMeasure() {
 
 describe('ScanPage', () => {
   beforeEach(() => {
-    (fetch as jest.Mock).mockReset();
+    mockApiClientMutator.mockReset();
+    mockApiClientMutator.mockResolvedValue({ data: [], status: 200, headers: new Headers() });
     (lookupProduct as jest.Mock).mockReset();
     useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
   });
@@ -189,11 +206,10 @@ describe('ScanPage', () => {
 
     it('suggests the name and measure from a previously inventoried item with the same barcode', async () => {
       useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
-      (fetch as jest.Mock).mockImplementation((url: string, opts?: { method?: string }) => {
-        if (url === '/api/pantry' && opts?.method === undefined) {
+      mockApiClientMutator.mockImplementation((url: string, opts?: { method?: string }) => {
+        if (url === '/api/pantry' && opts?.method === 'GET') {
           return Promise.resolve({
-            ok: true,
-            json: async () => [
+            data: [
               {
                 uuid: 'u1',
                 name: 'Whole Milk',
@@ -203,9 +219,11 @@ describe('ScanPage', () => {
                 barcode: '1234567890123',
               },
             ],
+            status: 200,
+            headers: new Headers(),
           });
         }
-        return Promise.resolve({ ok: true, json: async () => ({}) });
+        return Promise.resolve({ data: {}, status: 200, headers: new Headers() });
       });
       render(<ScanPage />);
       await scanToDetails();
@@ -223,11 +241,10 @@ describe('ScanPage', () => {
     it('falls back to Open Food Facts when no pantry item matches the barcode', async () => {
       useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
       (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: ['Oat Milk', 'Oatly Oat Milk'], brandCandidates: [], measureId: null });
-      (fetch as jest.Mock).mockImplementation((url: string, opts?: { method?: string }) => {
-        if (url === '/api/pantry' && opts?.method === undefined) {
+      mockApiClientMutator.mockImplementation((url: string, opts?: { method?: string }) => {
+        if (url === '/api/pantry' && opts?.method === 'GET') {
           return Promise.resolve({
-            ok: true,
-            json: async () => [
+            data: [
               {
                 uuid: 'u1',
                 name: 'Whole Milk',
@@ -237,9 +254,11 @@ describe('ScanPage', () => {
                 barcode: 'a-different-barcode',
               },
             ],
+            status: 200,
+            headers: new Headers(),
           });
         }
-        return Promise.resolve({ ok: true, json: async () => ({}) });
+        return Promise.resolve({ data: {}, status: 200, headers: new Headers() });
       });
       render(<ScanPage />);
       await scanToDetails();
@@ -251,11 +270,11 @@ describe('ScanPage', () => {
     it('falls back to Open Food Facts when the pantry lookup responds with an error', async () => {
       useSWR.mockReturnValue({ data: mockMeasures, mutate: jest.fn() });
       (lookupProduct as jest.Mock).mockResolvedValue({ nameCandidates: ['Oat Milk', 'Oatly Oat Milk'], brandCandidates: [], measureId: null });
-      (fetch as jest.Mock).mockImplementation((url: string, opts?: { method?: string }) => {
-        if (url === '/api/pantry' && opts?.method === undefined) {
-          return Promise.resolve({ ok: false });
+      mockApiClientMutator.mockImplementation((url: string, opts?: { method?: string }) => {
+        if (url === '/api/pantry' && opts?.method === 'GET') {
+          return Promise.reject(new Error('500 Internal Server Error'));
         }
-        return Promise.resolve({ ok: true, json: async () => ({}) });
+        return Promise.resolve({ data: {}, status: 200, headers: new Headers() });
       });
       render(<ScanPage />);
       await scanToDetails();
@@ -356,14 +375,14 @@ describe('ScanPage', () => {
 
     it('posts the new flattened payload with barcode and resets', async () => {
       await advanceFromScan();
-      (fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+      mockApiClientMutator.mockResolvedValueOnce({ data: {}, status: 200, headers: new Headers() });
 
       pickMeasure();
       fireEvent.change(screen.getByLabelText(/Amount/), { target: { value: '250' } });
       fireEvent.click(screen.getByText('Save'));
 
       await waitFor(() => {
-        expect(fetch).toHaveBeenCalledWith(
+        expect(mockApiClientMutator).toHaveBeenCalledWith(
           '/api/pantry',
           expect.objectContaining({
             method: 'POST',
@@ -373,6 +392,7 @@ describe('ScanPage', () => {
               amount: 250,
               expiration: '2027-06-01',
               barcode: '1234567890123',
+              remaining: 250,
             }),
           }),
         );
@@ -383,7 +403,7 @@ describe('ScanPage', () => {
 
     it('shows an error when save fails', async () => {
       await advanceFromScan();
-      (fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
+      mockApiClientMutator.mockRejectedValueOnce(new Error('Request failed'));
 
       pickMeasure();
       fireEvent.change(screen.getByLabelText(/Amount/), { target: { value: '250' } });
@@ -394,16 +414,20 @@ describe('ScanPage', () => {
       });
     });
 
-    it('shows an unexpected error message when save throws', async () => {
+    // scan.tsx collapses every save failure — whether the mutator rejects
+    // because the response wasn't ok, or because of a network-level
+    // throw — to the same message, since apiClientMutator always throws
+    // rather than resolving with an `ok: false` response.
+    it('shows the same error message when save throws a network-level error', async () => {
       await advanceFromScan();
-      (fetch as jest.Mock).mockRejectedValueOnce(new Error('network down'));
+      mockApiClientMutator.mockRejectedValueOnce(new Error('network down'));
 
       pickMeasure();
       fireEvent.change(screen.getByLabelText(/Amount/), { target: { value: '250' } });
       fireEvent.click(screen.getByText('Save'));
 
       await waitFor(() => {
-        expect(screen.getByText('Unexpected error.')).toBeInTheDocument();
+        expect(screen.getByText('Failed to save. Please try again.')).toBeInTheDocument();
       });
     });
 
@@ -418,7 +442,7 @@ describe('ScanPage', () => {
 
     it('hides the success flash 2 seconds after a successful save', async () => {
       await advanceFromScan();
-      (fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+      mockApiClientMutator.mockResolvedValueOnce({ data: {}, status: 200, headers: new Headers() });
 
       pickMeasure();
       jest.useFakeTimers();

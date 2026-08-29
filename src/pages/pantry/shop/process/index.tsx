@@ -1,15 +1,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
-import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
 import { toDataUrl } from '@/lib/imageCapture';
-import { apiFetch, useActiveHouse } from '@/lib/houses';
-
-const fetcher = (url: string): Promise<PendingPantryItem[]> =>
-  apiFetch(url).then((res) => {
-    if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
-    return res.json();
-  });
+import { useActiveHouse } from '@/lib/houses';
+import { useFindAllPendingPantryItems, discardPendingPantryItem } from '@/types/generated/client';
+import { isSuccessResponse } from '@/lib/apiClientMutator';
 
 // Small photo tile for a pending capture. Unlike PantryImage this deals in
 // raw base64 (pending photos aren't pantry items yet) and shows which
@@ -48,10 +43,15 @@ function BarcodeThumb({ item }: { item: PendingPantryItem }) {
 // waiting to be digitised into a real pantry item.
 export default function ProcessListPage() {
   const activeHouse = useActiveHouse();
-  const { data: items, error, isLoading, mutate } = useSWR(
-    activeHouse ? ['/api/pantry/pending', activeHouse.id] : null,
-    () => fetcher('/api/pantry/pending'),
-  );
+  // Note: the generated hook's cache key isn't house-scoped (unlike the
+  // hand-written `[url, houseId]` key this replaced) — switching house no
+  // longer forces a refetch here. Left as-is per the migration's accepted
+  // key-shape trade-off.
+  const { data: itemsResponse, error, isLoading, mutate } = useFindAllPendingPantryItems({
+    swr: { enabled: Boolean(activeHouse) },
+  });
+  const items = itemsResponse && isSuccessResponse(itemsResponse) ? itemsResponse.data : undefined;
+  const itemsError = error || (itemsResponse && !isSuccessResponse(itemsResponse));
   const [discarding, setDiscarding] = useState<string | null>(null);
 
   if (!activeHouse || isLoading) {
@@ -63,7 +63,7 @@ export default function ProcessListPage() {
     );
   }
 
-  if (error || !items) {
+  if (itemsError || !items) {
     return (
       <>
         <Metadata title="Process shop" description="Process captured shop items" />
@@ -75,8 +75,13 @@ export default function ProcessListPage() {
   async function handleDiscard(uuid: string) {
     setDiscarding(uuid);
     try {
-      const res = await apiFetch(`/api/pantry/pending/${uuid}`, { method: 'DELETE' });
-      if (res.ok) await mutate();
+      const result = await discardPendingPantryItem(uuid);
+      if (isSuccessResponse(result)) {
+        await mutate();
+      }
+      // Otherwise ignore — discarding failed, so the item just stays in the list.
+    } catch {
+      // Ignore — discarding failed, so the item just stays in the list.
     } finally {
       setDiscarding(null);
     }

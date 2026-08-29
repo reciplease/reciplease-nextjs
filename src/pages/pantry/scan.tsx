@@ -10,10 +10,11 @@ import PantryImage from '@/components/PantryImage';
 import { suggestItemFromBarcode } from '@/lib/suggestItemFromBarcode';
 import { compressToBase64 } from '@/lib/imageCapture';
 import { formatDate } from '@/lib/formatDate';
-import { apiFetch } from '@/lib/houses';
 import { useMeasures } from '@/lib/measures';
 import { toIsoDate } from '@/lib/week';
 import { CreatePantryItemBody, createPantryItemBodyBarcodeRegExp } from '@/types/generated/zod';
+import { createPantryItem } from '@/types/generated/client';
+import { isSuccessResponse, describeErrorStatus } from '@/lib/apiClientMutator';
 
 // This form never collects `remaining` — the backend defaults a missing
 // `remaining` to `amount` on create — so it's dropped from the generated
@@ -166,14 +167,13 @@ export default function ScanPage() {
     setSaving(true);
     setSaveError(null);
     try {
-      const body: CreatePantryItem = candidate;
-      const res = await apiFetch('/api/pantry', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        setSaveError('Failed to save. Please try again.');
+      // A newly-scanned item starts fully remaining — the backend would
+      // default a missing `remaining` to `amount` too, but the generated
+      // create function's body type requires it explicitly.
+      const body: CreatePantryItem & { remaining: number } = { ...candidate, remaining: candidate.amount };
+      const result = await createPantryItem(body);
+      if (!isSuccessResponse(result)) {
+        setSaveError(describeErrorStatus(result.status));
         return;
       }
       // Flash success then reset for next scan
@@ -181,7 +181,7 @@ export default function ScanPage() {
       setTimeout(() => setSuccessFlash(false), 2000);
       resetForNextScan();
     } catch {
-      setSaveError('Unexpected error.');
+      setSaveError('Failed to save. Please try again.');
     } finally {
       setSaving(false);
     }

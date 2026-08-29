@@ -1,5 +1,6 @@
 import { useActionState, useState } from 'react';
-import { apiFetch } from '@/lib/houses';
+import { updatePantryItem } from '@/types/generated/client';
+import { isSuccessResponse, describeErrorStatus } from '@/lib/apiClientMutator';
 
 interface EatFlowProps {
   uuid: string;
@@ -79,20 +80,16 @@ function EatPanel({
         ...(item.barcode ? { barcode: item.barcode } : {}),
         ...(item.image ? { image: item.image } : {}),
       };
-      const res = await apiFetch(`/api/pantry/${uuid}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        return 'Failed to update amount. Please try again.';
+      const result = await updatePantryItem(uuid, body);
+      if (!isSuccessResponse(result)) {
+        return describeErrorStatus(result.status);
       }
 
       onSaved();
       onClose();
       return null;
     } catch {
-      return 'An unexpected error occurred.';
+      return 'Failed to update amount. Please try again.';
     }
   }, null);
 

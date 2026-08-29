@@ -1,23 +1,55 @@
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import Planner from '@/pages/planner/index';
+import { shorten } from '@/lib/recipe-id';
 
 jest.mock('swr');
 jest.mock('@/lib/houses', () => ({
   useActiveHouse: () => ({ id: 'h1', name: 'Home', role: 'OWNER' }),
-  apiFetch: (url: string, init?: RequestInit) => fetch(url, init),
 }));
 jest.mock('next/link', () => ({ children, href, className }: { children: React.ReactNode; href: string; className?: string }) => (
   <a href={href} className={className}>{children}</a>
 ));
 jest.mock('@/components/Metadata', () => () => null);
 
+// The generated client (src/types/generated/client.ts) calls this mutator
+// directly rather than `fetch` — mocking it here keeps the generated request
+// building/response envelope handling exercised for real, while giving the
+// tests a single, low-level seam to assert against.
+const mockApiClientMutator = jest.fn();
+jest.mock('@/lib/apiClientMutator', () => ({
+  apiClientMutator: (...args: unknown[]) => mockApiClientMutator(...args),
+  isSuccessResponse: (response: { status: number }) => response.status >= 200 && response.status < 300,
+  describeErrorStatus: (status: number) => {
+    if (status === 401) return 'Please sign in again.';
+    if (status === 403) return "You don't have permission to do that.";
+    if (status === 404) return "That couldn't be found.";
+    if (status >= 400 && status < 500) return 'Please check your input and try again.';
+    return 'Something went wrong. Please try again.';
+  },
+}));
+
 const useSWR = require('swr').default;
-global.fetch = jest.fn();
+
+// The generated useFindPlannedMealsByDateRange hook passes its key to `swr`
+// as a thunk (`() => isEnabled ? [...] : null`), not a plain key — resolve it
+// the same way the real `swr` package would before matching/asserting on it.
+function resolveKey(key: unknown): unknown {
+  return typeof key === 'function' ? (key as () => unknown)() : key;
+}
+
+function wrap<T>(data: T) {
+  return { data, status: 200, headers: new Headers() };
+}
+
+const MEAL_1_ID = '111111111111111111111111';
+const MEAL_2_ID = '222222222222222222222222';
+const MEAL_1_SHORT_ID = shorten(MEAL_1_ID);
+const MEAL_2_SHORT_ID = shorten(MEAL_2_ID);
 
 const mockMeals: PlannedMeal[] = [
   {
-    plannedMealId: 'meal-1',
-    plannedMealShortId: 'meal-1-short',
+    plannedMealId: MEAL_1_ID,
+    plannedMealShortId: MEAL_1_SHORT_ID,
     houseId: 'h1',
     name: 'Dinner',
     date: '2026-06-06',
@@ -28,8 +60,8 @@ const mockMeals: PlannedMeal[] = [
     eatenAt: '',
   },
   {
-    plannedMealId: 'meal-2',
-    plannedMealShortId: 'meal-2-short',
+    plannedMealId: MEAL_2_ID,
+    plannedMealShortId: MEAL_2_SHORT_ID,
     houseId: 'h1',
     name: 'Leftover rice night',
     date: '2026-06-05',
@@ -39,7 +71,7 @@ const mockMeals: PlannedMeal[] = [
 ];
 
 describe('Planner', () => {
-  beforeEach(() => (fetch as jest.Mock).mockReset());
+  beforeEach(() => mockApiClientMutator.mockReset());
 
   it('shows loading state', () => {
     useSWR.mockReturnValue({ isLoading: true, data: undefined, error: undefined });
@@ -54,7 +86,7 @@ describe('Planner', () => {
   });
 
   it('shows an empty state when nothing is planned', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: [], error: undefined });
+    useSWR.mockReturnValue({ isLoading: false, data: wrap([]), error: undefined });
     render(<Planner />);
     expect(screen.getByText('No meals planned this week')).toBeInTheDocument();
   });
@@ -63,7 +95,7 @@ describe('Planner', () => {
     // mockMeals fall in the week of Mon 1 Jun 2026 — pin "today" there so the
     // selected-week filter (see the filtering test below) doesn't drop them.
     jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
-    useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined });
+    useSWR.mockReturnValue({ isLoading: false, data: wrap(mockMeals), error: undefined });
     render(<Planner />);
     jest.useRealTimers();
 
@@ -73,7 +105,7 @@ describe('Planner', () => {
 
   it('flags ingredients with no pantry allocation as to buy', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
-    useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined });
+    useSWR.mockReturnValue({ isLoading: false, data: wrap(mockMeals), error: undefined });
     render(<Planner />);
     jest.useRealTimers();
 
@@ -82,17 +114,17 @@ describe('Planner', () => {
   });
 
   it('recomputes the requested week from the current date on every render, not just once', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: [], error: undefined });
+    useSWR.mockReturnValue({ isLoading: false, data: wrap([]), error: undefined });
 
     jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
     render(<Planner />);
-    const firstKey = useSWR.mock.calls[useSWR.mock.calls.length - 1][0];
+    const firstKey = resolveKey(useSWR.mock.calls[useSWR.mock.calls.length - 1][0]);
 
     // A different month (not just a different week), so the fetched grid
     // range is guaranteed to differ too.
     jest.setSystemTime(new Date('2026-08-05T12:00:00Z'));
     render(<Planner />);
-    const secondKey = useSWR.mock.calls[useSWR.mock.calls.length - 1][0];
+    const secondKey = resolveKey(useSWR.mock.calls[useSWR.mock.calls.length - 1][0]);
 
     jest.useRealTimers();
 
@@ -101,31 +133,34 @@ describe('Planner', () => {
 
   it('fetches the whole visible month grid, not just the selected week, so the calendar can outline every planned day on screen', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
-    useSWR.mockReturnValue({ isLoading: false, data: [], error: undefined });
+    useSWR.mockReturnValue({ isLoading: false, data: wrap([]), error: undefined });
     render(<Planner />);
     jest.useRealTimers();
 
     // June 2026's grid runs Mon 1 Jun (no leading days) to Sun 5 Jul (trailing
     // days needed to fill the last row) — a superset of the selected week.
-    const key = useSWR.mock.calls[useSWR.mock.calls.length - 1][0];
-    expect(key).toEqual(['/api/planned-meals', 'h1', '2026-06-01', '2026-07-05']);
+    // Note: the generated hook's cache key doesn't carry the active house id
+    // (unlike the previous hand-written key) — see PlannedMealForm/planner
+    // migration notes.
+    const key = resolveKey(useSWR.mock.calls[useSWR.mock.calls.length - 1][0]);
+    expect(key).toEqual(['/api/planned-meals', { start: '2026-06-01', end: '2026-07-05' }]);
   });
 
   it('refetches for the visible grid when navigating to a different month', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
-    useSWR.mockReturnValue({ isLoading: false, data: [], error: undefined });
+    useSWR.mockReturnValue({ isLoading: false, data: wrap([]), error: undefined });
     render(<Planner />);
     jest.useRealTimers();
 
     fireEvent.click(screen.getByLabelText('Next month'));
 
-    const updatedKey = useSWR.mock.calls[useSWR.mock.calls.length - 1][0];
-    expect(updatedKey).toEqual(['/api/planned-meals', 'h1', '2026-06-29', '2026-08-02']);
+    const updatedKey = resolveKey(useSWR.mock.calls[useSWR.mock.calls.length - 1][0]);
+    expect(updatedKey).toEqual(['/api/planned-meals', { start: '2026-06-29', end: '2026-08-02' }]);
   });
 
   it('only lists meals from the selected week even though a wider range was fetched', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
-    useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined });
+    useSWR.mockReturnValue({ isLoading: false, data: wrap(mockMeals), error: undefined });
     render(<Planner />);
     jest.useRealTimers();
 
@@ -135,17 +170,17 @@ describe('Planner', () => {
 
   it('shows an edit link for house owners', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
-    useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined });
+    useSWR.mockReturnValue({ isLoading: false, data: wrap(mockMeals), error: undefined });
     render(<Planner />);
     jest.useRealTimers();
 
     expect(screen.getAllByRole('link', { name: 'Edit' })).toHaveLength(2);
-    expect(screen.getAllByRole('link', { name: 'Edit' })[0]).toHaveAttribute('href', '/planner/meal-2-short/edit');
+    expect(screen.getAllByRole('link', { name: 'Edit' })[0]).toHaveAttribute('href', `/planner/${MEAL_2_SHORT_ID}/edit`);
   });
 
   it('shows a Mark eaten button only for meals with an allocated ingredient', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
-    useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined, mutate: jest.fn() });
+    useSWR.mockReturnValue({ isLoading: false, data: wrap(mockMeals), error: undefined, mutate: jest.fn() });
     render(<Planner />);
     jest.useRealTimers();
 
@@ -156,7 +191,7 @@ describe('Planner', () => {
   it('shows "Eaten" instead of the button once a meal has been marked eaten', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
     const eatenMeals = [{ ...mockMeals[0], eatenAt: '2026-06-06T18:00:00Z' }, mockMeals[1]];
-    useSWR.mockReturnValue({ isLoading: false, data: eatenMeals, error: undefined, mutate: jest.fn() });
+    useSWR.mockReturnValue({ isLoading: false, data: wrap(eatenMeals), error: undefined, mutate: jest.fn() });
     render(<Planner />);
     jest.useRealTimers();
 
@@ -167,33 +202,40 @@ describe('Planner', () => {
   it('marks a meal as eaten and refreshes the list on success', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
     const mutate = jest.fn();
-    useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined, mutate });
-    (fetch as jest.Mock).mockResolvedValue({ ok: true });
+    useSWR.mockReturnValue({ isLoading: false, data: wrap(mockMeals), error: undefined, mutate });
+    mockApiClientMutator.mockResolvedValue({ data: mockMeals[0], status: 200, headers: new Headers() });
     render(<Planner />);
     jest.useRealTimers();
 
     fireEvent.click(screen.getByRole('button', { name: 'Mark eaten' }));
 
     await screen.findByRole('button', { name: 'Mark eaten' });
-    expect(fetch).toHaveBeenCalledWith('/api/planned-meals/meal-1/eaten', expect.objectContaining({ method: 'POST' }));
+    expect(mockApiClientMutator).toHaveBeenCalledWith(
+      `/api/planned-meals/${MEAL_1_ID}/eaten`,
+      expect.objectContaining({ method: 'POST' }),
+    );
     expect(mutate).toHaveBeenCalled();
   });
 
   it('shows an error message when marking eaten fails', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
-    useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined, mutate: jest.fn() });
-    (fetch as jest.Mock).mockResolvedValue({ ok: false });
+    useSWR.mockReturnValue({ isLoading: false, data: wrap(mockMeals), error: undefined, mutate: jest.fn() });
+    mockApiClientMutator.mockResolvedValue({
+      data: { timestamp: '2026-06-06T18:00:00Z', status: 500, error: 'Internal Server Error', path: `/api/planned-meals/${MEAL_1_ID}/eaten` },
+      status: 500,
+      headers: new Headers(),
+    });
     render(<Planner />);
     jest.useRealTimers();
 
     fireEvent.click(screen.getByRole('button', { name: 'Mark eaten' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to mark as eaten. Please try again.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Something went wrong. Please try again.');
   });
 
   it('marks planned days on the calendar with a dot, including ones outside the selected week', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
-    useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined });
+    useSWR.mockReturnValue({ isLoading: false, data: wrap(mockMeals), error: undefined });
     render(<Planner />);
     jest.useRealTimers();
 
@@ -209,7 +251,7 @@ describe('Planner', () => {
 
   it('tints the selected week with the accent colour and every other week with a muted neutral', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-06-03T12:00:00Z'));
-    useSWR.mockReturnValue({ isLoading: false, data: mockMeals, error: undefined });
+    useSWR.mockReturnValue({ isLoading: false, data: wrap(mockMeals), error: undefined });
     render(<Planner />);
     jest.useRealTimers();
 

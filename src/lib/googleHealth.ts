@@ -1,6 +1,6 @@
-import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
-import { apiFetch } from '@/lib/houses';
+import { useFindGoogleHealthConnection } from '@/types/generated/client';
+import { isSuccessResponse } from '@/lib/apiClientMutator';
 import type { components } from '@/types/generated/api';
 
 export type GoogleHealthConnection = components['schemas']['GoogleHealthConnectionStatusDto'];
@@ -14,9 +14,6 @@ export const MEAL_TYPES: { value: string; label: string }[] = [
   { value: 'SNACK', label: 'Snack' },
 ];
 
-const connectionFetcher = (url: string): Promise<GoogleHealthConnection> =>
-  apiFetch(url).then((res) => (res.ok ? res.json() : { connected: false }));
-
 // Whether the current user has linked Google Health. Gated on session status
 // like useHouses() — no point issuing the request while signed out.
 export function useGoogleHealthConnection() {
@@ -24,8 +21,10 @@ export function useGoogleHealthConnection() {
   // Mirror useHouses(): auth-disabled local dev has no session but may carry a
   // RECIPLEASE_DEV_TOKEN through the proxy.
   const authDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED === 'true';
-  return useSWR<GoogleHealthConnection>(
-    status === 'authenticated' || authDisabled ? '/api/google-health/connection' : null,
-    connectionFetcher,
-  );
+  const { data: response, error, ...rest } = useFindGoogleHealthConnection({
+    swr: { enabled: status === 'authenticated' || authDisabled },
+  });
+  const data = response && isSuccessResponse(response) ? response.data : undefined;
+  const responseError = response && !isSuccessResponse(response) ? response.data : undefined;
+  return { data, error: error ?? responseError, ...rest };
 }

@@ -12,16 +12,47 @@ jest.mock('@/lib/houses', () => ({
   useHouseMembers: jest.fn(),
   usePendingInvites: jest.fn(),
   useApiKeys: jest.fn(),
-  apiFetch: (url: string, init?: RequestInit) => fetch(url, init),
 }));
+
+// The generated client (src/types/generated/client.ts) calls this mutator
+// directly rather than `fetch` — mocking it here keeps the generated request
+// building/response envelope handling exercised for real, while giving the
+// tests a single, low-level seam to assert against (same role `global.fetch`
+// played before this page migrated off hand-written apiFetch calls).
+const mockApiClientMutator = jest.fn();
+jest.mock('@/lib/apiClientMutator', () => ({
+  apiClientMutator: (...args: unknown[]) => mockApiClientMutator(...args),
+  isSuccessResponse: (response: { status: number }) => response.status >= 200 && response.status < 300,
+  describeErrorStatus: (status: number) => {
+    if (status === 401) return 'Please sign in again.';
+    if (status === 403) return "You don't have permission to do that.";
+    if (status === 404) return "That couldn't be found.";
+    if (status >= 400 && status < 500) return 'Please check your input and try again.';
+    return 'Something went wrong. Please try again.';
+  },
+}));
+
 jest.mock('@/components/Metadata', () => () => null);
 jest.mock('@/components/HouseSwitcher', () => () => <div data-testid="house-switcher" />);
 
 const { useActiveHouse, useHouseMembers, usePendingInvites, useApiKeys } = require('@/lib/houses');
 
+// Successful mutation responses with no interesting body (204, so the
+// generated mutator never tries to json()-parse them).
+function noContent() {
+  return Promise.resolve({ data: undefined, status: 204, headers: new Headers() });
+}
+
 beforeEach(() => {
   Object.assign(navigator, { clipboard: { writeText: jest.fn().mockResolvedValue(undefined) } });
-  global.fetch = jest.fn();
+  mockApiClientMutator.mockReset();
+  // Default: /api/me resolves to nothing in particular; individual tests that
+  // need a real identity override this.
+  mockApiClientMutator.mockImplementation((url: string) =>
+    url === '/api/me'
+      ? Promise.resolve({ data: { id: 'owner-1' }, status: 200, headers: new Headers() })
+      : noContent(),
+  );
 });
 
 afterEach(() => {
@@ -35,7 +66,7 @@ describe('HouseSettingsPage', () => {
     usePendingInvites.mockReturnValue({ data: undefined, mutate: jest.fn() });
     useApiKeys.mockReturnValue({ data: undefined, mutate: jest.fn() });
 
-    render(<HouseSettingsPage />);
+    renderFresh(<HouseSettingsPage />);
 
     expect(screen.getByTestId('house-switcher')).toBeInTheDocument();
   });
@@ -46,7 +77,7 @@ describe('HouseSettingsPage', () => {
     usePendingInvites.mockReturnValue({ data: undefined, mutate: jest.fn() });
     useApiKeys.mockReturnValue({ data: undefined, mutate: jest.fn() });
 
-    render(<HouseSettingsPage />);
+    renderFresh(<HouseSettingsPage />);
 
     expect(screen.getByText(/Only owners of Test House/)).toBeInTheDocument();
   });
@@ -83,26 +114,25 @@ describe('HouseSettingsPage', () => {
     });
 
     it('lists members with their roles', () => {
-      render(<HouseSettingsPage />);
+      renderFresh(<HouseSettingsPage />);
 
       expect(screen.getByText('owner-handle')).toBeInTheDocument();
       expect(screen.getByText('(no handle set)')).toBeInTheDocument();
     });
 
     it('shows the invite code for each pending invite', () => {
-      render(<HouseSettingsPage />);
+      renderFresh(<HouseSettingsPage />);
 
       expect(screen.getByText('abc123')).toBeInTheDocument();
     });
 
     it('updates a member role and revalidates the member list', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
-      render(<HouseSettingsPage />);
+      renderFresh(<HouseSettingsPage />);
 
       const selects = screen.getAllByLabelText('Role');
       fireEvent.change(selects[1], { target: { value: 'OWNER' } });
 
-      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      await waitFor(() => expect(mockApiClientMutator).toHaveBeenCalledWith(
         '/api/houses/members/member-1',
         expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ role: 'OWNER' }) }),
       ));
@@ -110,15 +140,16 @@ describe('HouseSettingsPage', () => {
     });
 
     it('generates an invite, copies the link to the clipboard, and revalidates pending invites', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        json: async () => ({ id: 'invite-2', code: 'xyz789' }),
-      });
-      render(<HouseSettingsPage />);
+      mockApiClientMutator.mockImplementation((url: string) =>
+        url === '/api/houses/invites'
+          ? Promise.resolve({ data: { id: 'invite-2', code: 'xyz789' }, status: 200, headers: new Headers() })
+          : noContent(),
+      );
+      renderFresh(<HouseSettingsPage />);
 
       fireEvent.click(screen.getByRole('button', { name: 'Generate invite' }));
 
-      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      await waitFor(() => expect(mockApiClientMutator).toHaveBeenCalledWith(
         '/api/houses/invites',
         expect.objectContaining({ method: 'POST', body: JSON.stringify({ role: 'READ_ONLY' }) }),
       ));
@@ -130,21 +161,42 @@ describe('HouseSettingsPage', () => {
     });
 
     it('deletes a pending invite and revalidates the list', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
-      render(<HouseSettingsPage />);
+      renderFresh(<HouseSettingsPage />);
 
       fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
-      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      await waitFor(() => expect(mockApiClientMutator).toHaveBeenCalledWith(
         '/api/houses/invites/invite-1',
         expect.objectContaining({ method: 'DELETE' }),
       ));
       await waitFor(() => expect(mutateInvites).toHaveBeenCalled());
     });
 
-    it('shows an error message when updating a role fails', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({ ok: false });
-      render(<HouseSettingsPage />);
+    it('shows an error message when updating a role returns a non-2xx response', async () => {
+      mockApiClientMutator.mockImplementation((url: string) =>
+        url === '/api/houses/members/member-1'
+          ? Promise.resolve({
+              data: { timestamp: '2026-01-01T00:00:00.000Z', status: 400, error: 'Bad Request', path: url },
+              status: 400,
+              headers: new Headers(),
+            })
+          : noContent(),
+      );
+      renderFresh(<HouseSettingsPage />);
+
+      const selects = screen.getAllByLabelText('Role');
+      fireEvent.change(selects[1], { target: { value: 'OWNER' } });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/Could not update/);
+    });
+
+    it('shows an error message when updating a role rejects outright (network failure)', async () => {
+      mockApiClientMutator.mockImplementation((url: string) =>
+        url === '/api/houses/members/member-1'
+          ? Promise.reject(new Error('network error'))
+          : noContent(),
+      );
+      renderFresh(<HouseSettingsPage />);
 
       const selects = screen.getAllByLabelText('Role');
       fireEvent.change(selects[1], { target: { value: 'OWNER' } });
@@ -153,10 +205,11 @@ describe('HouseSettingsPage', () => {
     });
 
     it('offers a remove (X) only for other members, and removing revalidates the list', async () => {
-      (global.fetch as jest.Mock).mockImplementation((url: string) => {
-        if (url === '/api/me') return Promise.resolve({ ok: true, json: async () => ({ id: 'owner-1' }) });
-        return Promise.resolve({ ok: true });
-      });
+      mockApiClientMutator.mockImplementation((url: string) =>
+        url === '/api/me'
+          ? Promise.resolve({ data: { id: 'owner-1' }, status: 200, headers: new Headers() })
+          : noContent(),
+      );
       const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
       renderFresh(<HouseSettingsPage />);
 
@@ -166,7 +219,7 @@ describe('HouseSettingsPage', () => {
 
       fireEvent.click(removeButtons[0]);
 
-      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      await waitFor(() => expect(mockApiClientMutator).toHaveBeenCalledWith(
         '/api/houses/members/member-1',
         expect.objectContaining({ method: 'DELETE' }),
       ));
@@ -175,23 +228,28 @@ describe('HouseSettingsPage', () => {
     });
 
     it('shows existing API keys without exposing a raw secret', () => {
-      render(<HouseSettingsPage />);
+      renderFresh(<HouseSettingsPage />);
 
       expect(screen.getByText(/rcpl_abcdefghij…/)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Revoke' })).toBeInTheDocument();
     });
 
     it('creates an API key, reveals the raw secret once, and revalidates the list', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        json: async () => ({ id: 'key-2', name: 'Grocery bot', role: 'READ_ONLY', rawKey: 'rcpl_rawsecretvalue1234' }),
-      });
-      render(<HouseSettingsPage />);
+      mockApiClientMutator.mockImplementation((url: string) =>
+        url === '/api/houses/api-keys'
+          ? Promise.resolve({
+              data: { id: 'key-2', name: 'Grocery bot', role: 'READ_ONLY', rawKey: 'rcpl_rawsecretvalue1234' },
+              status: 200,
+              headers: new Headers(),
+            })
+          : noContent(),
+      );
+      renderFresh(<HouseSettingsPage />);
 
       fireEvent.change(screen.getByLabelText('Key name'), { target: { value: 'Grocery bot' } });
       fireEvent.click(screen.getByRole('button', { name: 'Create key' }));
 
-      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      await waitFor(() => expect(mockApiClientMutator).toHaveBeenCalledWith(
         '/api/houses/api-keys',
         expect.objectContaining({ method: 'POST', body: JSON.stringify({ name: 'Grocery bot', role: 'READ_ONLY' }) }),
       ));
@@ -200,13 +258,12 @@ describe('HouseSettingsPage', () => {
     });
 
     it('revokes an API key and revalidates the list', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
       const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
-      render(<HouseSettingsPage />);
+      renderFresh(<HouseSettingsPage />);
 
       fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
 
-      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      await waitFor(() => expect(mockApiClientMutator).toHaveBeenCalledWith(
         '/api/houses/api-keys/key-1',
         expect.objectContaining({ method: 'DELETE' }),
       ));
@@ -215,13 +272,12 @@ describe('HouseSettingsPage', () => {
     });
 
     it('does not revoke an API key when the confirmation is dismissed', () => {
-      (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
       const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false);
-      render(<HouseSettingsPage />);
+      renderFresh(<HouseSettingsPage />);
 
       fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
 
-      expect(global.fetch).not.toHaveBeenCalledWith('/api/houses/api-keys/key-1', expect.anything());
+      expect(mockApiClientMutator).not.toHaveBeenCalledWith('/api/houses/api-keys/key-1', expect.anything());
       confirmSpy.mockRestore();
     });
   });

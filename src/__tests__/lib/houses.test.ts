@@ -10,6 +10,19 @@ jest.mock('next-auth/react');
 const useSWR = require('swr').default;
 const { useSession } = require('next-auth/react');
 
+// The generated hooks (useFindAllHouses, useFindHouseMembers,
+// useFindPendingHouseInvites, ...) pass their key to `swr` as a thunk
+// (`() => isEnabled ? [...] : null`), not a plain key — resolve it the same
+// way the real `swr` package would before matching on it.
+function resolveKey(key: unknown): unknown {
+  return typeof key === 'function' ? (key as () => unknown)() : key;
+}
+
+function lastKey(): unknown {
+  const [key] = useSWR.mock.calls[useSWR.mock.calls.length - 1];
+  return resolveKey(key);
+}
+
 describe('apiFetch', () => {
   const originalFetch = global.fetch;
 
@@ -43,6 +56,7 @@ describe('useHouses', () => {
 
   beforeEach(() => {
     process.env = { ...ORIGINAL_ENV };
+    useSWR.mockReset();
     useSWR.mockReturnValue({ data: undefined, error: undefined, mutate: jest.fn() });
   });
 
@@ -55,7 +69,7 @@ describe('useHouses', () => {
 
     useHouses();
 
-    expect(useSWR).toHaveBeenLastCalledWith(null, expect.any(Function));
+    expect(lastKey()).toBeNull();
   });
 
   it('fetches houses despite no session when auth is disabled (local dev with a dev token)', () => {
@@ -64,7 +78,7 @@ describe('useHouses', () => {
 
     useHouses();
 
-    expect(useSWR).toHaveBeenLastCalledWith('/api/houses', expect.any(Function));
+    expect(lastKey()).toEqual(['/api/houses']);
   });
 
   it('does not fetch houses when session.error flags a dead token, even though status is authenticated', () => {
@@ -72,13 +86,34 @@ describe('useHouses', () => {
 
     useHouses();
 
-    expect(useSWR).toHaveBeenLastCalledWith(null, expect.any(Function));
+    expect(lastKey()).toBeNull();
+  });
+
+  it('treats a non-2xx response as data-less and surfaces the error body', () => {
+    useSession.mockReturnValue({ status: 'authenticated' });
+    useSWR.mockReturnValue({
+      data: {
+        data: { timestamp: '2026-01-01T00:00:00.000Z', status: 401, error: 'Unauthorized', path: '/api/houses' },
+        status: 401,
+        headers: new Headers(),
+      },
+      error: undefined,
+      mutate: jest.fn(),
+    });
+
+    const result = useHouses();
+
+    expect(result.data).toBeUndefined();
+    expect(result.error).toEqual(
+      expect.objectContaining({ status: 401, error: 'Unauthorized' }),
+    );
   });
 });
 
 describe('useHouseMembers / usePendingInvites', () => {
   beforeEach(() => {
     document.cookie = 'reciplease-house-id=house-1';
+    useSWR.mockReset();
     useSWR.mockReturnValue({ data: undefined, error: undefined, mutate: jest.fn() });
   });
 
@@ -92,45 +127,45 @@ describe('useHouseMembers / usePendingInvites', () => {
 
     useHouseMembers();
 
-    expect(useSWR).toHaveBeenLastCalledWith(null, expect.any(Function));
+    expect(lastKey()).toBeNull();
   });
 
   it('does not fetch members or invites when the active house role is READ_ONLY', () => {
     useSession.mockReturnValue({ status: 'authenticated' });
     useSWR.mockReturnValueOnce({
-      data: [{ id: 'house-1', name: 'Test House', role: 'READ_ONLY' }],
+      data: { data: [{ id: 'house-1', name: 'Test House', role: 'READ_ONLY' }], status: 200, headers: new Headers() },
       error: undefined,
       mutate: jest.fn(),
     });
 
     useHouseMembers();
 
-    expect(useSWR).toHaveBeenLastCalledWith(null, expect.any(Function));
+    expect(lastKey()).toBeNull();
   });
 
   it('fetches members when the active house role is OWNER', () => {
     useSession.mockReturnValue({ status: 'authenticated' });
     useSWR.mockReturnValueOnce({
-      data: [{ id: 'house-1', name: 'Test House', role: 'OWNER' }],
+      data: { data: [{ id: 'house-1', name: 'Test House', role: 'OWNER' }], status: 200, headers: new Headers() },
       error: undefined,
       mutate: jest.fn(),
     });
 
     useHouseMembers();
 
-    expect(useSWR).toHaveBeenLastCalledWith('/api/houses/members', expect.any(Function));
+    expect(lastKey()).toEqual(['/api/houses/members']);
   });
 
   it('fetches pending invites when the active house role is OWNER', () => {
     useSession.mockReturnValue({ status: 'authenticated' });
     useSWR.mockReturnValueOnce({
-      data: [{ id: 'house-1', name: 'Test House', role: 'OWNER' }],
+      data: { data: [{ id: 'house-1', name: 'Test House', role: 'OWNER' }], status: 200, headers: new Headers() },
       error: undefined,
       mutate: jest.fn(),
     });
 
     usePendingInvites();
 
-    expect(useSWR).toHaveBeenLastCalledWith('/api/houses/invites', expect.any(Function));
+    expect(lastKey()).toEqual(['/api/houses/invites']);
   });
 });

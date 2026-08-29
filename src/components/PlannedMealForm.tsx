@@ -1,11 +1,12 @@
 import { useActionState, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
-import useSWR from 'swr';
 import { z } from 'zod';
-import { apiFetch, useActiveHouse } from '@/lib/houses';
+import { useActiveHouse } from '@/lib/houses';
 import { useMeasures } from '@/lib/measures';
-import { toRecipe, type BackendRecipe } from '@/lib/recipes';
+import { toRecipe } from '@/lib/recipes';
 import { PlanMealBody } from '@/types/generated/zod';
+import { useFindAllRecipes, useFindAllPantryItems } from '@/types/generated/client';
+import { isSuccessResponse } from '@/lib/apiClientMutator';
 
 /**
  * PlanMealBody and UpdatePlannedMealBody (from the generated OpenAPI zod
@@ -58,19 +59,6 @@ export type PlannedMealFormValues = {
 };
 
 export type PlannedMealFormInitial = PlannedMealFormValues;
-
-const recipesFetcher = async (url: string): Promise<Recipe[]> => {
-  const res = await apiFetch(url);
-  if (!res.ok) return [];
-  const backendRecipes: BackendRecipe[] = await res.json();
-  return backendRecipes.map(toRecipe);
-};
-
-const pantryFetcher = async (url: string): Promise<PantryItem[]> => {
-  const res = await apiFetch(url);
-  if (!res.ok) return [];
-  return res.json();
-};
 
 function toDateInputValue(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -195,8 +183,18 @@ export default function PlannedMealForm({ initial, submitLabel, onSubmit, onDele
   const router = useRouter();
   const activeHouse = useActiveHouse();
   const measures = useMeasures();
-  const { data: recipes } = useSWR(activeHouse ? ['/api/recipes', activeHouse.id] : null, () => recipesFetcher('/api/recipes'));
-  const { data: pantryItems } = useSWR(activeHouse ? ['/api/pantry', activeHouse.id] : null, () => pantryFetcher('/api/pantry'));
+  // Note: unlike the previous hand-written SWR keys (['/api/recipes',
+  // activeHouse.id] / ['/api/pantry', activeHouse.id]), the generated hooks'
+  // cache keys don't include the active house id — switching houses won't by
+  // itself bust this cache. Gating on `enabled` still avoids fetching before
+  // a house is selected; a stale cross-house cache hit is a pre-existing risk
+  // shared with other pages migrated onto the generated client.
+  const { data: recipesResponse } = useFindAllRecipes({ swr: { enabled: Boolean(activeHouse) } });
+  const { data: pantryResponse } = useFindAllPantryItems(undefined, { swr: { enabled: Boolean(activeHouse) } });
+  const recipes = recipesResponse && isSuccessResponse(recipesResponse)
+    ? recipesResponse.data.map(toRecipe)
+    : undefined;
+  const pantryItems = pantryResponse && isSuccessResponse(pantryResponse) ? pantryResponse.data : undefined;
 
   const [name, setName] = useState(initial?.name ?? '');
   const [date, setDate] = useState(initial?.date ?? toDateInputValue(new Date()));

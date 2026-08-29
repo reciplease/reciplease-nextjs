@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
-import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
 import PhotoCaptureInput from '@/components/scanner/PhotoCaptureInput';
-import { apiFetch, useActiveHouse } from '@/lib/houses';
+import { useActiveHouse } from '@/lib/houses';
 import { toDataUrl } from '@/lib/imageCapture';
 import { loadFailedQueue, saveFailedQueue } from '@/lib/shopFailedQueue';
-
-const fetchPending = (url: string): Promise<PendingPantryItem[]> =>
-  apiFetch(url).then((res) => (res.ok ? res.json() : []));
+import { useFindAllPendingPantryItems, createPendingPantryItem } from '@/types/generated/client';
+import { isSuccessResponse } from '@/lib/apiClientMutator';
 
 // The fast "add a whole shop" capture loop. Unlike the single-item scan flow,
 // the three captures here (barcode, expiration photo, measure photo) are
@@ -26,10 +24,15 @@ export default function ShopPage() {
   // The count reflects this house's actual pending backlog — including items
   // captured in an earlier session, not just this page load — so it never
   // understates what's queued up for /pantry/shop/process.
-  const { data: pendingItems, mutate: mutatePending } = useSWR(
-    activeHouse ? ['/api/pantry/pending', activeHouse.id] : null,
-    () => fetchPending('/api/pantry/pending'),
-  );
+  // Note: the generated hook's cache key isn't house-scoped (unlike the
+  // hand-written `[url, houseId]` key this replaced) — switching house no
+  // longer forces a refetch here. Left as-is per the migration's accepted
+  // key-shape trade-off.
+  const { data: pendingItemsResponse, mutate: mutatePending } = useFindAllPendingPantryItems({
+    swr: { enabled: Boolean(activeHouse) },
+  });
+  const pendingItems =
+    pendingItemsResponse && isSuccessResponse(pendingItemsResponse) ? pendingItemsResponse.data : undefined;
   const savedCount = pendingItems?.length ?? 0;
 
   const [barcodeImage, setBarcodeImage] = useState<string | null>(null);
@@ -83,16 +86,17 @@ export default function ShopPage() {
   const submit = useCallback(async (payload: CreatePendingPantryItem) => {
     setInflight((count) => count + 1);
     try {
-      const res = await apiFetch('/api/pantry/pending', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (res.status === 403) {
-        setForbidden(true);
+      const result = await createPendingPantryItem(payload);
+      if (!isSuccessResponse(result)) {
+        // A 403 means this member can't add items at all, so it's surfaced
+        // distinctly rather than queued for retry (see `forbidden` above).
+        if (result.status === 403) {
+          setForbidden(true);
+        } else {
+          setFailed((prior) => [...prior, payload]);
+        }
         return;
       }
-      if (!res.ok) throw new Error('upload failed');
       await mutatePending();
       setSuccessPulse((count) => count + 1);
     } catch {

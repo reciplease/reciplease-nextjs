@@ -1,20 +1,14 @@
 import { useState } from 'react';
-import useSWR from 'swr';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
 import WeekCalendar from '@/components/planner/WeekCalendar';
-import { apiFetch, useActiveHouse } from '@/lib/houses';
+import { useActiveHouse } from '@/lib/houses';
 import { formatDate } from '@/lib/formatDate';
-import { toPlannedMeal, type BackendPlannedMeal } from '@/lib/plannedMeals';
+import { toPlannedMeal } from '@/lib/plannedMeals';
 import { addDays, mondayOf, toIsoDate } from '@/lib/week';
 import { shorten } from '@/lib/recipe-id';
-
-const fetcher = async (url: string): Promise<PlannedMeal[]> => {
-  const res = await apiFetch(url);
-  if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
-  const backendMeals: BackendPlannedMeal[] = await res.json();
-  return backendMeals.map(toPlannedMeal);
-};
+import { useFindPlannedMealsByDateRange, markPlannedMealEaten } from '@/types/generated/client';
+import { isSuccessResponse, describeErrorStatus } from '@/lib/apiClientMutator';
 
 export default function Planner() {
   const activeHouse = useActiveHouse();
@@ -30,10 +24,19 @@ export default function Planner() {
   const fetchStart = visibleRange?.start ?? rangeStart;
   const fetchEnd = visibleRange?.end ?? rangeEnd;
 
-  const { data: meals, error, isLoading, mutate } = useSWR(
-    activeHouse ? ['/api/planned-meals', activeHouse.id, fetchStart, fetchEnd] : null,
-    () => fetcher(`/api/planned-meals?start=${fetchStart}&end=${fetchEnd}`),
+  // Note: unlike the previous hand-written SWR key (which included
+  // activeHouse.id), the generated hook's cache key is just
+  // ['/api/planned-meals', { start, end }] — switching houses won't by itself
+  // bust this cache. Gating on `enabled` still avoids fetching before a
+  // house is selected.
+  const { data: mealsResponse, error, isLoading, mutate } = useFindPlannedMealsByDateRange(
+    { start: fetchStart, end: fetchEnd },
+    { swr: { enabled: Boolean(activeHouse) } },
   );
+  const meals = mealsResponse && isSuccessResponse(mealsResponse)
+    ? mealsResponse.data.map(toPlannedMeal)
+    : undefined;
+  const mealsError = error || (mealsResponse && !isSuccessResponse(mealsResponse));
 
   const plannedDates = new Set(meals?.map((meal) => meal.date));
   const weekMeals = meals?.filter((meal) => meal.date >= rangeStart && meal.date <= rangeEnd);
@@ -61,7 +64,7 @@ export default function Planner() {
 
         {!activeHouse || isLoading ? (
           <p>Loading...</p>
-        ) : error || !weekMeals ? (
+        ) : mealsError || !weekMeals ? (
           <p>Could not load planned meals</p>
         ) : (
           <MealList meals={weekMeals} editable={activeHouse.role === 'OWNER'} onEaten={() => mutate()} />
@@ -94,14 +97,14 @@ function MealListItem({ meal, editable, onEaten }: { meal: PlannedMeal; editable
     setError(null);
     setMarkingEaten(true);
     try {
-      const res = await apiFetch(`/api/planned-meals/${meal.plannedMealId}/eaten`, { method: 'POST' });
-      if (!res.ok) {
-        setError('Failed to mark as eaten. Please try again.');
+      const result = await markPlannedMealEaten(meal.plannedMealId);
+      if (!isSuccessResponse(result)) {
+        setError(describeErrorStatus(result.status));
         return;
       }
       onEaten();
     } catch {
-      setError('An unexpected error occurred.');
+      setError('Failed to mark as eaten. Please try again.');
     } finally {
       setMarkingEaten(false);
     }

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { useGoogleHealthConnection } from '@/lib/googleHealth';
-import { apiFetch } from '@/lib/houses';
+import { disconnectGoogleHealth } from '@/types/generated/client';
+import { isSuccessResponse, describeErrorStatus } from '@/lib/apiClientMutator';
 
 // Settings section for linking/unlinking Google Health. Connecting is a full
 // page navigation (not a fetch) since /api/google-health/authorize needs to
@@ -23,12 +24,14 @@ export default function GoogleHealthConnection() {
     setBusy(true);
     setError(null);
     try {
-      const res = await apiFetch('/api/google-health/connection', { method: 'DELETE' });
-      if (!res.ok) {
-        setError('Could not disconnect Google Health. Please try again.');
+      const result = await disconnectGoogleHealth();
+      if (!isSuccessResponse(result)) {
+        setError(describeErrorStatus(result.status));
         return;
       }
       await mutate();
+    } catch {
+      setError('Could not disconnect Google Health. Please try again.');
     } finally {
       setBusy(false);
     }

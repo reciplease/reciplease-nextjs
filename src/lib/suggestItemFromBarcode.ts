@@ -1,5 +1,6 @@
 import { lookupProduct } from '@/lib/openfoodfacts';
-import { apiFetch } from '@/lib/houses';
+import { findAllPantryItems } from '@/types/generated/client';
+import { isSuccessResponse } from '@/lib/apiClientMutator';
 
 export type ItemSuggestion = {
   name: string;
@@ -31,9 +32,9 @@ export async function suggestItemFromBarcode(barcode: string): Promise<ItemSugge
   };
 
   try {
-    const res = await apiFetch('/api/pantry');
-    if (res.ok) {
-      const items: PantryItem[] = await res.json();
+    const result = await findAllPantryItems();
+    if (isSuccessResponse(result)) {
+      const items = result.data;
       const prior = items.find((it) => it.barcode === barcode);
       if (prior) {
         suggestion.name = prior.name;

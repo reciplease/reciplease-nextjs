@@ -5,12 +5,20 @@ import {
   useHouseMembers,
   usePendingInvites,
   useApiKeys,
-  apiFetch,
   type PendingInvite,
   type CreatedApiKey,
 } from '@/lib/houses';
 import { useState } from 'react';
-import useSWR from 'swr';
+import {
+  useFindMe,
+  updateHouseMemberRole,
+  removeHouseMember,
+  createInvite,
+  deleteHouseInvite,
+  createApiKey as createApiKeyMutation,
+  revokeApiKey as revokeApiKeyMutation,
+} from '@/types/generated/client';
+import { isSuccessResponse } from '@/lib/apiClientMutator';
 import type { components } from '@/types/generated/api';
 
 type Role = components['schemas']['HouseMember']['role'];
@@ -48,9 +56,8 @@ export default function HouseSettingsPage() {
   const { data: invites, mutate: mutateInvites } = usePendingInvites();
   const { data: apiKeys, mutate: mutateApiKeys } = useApiKeys();
   // Current user's id, so we don't offer to remove yourself (cached by AccessGate).
-  const { data: me } = useSWR<{ id: string }>('/api/me', (url: string) =>
-    apiFetch(url).then((r) => (r.ok ? r.json() : null)),
-  );
+  const { data: meResponse } = useFindMe();
+  const me = meResponse && isSuccessResponse(meResponse) ? meResponse.data : undefined;
 
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [newInviteRole, setNewInviteRole] = useState<Role>('READ_ONLY');
@@ -66,16 +73,14 @@ export default function HouseSettingsPage() {
     setUpdatingUserId(userId);
     setError(null);
     try {
-      const res = await apiFetch(`/api/houses/members/${userId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role }),
-      });
-      if (!res.ok) {
+      const result = await updateHouseMemberRole(userId, { role });
+      if (!isSuccessResponse(result)) {
         setError('Could not update that member\'s role. Please try again.');
         return;
       }
       await mutateMembers();
+    } catch {
+      setError('Could not update that member\'s role. Please try again.');
     } finally {
       setUpdatingUserId(null);
     }
@@ -86,12 +91,14 @@ export default function HouseSettingsPage() {
     setUpdatingUserId(userId);
     setError(null);
     try {
-      const res = await apiFetch(`/api/houses/members/${userId}`, { method: 'DELETE' });
-      if (!res.ok) {
+      const result = await removeHouseMember(userId);
+      if (!isSuccessResponse(result)) {
         setError('Could not remove that member. Please try again.');
         return;
       }
       await mutateMembers();
+    } catch {
+      setError('Could not remove that member. Please try again.');
     } finally {
       setUpdatingUserId(null);
     }
@@ -101,20 +108,18 @@ export default function HouseSettingsPage() {
     setGenerating(true);
     setError(null);
     try {
-      const res = await apiFetch('/api/houses/invites', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: newInviteRole }),
-      });
-      if (!res.ok) {
+      const result = await createInvite({ role: newInviteRole });
+      if (!isSuccessResponse(result)) {
         setError('Could not generate an invite. Please try again.');
         return;
       }
-      const invite: PendingInvite = await res.json();
+      const invite: PendingInvite = result.data;
       const link = `${window.location.origin}/invite/${invite.code}`;
       await navigator.clipboard.writeText(link);
       setCopiedInviteId(invite.id);
       await mutateInvites();
+    } catch {
+      setError('Could not generate an invite. Please try again.');
     } finally {
       setGenerating(false);
     }
@@ -122,12 +127,16 @@ export default function HouseSettingsPage() {
 
   async function deleteInvite(inviteId: string) {
     setError(null);
-    const res = await apiFetch(`/api/houses/invites/${inviteId}`, { method: 'DELETE' });
-    if (!res.ok) {
+    try {
+      const result = await deleteHouseInvite(inviteId);
+      if (!isSuccessResponse(result)) {
+        setError('Could not delete that invite. Please try again.');
+        return;
+      }
+      await mutateInvites();
+    } catch {
       setError('Could not delete that invite. Please try again.');
-      return;
     }
-    await mutateInvites();
   }
 
   async function createApiKey() {
@@ -135,19 +144,20 @@ export default function HouseSettingsPage() {
     setCreatingKey(true);
     setError(null);
     try {
-      const res = await apiFetch('/api/houses/api-keys', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newKeyName.trim(), role: newKeyRole }),
+      const result = await createApiKeyMutation({
+        name: newKeyName.trim(),
+        role: newKeyRole,
       });
-      if (!res.ok) {
+      if (!isSuccessResponse(result)) {
         setError('Could not create that API key. Please try again.');
         return;
       }
-      const created: CreatedApiKey = await res.json();
+      const created: CreatedApiKey = result.data;
       setRevealedKey(created);
       setNewKeyName('');
       await mutateApiKeys();
+    } catch {
+      setError('Could not create that API key. Please try again.');
     } finally {
       setCreatingKey(false);
     }
@@ -156,12 +166,16 @@ export default function HouseSettingsPage() {
   async function revokeApiKey(keyId: string) {
     if (!window.confirm('Revoke this API key? Anything using it will stop working immediately.')) return;
     setError(null);
-    const res = await apiFetch(`/api/houses/api-keys/${keyId}`, { method: 'DELETE' });
-    if (!res.ok) {
+    try {
+      const result = await revokeApiKeyMutation(keyId);
+      if (!isSuccessResponse(result)) {
+        setError('Could not revoke that key. Please try again.');
+        return;
+      }
+      await mutateApiKeys();
+    } catch {
       setError('Could not revoke that key. Please try again.');
-      return;
     }
-    await mutateApiKeys();
   }
 
   if (activeHouse && activeHouse.role !== 'OWNER') {

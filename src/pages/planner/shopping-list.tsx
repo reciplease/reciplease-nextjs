@@ -1,8 +1,9 @@
-import useSWR from 'swr';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
-import { apiFetch, useActiveHouse } from '@/lib/houses';
-import { toShoppingList, type BackendShoppingList } from '@/lib/plannedMeals';
+import { useActiveHouse } from '@/lib/houses';
+import { toShoppingList } from '@/lib/plannedMeals';
+import { useFindShoppingList } from '@/types/generated/client';
+import { isSuccessResponse } from '@/lib/apiClientMutator';
 
 function toIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -12,19 +13,21 @@ const today = new Date();
 const rangeStart = toIsoDate(today);
 const rangeEnd = toIsoDate(new Date(today.getTime() + 13 * 24 * 60 * 60 * 1000));
 
-const fetcher = async (url: string): Promise<ShoppingList> => {
-  const res = await apiFetch(url);
-  if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
-  const backendShoppingList: BackendShoppingList = await res.json();
-  return toShoppingList(backendShoppingList);
-};
-
 export default function ShoppingListPage() {
   const activeHouse = useActiveHouse();
-  const { data: shoppingList, error, isLoading } = useSWR(
-    activeHouse ? ['/api/planned-meals/shopping-list', activeHouse.id, rangeStart, rangeEnd] : null,
-    () => fetcher(`/api/planned-meals/shopping-list?start=${rangeStart}&end=${rangeEnd}`),
+  // Note: unlike the previous hand-written SWR key (which included
+  // activeHouse.id), the generated hook's cache key is just
+  // ['/api/planned-meals/shopping-list', { start, end }] — switching houses
+  // won't by itself bust this cache. Gating on `enabled` still avoids
+  // fetching before a house is selected.
+  const { data: shoppingListResponse, error, isLoading } = useFindShoppingList(
+    { start: rangeStart, end: rangeEnd },
+    { swr: { enabled: Boolean(activeHouse) } },
   );
+  const shoppingList = shoppingListResponse && isSuccessResponse(shoppingListResponse)
+    ? toShoppingList(shoppingListResponse.data)
+    : undefined;
+  const shoppingListError = error || (shoppingListResponse && !isSuccessResponse(shoppingListResponse));
 
   if (!activeHouse || isLoading) {
     return (
@@ -35,7 +38,7 @@ export default function ShoppingListPage() {
     );
   }
 
-  if (error || !shoppingList) {
+  if (shoppingListError || !shoppingList) {
     return (
       <>
         <Metadata title="Shopping List" description="Ingredients you still need" />

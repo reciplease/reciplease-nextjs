@@ -1,7 +1,14 @@
 import { useEffect } from 'react';
-import useSWR from 'swr';
 import { useAuthenticated } from '@/lib/useAuthenticated';
 import type { components } from '@/types/generated/api';
+import { isSuccessResponse } from '@/lib/apiClientMutator';
+import {
+  useFindAllHouses,
+  useFindHouseMembers,
+  useFindPendingHouseInvites,
+  useFindAllApiKeys,
+  useFindAllPendingPantryItems,
+} from '@/types/generated/client';
 
 export type House = components['schemas']['House'];
 // `handle` is genuinely optional/nullable here — a member may not have set one.
@@ -50,19 +57,18 @@ export function apiFetch(url: string, init: RequestInit = {}): Promise<Response>
   return fetch(url, { ...init, headers });
 }
 
-const fetcher = (url: string): Promise<House[]> =>
-  apiFetch(url).then((res) => (res.ok ? res.json() : []));
-
 export function useHouses() {
   const authenticated = useAuthenticated();
   // Mirror AccessGate: with auth disabled (local dev) there's no NextAuth session to
   // wait for — fetch anyway, and let the proxy's RECIPLEASE_DEV_TOKEN (if set)
   // authenticate the call.
   const authDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED === 'true';
-  return useSWR<House[]>(
-    authenticated || authDisabled ? '/api/houses' : null,
-    fetcher,
-  );
+  const { data: response, error, ...rest } = useFindAllHouses({
+    swr: { enabled: authenticated || authDisabled },
+  });
+  const data = response && isSuccessResponse(response) ? response.data : undefined;
+  const responseError = response && !isSuccessResponse(response) ? response.data : undefined;
+  return { data, error: error ?? responseError, ...rest };
 }
 
 // The house the X-RCPLS-House-Id cookie currently points at, resolved against
@@ -92,52 +98,51 @@ export function useActiveHouse(): House | undefined {
   return resolved;
 }
 
-const membersFetcher = (url: string): Promise<HouseMember[]> =>
-  apiFetch(url).then((res) => (res.ok ? res.json() : []));
-
-const invitesFetcher = (url: string): Promise<PendingInvite[]> =>
-  apiFetch(url).then((res) => (res.ok ? res.json() : []));
-
 // Only owners can see/manage members and invites — gate the fetch on that so
 // read-only members never even issue the (403-bound) request.
 export function useHouseMembers() {
   const activeHouse = useActiveHouse();
-  return useSWR<HouseMember[]>(
-    activeHouse?.role === 'OWNER' ? '/api/houses/members' : null,
-    membersFetcher,
-  );
+  const { data: response, error, ...rest } = useFindHouseMembers({
+    swr: { enabled: activeHouse?.role === 'OWNER' },
+  });
+  const data = response && isSuccessResponse(response) ? response.data : undefined;
+  const responseError = response && !isSuccessResponse(response) ? response.data : undefined;
+  return { data, error: error ?? responseError, ...rest };
 }
 
 export function usePendingInvites() {
   const activeHouse = useActiveHouse();
-  return useSWR<PendingInvite[]>(
-    activeHouse?.role === 'OWNER' ? '/api/houses/invites' : null,
-    invitesFetcher,
-  );
+  const { data: response, error, ...rest } = useFindPendingHouseInvites({
+    swr: { enabled: activeHouse?.role === 'OWNER' },
+  });
+  const data = response && isSuccessResponse(response) ? response.data : undefined;
+  const responseError = response && !isSuccessResponse(response) ? response.data : undefined;
+  return { data, error: error ?? responseError, ...rest };
 }
-
-const apiKeysFetcher = (url: string): Promise<ApiKey[]> =>
-  apiFetch(url).then((res) => (res.ok ? res.json() : []));
 
 export function useApiKeys() {
   const activeHouse = useActiveHouse();
-  return useSWR<ApiKey[]>(
-    activeHouse?.role === 'OWNER' ? '/api/houses/api-keys' : null,
-    apiKeysFetcher,
-  );
+  const { data: response, error, ...rest } = useFindAllApiKeys({
+    swr: { enabled: activeHouse?.role === 'OWNER' },
+  });
+  const data = response && isSuccessResponse(response) ? response.data : undefined;
+  const responseError = response && !isSuccessResponse(response) ? response.data : undefined;
+  return { data, error: error ?? responseError, ...rest };
 }
 
-const pendingCapturedItemsFetcher = (url: string): Promise<PendingPantryItem[]> =>
-  apiFetch(url).then((res) => (res.ok ? res.json() : []));
-
-// Keyed identically to the fetches on /pantry/shop and /pantry/shop/process,
-// so SWR dedupes across them — mounting this in the header doesn't add a second
-// request on pages that already fetch the same list.
+// NOTE (cache-key dedup): this used to share the SWR key
+// `['/api/pantry/pending', activeHouse.id]` with the fetches on /pantry/shop
+// and /pantry/shop/process, so mounting this in the header never added a
+// second request on those pages. The generated `useFindAllPendingPantryItems`
+// hook uses a fixed key (`getFindAllPendingPantryItemsKey()` = `/api/pantry/pending`,
+// no house id) which doesn't match that array key, so this now issues its own
+// request rather than deduping with those two pages. Those pages are out of
+// scope for this migration; flagged per project decision to migrate anyway
+// rather than block on it.
 export function usePendingCapturedItemsCount(): number {
   const activeHouse = useActiveHouse();
-  const { data } = useSWR(
-    activeHouse ? ['/api/pantry/pending', activeHouse.id] : null,
-    () => pendingCapturedItemsFetcher('/api/pantry/pending'),
-  );
-  return data?.length ?? 0;
+  const { data: response } = useFindAllPendingPantryItems({
+    swr: { enabled: Boolean(activeHouse) },
+  });
+  return response && isSuccessResponse(response) ? response.data.length : 0;
 }

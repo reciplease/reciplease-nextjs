@@ -1,12 +1,18 @@
 import { useActionState, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
 import MdyDateInput from '@/components/MdyDateInput';
 import PantryImage from '@/components/PantryImage';
 import { compressToBase64 } from '@/lib/imageCapture';
-import { apiFetch, useActiveHouse } from '@/lib/houses';
+import { useActiveHouse } from '@/lib/houses';
 import { UpdatePantryItemBody } from '@/types/generated/zod';
+import {
+  useFindPantryItemById,
+  useFindAllMeasures,
+  updatePantryItem,
+  deletePantryItemById,
+} from '@/types/generated/client';
+import { isSuccessResponse, describeErrorStatus } from '@/lib/apiClientMutator';
 
 // The generated schema only enforces `amount >= 0` (matching the backend's
 // validation). The form additionally rejects zero — a zero-amount pantry
@@ -16,37 +22,31 @@ const EditPantryItemSchema = UpdatePantryItemBody.extend({
   amount: UpdatePantryItemBody.shape.amount.gt(0, 'Amount must be greater than 0.'),
 });
 
-const itemFetcher = (url: string): Promise<PantryItem> =>
-  apiFetch(url).then((res) => {
-    if (!res.ok) throw new Error('Not found');
-    return res.json();
-  });
-
-const measuresFetcher = (url: string): Promise<Measure[]> =>
-  fetch(url).then((res) => {
-    if (!res.ok) throw new Error(`GET ${url} failed: ${res.status}`);
-    return res.json();
-  });
-
 export default function EditPantryItem() {
   const router = useRouter();
   const uuid = router.query.uuid as string | undefined;
   const activeHouse = useActiveHouse();
-  const { data: item, error: itemError, isLoading: itemLoading } = useSWR(
-    uuid && activeHouse ? [`/api/pantry/${uuid}`, activeHouse.id] : null,
-    () => itemFetcher(`/api/pantry/${uuid}`),
-  );
-  const { data: measures, isLoading: measuresLoading } = useSWR('/api/measures', measuresFetcher);
+  // Note: the generated hook's cache key isn't house-scoped (unlike the
+  // hand-written `[url, houseId]` key this replaced) — switching house no
+  // longer forces a refetch of whatever item uuid happens to be in the URL.
+  // Left as-is per the migration's accepted key-shape trade-off.
+  const { data: itemResponse, error: itemError, isLoading: itemLoading } = useFindPantryItemById(uuid as string, {
+    swr: { enabled: Boolean(uuid) && Boolean(activeHouse) },
+  });
+  const item = itemResponse && isSuccessResponse(itemResponse) ? itemResponse.data : undefined;
+  const itemErrorOrFailed = itemError || (itemResponse && !isSuccessResponse(itemResponse));
+  const { data: measuresResponse, isLoading: measuresLoading } = useFindAllMeasures();
+  const measures = measuresResponse && isSuccessResponse(measuresResponse) ? measuresResponse.data : undefined;
 
   // See the matching comment in the item detail page — same "bounce back to
   // the list instead of leaving a dead-end page" fix, applied here too. Uses
   // the same raw conditions as the render check below rather than a shared
   // boolean, so that check can still narrow `item`'s type.
   useEffect(() => {
-    if (router.isReady && activeHouse && !itemLoading && (itemError || !item || !uuid)) {
+    if (router.isReady && activeHouse && !itemLoading && (itemErrorOrFailed || !item || !uuid)) {
       router.replace('/pantry');
     }
-  }, [router, activeHouse, itemLoading, itemError, item, uuid]);
+  }, [router, activeHouse, itemLoading, itemErrorOrFailed, item, uuid]);
 
   if (!router.isReady || !activeHouse || itemLoading) {
     return (
@@ -57,7 +57,7 @@ export default function EditPantryItem() {
     );
   }
 
-  if (itemError || !item || !uuid) {
+  if (itemErrorOrFailed || !item || !uuid) {
     return (
       <>
         <Metadata title="Not Found" description="Pantry item not found" />
@@ -102,14 +102,14 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
   const [deleteError, handleDelete, deleting] = useActionState(async (): Promise<string | null> => {
     if (!window.confirm(`Delete ${item.name}? This can't be undone.`)) return null;
     try {
-      const res = await apiFetch(`/api/pantry/${uuid}`, { method: 'DELETE' });
-      if (!res.ok) {
-        return 'Failed to delete item. Please try again.';
+      const result = await deletePantryItemById(uuid);
+      if (!isSuccessResponse(result)) {
+        return describeErrorStatus(result.status);
       }
       router.push('/pantry');
       return null;
     } catch {
-      return 'An unexpected error occurred.';
+      return 'Failed to delete item. Please try again.';
     }
   }, null);
 
@@ -132,18 +132,14 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
       if (!validation.success) {
         return validation.error.issues[0]?.message ?? 'Please check the form and try again.';
       }
-      const res = await apiFetch(`/api/pantry/${uuid}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        return 'Failed to save changes. Please try again.';
+      const result = await updatePantryItem(uuid, body);
+      if (!isSuccessResponse(result)) {
+        return describeErrorStatus(result.status);
       }
       router.push(`/pantry/${uuid}`);
       return null;
     } catch {
-      return 'An unexpected error occurred.';
+      return 'Failed to save changes. Please try again.';
     }
   }, null);
 

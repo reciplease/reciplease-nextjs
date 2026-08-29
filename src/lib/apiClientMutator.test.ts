@@ -3,7 +3,7 @@ jest.mock('@/lib/houses', () => ({
   apiFetch: (...args: unknown[]) => mockApiFetch(...args),
 }));
 
-import { apiClientMutator } from '@/lib/apiClientMutator';
+import { apiClientMutator, isSuccessResponse } from '@/lib/apiClientMutator';
 
 // Exercises the REAL apiClientMutator implementation — only apiFetch (the
 // house-header-injecting wrapper around fetch) is mocked, so this proves the
@@ -51,28 +51,46 @@ describe('apiClientMutator', () => {
     expect(result).toEqual({ data: undefined, status: 204, headers });
   });
 
-  it('rejects with an error including the status on a non-ok response', async () => {
+  it('resolves to the {data, status, headers} envelope on a 404 error response, not a rejection', async () => {
+    const headers = new Headers({ 'content-type': 'application/json' });
+    const errorBody = { timestamp: '2026-08-29T00:00:00Z', status: 404, error: 'Not Found', path: '/api/pantry/missing' };
     mockApiFetch.mockResolvedValue({
       ok: false,
       status: 404,
       statusText: 'Not Found',
-      headers: new Headers(),
-      text: async () => 'not found',
+      headers,
+      json: async () => errorBody,
     });
 
-    await expect(apiClientMutator('/api/pantry/missing')).rejects.toThrow(/404/);
+    await expect(apiClientMutator('/api/pantry/missing')).resolves.toEqual({
+      data: errorBody,
+      status: 404,
+      headers,
+    });
   });
 
-  it('rejects with an error including the status on a 500 response', async () => {
+  it('resolves to the {data, status, headers} envelope on a 500 error response, not a rejection', async () => {
+    const headers = new Headers({ 'content-type': 'application/json' });
+    const errorBody = { timestamp: '2026-08-29T00:00:00Z', status: 500, error: 'Internal Server Error', path: '/api/pantry/p1' };
     mockApiFetch.mockResolvedValue({
       ok: false,
       status: 500,
       statusText: 'Internal Server Error',
-      headers: new Headers(),
-      text: async () => 'boom',
+      headers,
+      json: async () => errorBody,
     });
 
-    await expect(apiClientMutator('/api/pantry/p1')).rejects.toThrow(/500/);
+    await expect(apiClientMutator('/api/pantry/p1')).resolves.toEqual({
+      data: errorBody,
+      status: 500,
+      headers,
+    });
+  });
+
+  it('propagates a genuine network-level failure (apiFetch rejection) as a rejection, not swallowed', async () => {
+    mockApiFetch.mockRejectedValue(new TypeError('Failed to fetch'));
+
+    await expect(apiClientMutator('/api/pantry/p1')).rejects.toThrow('Failed to fetch');
   });
 
   it('invokes apiFetch with the given url and options, proving house-header injection still happens', async () => {
@@ -87,5 +105,20 @@ describe('apiClientMutator', () => {
     await apiClientMutator('/api/pantry/p1', options);
 
     expect(mockApiFetch).toHaveBeenCalledWith('/api/pantry/p1', options);
+  });
+});
+
+describe('isSuccessResponse', () => {
+  it.each([
+    [200, true],
+    [201, true],
+    [204, true],
+    [299, true],
+    [400, false],
+    [401, false],
+    [404, false],
+    [500, false],
+  ])('status %d -> %s', (status, expected) => {
+    expect(isSuccessResponse({ status })).toBe(expected);
   });
 });

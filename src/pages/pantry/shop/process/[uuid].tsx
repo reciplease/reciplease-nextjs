@@ -12,21 +12,22 @@ import { compressToBase64, toDataUrl } from '@/lib/imageCapture';
 import { useActiveHouse } from '@/lib/houses';
 import { useMeasures } from '@/lib/measures';
 import { toIsoDate } from '@/lib/week';
-import { CompleteBody } from '@/types/generated/zod';
+import { CompletePendingPantryItemBody } from '@/types/generated/zod';
 import {
   useFindPendingPantryItem,
   findAllPendingPantryItems,
-  complete as completePendingPantryItem,
+  completePendingPantryItem,
   discardPendingPantryItem,
 } from '@/types/generated/client';
+import { isSuccessResponse, describeErrorStatus } from '@/lib/apiClientMutator';
 
 // This form never collects `remaining` — the backend defaults a missing
 // `remaining` to `amount` on complete — so it's dropped from the generated
 // body schema, matching the same omission in pantry/scan.tsx. The generated
 // `amount` constraint is `>= 0`; this form additionally rejects zero, since
 // a zero-amount pantry item isn't meaningful.
-const CompleteFormSchema = CompleteBody.omit({ remaining: true }).extend({
-  amount: CompleteBody.shape.amount.gt(0, 'Amount must be greater than 0.'),
+const CompleteFormSchema = CompletePendingPantryItemBody.omit({ remaining: true }).extend({
+  amount: CompletePendingPantryItemBody.shape.amount.gt(0, 'Amount must be greater than 0.'),
 });
 
 // Where to go after finishing one item: the next item still in the backlog
@@ -34,7 +35,7 @@ const CompleteFormSchema = CompleteBody.omit({ remaining: true }).extend({
 // yet), or back to the list once nothing's left.
 async function nextDestination(justCompletedUuid: string): Promise<string> {
   const remaining: PendingPantryItem[] = await findAllPendingPantryItems()
-    .then((res) => res.data)
+    .then((res) => (isSuccessResponse(res) ? res.data : []))
     .catch(() => []);
   const next = remaining.find((item) => item.uuid !== justCompletedUuid);
   return next ? `/pantry/shop/process/${next.uuid}` : '/pantry/shop/process';
@@ -61,7 +62,8 @@ export default function ProcessDetailPage() {
   const { data: pendingResponse, error, isLoading } = useFindPendingPantryItem(uuid as string, {
     swr: { enabled: Boolean(uuid) && Boolean(activeHouse) },
   });
-  const pending = pendingResponse?.data;
+  const pending = pendingResponse && isSuccessResponse(pendingResponse) ? pendingResponse.data : undefined;
+  const pendingError = error || (pendingResponse && !isSuccessResponse(pendingResponse));
 
   if (!router.isReady || !activeHouse || isLoading) {
     return (
@@ -72,7 +74,7 @@ export default function ProcessDetailPage() {
     );
   }
 
-  if (error || !pending || !uuid) {
+  if (pendingError || !pending || !uuid) {
     return (
       <>
         <Metadata title="Not Found" description="Pending item not found" />
@@ -185,7 +187,10 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingPantryIt
       // CompleteFormSchema above) — the backend defaults a missing
       // `remaining` to `amount` on complete, so set it explicitly here to
       // satisfy the generated client's request type without an unsafe cast.
-      await completePendingPantryItem(uuid, { ...result.data, remaining: result.data.amount });
+      const completeResult = await completePendingPantryItem(uuid, { ...result.data, remaining: result.data.amount });
+      if (!isSuccessResponse(completeResult)) {
+        return describeErrorStatus(completeResult.status);
+      }
       // Straight on to the next item in the backlog rather than back to the
       // list — digitising is usually a full sweep of everything captured in
       // one trip, so returning to the list after each one would just mean
@@ -199,7 +204,10 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingPantryIt
 
   const [discardError, handleDiscard, discarding] = useActionState(async (): Promise<string | null> => {
     try {
-      await discardPendingPantryItem(uuid);
+      const discardResult = await discardPendingPantryItem(uuid);
+      if (!isSuccessResponse(discardResult)) {
+        return describeErrorStatus(discardResult.status);
+      }
       router.push('/pantry/shop/process');
       return null;
     } catch {

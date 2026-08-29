@@ -1,4 +1,5 @@
-import { apiFetch } from '@/lib/houses';
+import { updatePantryItem } from '@/types/generated/client';
+import { isSuccessResponse } from '@/lib/apiClientMutator';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -51,10 +52,10 @@ export async function binPantryItem(uuid: string, item: PantryItem, thrown: numb
     ...(item.barcode ? { barcode: item.barcode } : {}),
     ...(item.image ? { image: item.image } : {}),
   };
-  const res = await apiFetch(`/api/pantry/${uuid}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return res.ok;
+  try {
+    const result = await updatePantryItem(uuid, body);
+    return isSuccessResponse(result);
+  } catch {
+    return false;
+  }
 }

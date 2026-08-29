@@ -8,13 +8,28 @@ jest.mock('next/router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('@/components/Metadata', () => () => null);
 jest.mock('swr');
 jest.mock('@/lib/houses', () => ({
-  apiFetch: (...args: unknown[]) => (global.fetch as jest.Mock)(...args),
   useActiveHouse: () => ({ id: 'house-1', name: 'Home' }),
 }));
 
-const useSWR = require('swr').default;
+// The generated client (src/types/generated/client.ts) calls this mutator
+// directly rather than `fetch` — mocking it here keeps the generated request
+// building/response envelope handling exercised for real, while giving the
+// tests a single, low-level seam to assert against (same role `global.fetch`
+// played before this page migrated off hand-written apiFetch calls).
+const mockApiClientMutator = jest.fn();
+jest.mock('@/lib/apiClientMutator', () => ({
+  apiClientMutator: (...args: unknown[]) => mockApiClientMutator(...args),
+  isSuccessResponse: (response: { status: number }) => response.status >= 200 && response.status < 300,
+  describeErrorStatus: (status: number) => {
+    if (status === 401) return 'Please sign in again.';
+    if (status === 403) return "You don't have permission to do that.";
+    if (status === 404) return "That couldn't be found.";
+    if (status >= 400 && status < 500) return 'Please check your input and try again.';
+    return 'Something went wrong. Please try again.';
+  },
+}));
 
-global.fetch = jest.fn();
+const useSWR = require('swr').default;
 
 const pendingItems: PendingPantryItem[] = [
   {
@@ -32,9 +47,13 @@ describe('ProcessListPage', () => {
   const mutate = jest.fn();
 
   beforeEach(() => {
-    (fetch as jest.Mock).mockReset();
+    mockApiClientMutator.mockReset();
     mutate.mockReset();
-    useSWR.mockReturnValue({ data: pendingItems, mutate, isLoading: false });
+    useSWR.mockReturnValue({
+      data: { data: pendingItems, status: 200, headers: new Headers() },
+      mutate,
+      isLoading: false,
+    });
   });
 
   it('lists pending items with their barcode photo and a link to process each', () => {
@@ -79,7 +98,7 @@ describe('ProcessListPage', () => {
   });
 
   it('shows an empty state when there is nothing to process', () => {
-    useSWR.mockReturnValue({ data: [], mutate, isLoading: false });
+    useSWR.mockReturnValue({ data: { data: [], status: 200, headers: new Headers() }, mutate, isLoading: false });
     render(<ProcessListPage />);
 
     expect(screen.getByText(/Nothing to process/)).toBeInTheDocument();
@@ -87,13 +106,13 @@ describe('ProcessListPage', () => {
   });
 
   it('discards a pending item and refreshes the list', async () => {
-    (fetch as jest.Mock).mockResolvedValue({ ok: true });
+    mockApiClientMutator.mockResolvedValue({ data: undefined, status: 204, headers: new Headers() });
     render(<ProcessListPage />);
 
     fireEvent.click(screen.getAllByLabelText('Discard')[0]);
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(
+      expect(mockApiClientMutator).toHaveBeenCalledWith(
         '/api/pantry/pending/p1',
         expect.objectContaining({ method: 'DELETE' }),
       );
