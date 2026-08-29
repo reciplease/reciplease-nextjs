@@ -32,7 +32,8 @@
     "react-dom": "^19.2.8",
     "sass": "^1.62.1",
     "swr": "^2.5.1",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

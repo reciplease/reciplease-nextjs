@@ -112,18 +112,18 @@ describe('parseIngredient', () => {
 describe('extractRecipeFromJsonLd', () => {
   it('extracts a top-level Recipe object (HelloFresh style)', () => {
     const jsonLd = { '@context': 'http://schema.org', '@type': 'Recipe', name: 'Pasta' };
-    expect(extractRecipeFromJsonLd(jsonLd)).toBe(jsonLd);
+    expect(extractRecipeFromJsonLd(jsonLd)).toEqual({ '@type': 'Recipe', name: 'Pasta' });
   });
 
   it('extracts a Recipe nested inside @graph (BBC Good Food style)', () => {
     const recipe = { '@type': 'Recipe', name: 'Cake' };
     const jsonLd = { '@context': 'https://schema.org', '@graph': [{ '@type': 'WebPage' }, recipe] };
-    expect(extractRecipeFromJsonLd(jsonLd)).toBe(recipe);
+    expect(extractRecipeFromJsonLd(jsonLd)).toEqual(recipe);
   });
 
   it('handles @type as an array containing "Recipe"', () => {
     const jsonLd = { '@type': ['Thing', 'Recipe'], name: 'Soup' };
-    expect(extractRecipeFromJsonLd(jsonLd)).toBe(jsonLd);
+    expect(extractRecipeFromJsonLd(jsonLd)).toEqual(jsonLd);
   });
 
   it('returns null when @graph contains no Recipe', () => {
@@ -261,7 +261,7 @@ describe('parseImportedRecipe', () => {
 
   it('handles @type as an array containing Recipe', () => {
     const schema = { '@type': ['Recipe', 'Thing'], name: 'Stew' } as SchemaOrgRecipe;
-    expect(extractRecipeFromJsonLd(schema)).toBe(schema);
+    expect(extractRecipeFromJsonLd(schema)).toEqual(schema);
   });
 
   describe('HelloFresh multi-bullet step format', () => {

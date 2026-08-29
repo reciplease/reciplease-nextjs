@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { RecipeFormIngredient, RecipeFormInitial } from '@/components/RecipeForm';
 
 // Maps text forms of units found in schema.org recipeIngredient strings to the
@@ -83,16 +84,18 @@ export function parseIngredient(str: string): RecipeFormIngredient {
   return { name: remainder.trim().toLowerCase() || normalized.toLowerCase(), measureId: 'item', amount, ...(originalUnit ? { originalUnit } : {}) };
 }
 
-export interface SchemaOrgRecipe {
-  '@type': string | string[];
-  name?: unknown;
-  description?: unknown;
-  recipeIngredient?: unknown[];
-  recipeInstructions?: unknown[];
-  // Every other field is unknown/unvalidated at this point — this index signature lets a plain
-  // `Record<string, unknown>` be assigned directly (single cast, no `unknown` bridge needed).
-  [key: string]: unknown;
-}
+const SchemaOrgRecipeSchema = z.object({
+  '@type': z.union([z.string(), z.array(z.string())]),
+  name: z.unknown().optional(),
+  description: z.unknown().optional(),
+  recipeIngredient: z.array(z.unknown()).optional(),
+  // schema.org allows this to be an array of steps, a single plain string, or an
+  // ItemList object ({ itemListElement: [...] }) — normalizeInstructions() below
+  // handles all three shapes, so validate loosely here and defer shape-narrowing to it.
+  recipeInstructions: z.unknown().optional(),
+});
+
+export type SchemaOrgRecipe = z.infer<typeof SchemaOrgRecipeSchema>;
 
 // Recursively finds a schema.org Recipe object in arbitrary JSON-LD.
 // Handles both top-level @type layouts (HelloFresh) and @graph-wrapped layouts (BBC Good Food).
@@ -110,7 +113,8 @@ export function extractRecipeFromJsonLd(jsonLd: unknown): SchemaOrgRecipe | null
 
   const type = obj['@type'];
   if (type === 'Recipe' || (Array.isArray(type) && (type as string[]).includes('Recipe'))) {
-    return obj as SchemaOrgRecipe;
+    const result = SchemaOrgRecipeSchema.safeParse(obj);
+    return result.success ? result.data : null;
   }
 
   return null;

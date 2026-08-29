@@ -33,6 +33,14 @@ module.exports = [
           message:
             'Avoid `x as unknown as Y` — it bypasses type checking entirely. Narrow the type properly, use a type guard, or (for genuinely incompatible ambient/DOM types) use a `declare global` augmentation instead.',
         },
+        {
+          // Blocks `[key: string]: unknown` / `[key: number]: unknown` index signatures used
+          // as a cast escape hatch — they make EVERY property access on the type (including
+          // typos) silently type-check as `unknown`, defeating the point of the interface.
+          selector: "TSIndexSignature[typeAnnotation.typeAnnotation.type='TSUnknownKeyword']",
+          message:
+            'Avoid an `unknown`-typed index signature as a cast escape hatch — it silently type-checks every property access on this type, including typos. Type the fields you actually use instead, or validate the shape at runtime (e.g. with zod).',
+        },
       ],
     },
   },
