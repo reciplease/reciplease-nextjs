@@ -1,7 +1,6 @@
 import { useActionState, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import useSWR from 'swr';
 import Metadata from '@/components/Metadata';
 import MdyDateInput from '@/components/MdyDateInput';
 import MeasureAmountFields from '@/components/scanner/MeasureAmountFields';
@@ -10,10 +9,16 @@ import PhotoCaptureInput from '@/components/scanner/PhotoCaptureInput';
 import PantryImage from '@/components/PantryImage';
 import { suggestItemFromBarcode } from '@/lib/suggestItemFromBarcode';
 import { compressToBase64, toDataUrl } from '@/lib/imageCapture';
-import { apiFetch, useActiveHouse } from '@/lib/houses';
+import { useActiveHouse } from '@/lib/houses';
 import { useMeasures } from '@/lib/measures';
 import { toIsoDate } from '@/lib/week';
 import { CompleteBody } from '@/types/generated/zod';
+import {
+  useFindPendingPantryItem,
+  findAllPendingPantryItems,
+  complete as completePendingPantryItem,
+  discardPendingPantryItem,
+} from '@/types/generated/client';
 
 // This form never collects `remaining` — the backend defaults a missing
 // `remaining` to `amount` on complete — so it's dropped from the generated
@@ -24,18 +29,12 @@ const CompleteFormSchema = CompleteBody.omit({ remaining: true }).extend({
   amount: CompleteBody.shape.amount.gt(0, 'Amount must be greater than 0.'),
 });
 
-const fetcher = (url: string): Promise<PendingPantryItem> =>
-  apiFetch(url).then((res) => {
-    if (!res.ok) throw new Error('Not found');
-    return res.json();
-  });
-
 // Where to go after finishing one item: the next item still in the backlog
 // (excluding the one we just completed, in case the list hasn't caught up
 // yet), or back to the list once nothing's left.
 async function nextDestination(justCompletedUuid: string): Promise<string> {
-  const remaining: PendingPantryItem[] = await apiFetch('/api/pantry/pending')
-    .then((res) => (res.ok ? res.json() : []))
+  const remaining: PendingPantryItem[] = await findAllPendingPantryItems()
+    .then((res) => res.data)
     .catch(() => []);
   const next = remaining.find((item) => item.uuid !== justCompletedUuid);
   return next ? `/pantry/shop/process/${next.uuid}` : '/pantry/shop/process';
@@ -59,10 +58,10 @@ export default function ProcessDetailPage() {
   const router = useRouter();
   const uuid = router.query.uuid as string | undefined;
   const activeHouse = useActiveHouse();
-  const { data: pending, error, isLoading } = useSWR(
-    uuid && activeHouse ? [`/api/pantry/pending/${uuid}`, activeHouse.id] : null,
-    () => fetcher(`/api/pantry/pending/${uuid}`),
-  );
+  const { data: pendingResponse, error, isLoading } = useFindPendingPantryItem(uuid as string, {
+    swr: { enabled: Boolean(uuid) && Boolean(activeHouse) },
+  });
+  const pending = pendingResponse?.data;
 
   if (!router.isReady || !activeHouse || isLoading) {
     return (
@@ -182,14 +181,11 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingPantryIt
       return result.error.issues[0]?.message ?? 'Please check the form for errors.';
     }
     try {
-      const res = await apiFetch(`/api/pantry/pending/${uuid}/complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(result.data),
-      });
-      if (!res.ok) {
-        return 'Failed to add the item. Please try again.';
-      }
+      // `remaining` is intentionally omitted from the form (see
+      // CompleteFormSchema above) — the backend defaults a missing
+      // `remaining` to `amount` on complete, so set it explicitly here to
+      // satisfy the generated client's request type without an unsafe cast.
+      await completePendingPantryItem(uuid, { ...result.data, remaining: result.data.amount });
       // Straight on to the next item in the backlog rather than back to the
       // list — digitising is usually a full sweep of everything captured in
       // one trip, so returning to the list after each one would just mean
@@ -197,20 +193,17 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingPantryIt
       router.push(await nextDestination(uuid));
       return null;
     } catch {
-      return 'An unexpected error occurred.';
+      return 'Failed to add the item. Please try again.';
     }
   }, null);
 
   const [discardError, handleDiscard, discarding] = useActionState(async (): Promise<string | null> => {
     try {
-      const res = await apiFetch(`/api/pantry/pending/${uuid}`, { method: 'DELETE' });
-      if (!res.ok) {
-        return 'Failed to discard. Please try again.';
-      }
+      await discardPendingPantryItem(uuid);
       router.push('/pantry/shop/process');
       return null;
     } catch {
-      return 'An unexpected error occurred.';
+      return 'Failed to discard. Please try again.';
     }
   }, null);
 

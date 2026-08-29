@@ -8,11 +8,30 @@ type PasskeyResult = { ok: true } | { ok: false; error: string };
 
 // TypeScript's bundled DOM lib doesn't yet type the WebAuthn JSON serialization extension
 // (https://w3c.github.io/webauthn/#sctn-parseCreationOptionsFromJSON) that browsers already
-// ship (Chrome 122+, Safari 18+, Firefox 122+) — cast through this rather than fighting the
-// global PublicKeyCredential ambient declaration with module augmentation. Read lazily
-// (inside functions, not at module scope) since PublicKeyCredential doesn't exist in
-// non-browser environments (e.g. Jest/jsdom) this module still needs to be importable in.
+// ship (Chrome 122+, Safari 18+, Firefox 122+). The instance-side method (`credential.toJSON()`)
+// can be added with a plain `declare global { interface PublicKeyCredential { ... } }`
+// augmentation below — TypeScript merges that straight into the existing ambient interface,
+// so no cast is needed at the call site.
+declare global {
+  interface PublicKeyCredential {
+    toJSON(): unknown;
+  }
+}
+
+// The two static methods (`parseCreationOptionsFromJSON`/`parseRequestOptionsFromJSON`) live on
+// the `PublicKeyCredential` *constructor*, which lib.dom.d.ts declares as `declare var
+// PublicKeyCredential: { ... }` — an anonymous object type, not a named interface. TypeScript
+// only merges declarations of the same *named* type (interfaces, namespaces); a `declare var`
+// re-declaration requires the type to be identical to the existing one, so there is no
+// augmentation target for adding methods to it (verified: re-declaring `var PublicKeyCredential`
+// with the extra methods included fails with TS2403 "Subsequent variable declarations must have
+// the same type", even when every original member is copied over). A same-shape `as` cast fails
+// too (TS2352, "neither type sufficiently overlaps") since the static methods below aren't part
+// of the ambient type. This is one of the rare cases where casting through `unknown` is the only
+// option (no clean augmentation path exists for extending a `declare var`-typed global
+// constructor's static side).
 function publicKeyCredentialJSON() {
+  // eslint-disable-next-line no-restricted-syntax -- narrow, documented exception; see comment above
   return PublicKeyCredential as unknown as {
     parseCreationOptionsFromJSON(options: unknown): PublicKeyCredentialCreationOptions;
     parseRequestOptionsFromJSON(options: unknown): PublicKeyCredentialRequestOptions;
@@ -20,7 +39,7 @@ function publicKeyCredentialJSON() {
 }
 
 function toJSON(credential: PublicKeyCredential): unknown {
-  return (credential as unknown as { toJSON(): unknown }).toJSON();
+  return credential.toJSON();
 }
 
 async function startCeremony(optionsPath: string): Promise<{ challenge: string; optionsJson: Record<string, unknown> } | null> {

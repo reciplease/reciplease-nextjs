@@ -89,6 +89,9 @@ export interface SchemaOrgRecipe {
   description?: unknown;
   recipeIngredient?: unknown[];
   recipeInstructions?: unknown[];
+  // Every other field is unknown/unvalidated at this point — this index signature lets a plain
+  // `Record<string, unknown>` be assigned directly (single cast, no `unknown` bridge needed).
+  [key: string]: unknown;
 }
 
 // Recursively finds a schema.org Recipe object in arbitrary JSON-LD.
@@ -107,7 +110,7 @@ export function extractRecipeFromJsonLd(jsonLd: unknown): SchemaOrgRecipe | null
 
   const type = obj['@type'];
   if (type === 'Recipe' || (Array.isArray(type) && (type as string[]).includes('Recipe'))) {
-    return obj as unknown as SchemaOrgRecipe;
+    return obj as SchemaOrgRecipe;
   }
 
   return null;

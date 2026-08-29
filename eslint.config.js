@@ -18,4 +18,22 @@ module.exports = [
       '@typescript-eslint/no-unused-vars': 'off',
     },
   },
+  {
+    // Blocks the "x as unknown as Y" double-cast escape hatch in production code —
+    // it defeats type checking entirely with no compiler feedback. Test files are
+    // exempt: casting through `unknown` to build a partial/incompatible mock object
+    // is an accepted, common pattern there (see src/__tests__/**, src/**/*.test.ts(x)).
+    files: ['src/**/*.ts', 'src/**/*.tsx'],
+    ignores: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/types/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "TSAsExpression > TSAsExpression[typeAnnotation.type='TSUnknownKeyword']",
+          message:
+            'Avoid `x as unknown as Y` — it bypasses type checking entirely. Narrow the type properly, use a type guard, or (for genuinely incompatible ambient/DOM types) use a `declare global` augmentation instead.',
+        },
+      ],
+    },
+  },
 ];

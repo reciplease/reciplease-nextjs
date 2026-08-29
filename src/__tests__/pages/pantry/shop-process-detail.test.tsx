@@ -8,10 +8,19 @@ jest.mock('next/router', () => ({ useRouter: jest.fn() }));
 jest.mock('@/components/Metadata', () => () => null);
 jest.mock('swr');
 jest.mock('@/lib/houses', () => ({
-  apiFetch: (...args: unknown[]) => (global.fetch as jest.Mock)(...args),
   useActiveHouse: () => ({ id: 'house-1', name: 'Home' }),
 }));
 jest.mock('@/lib/suggestItemFromBarcode', () => ({ suggestItemFromBarcode: jest.fn() }));
+
+// The generated client (src/types/generated/client.ts) calls this mutator
+// directly rather than `fetch` — mocking it here keeps the generated request
+// building/response envelope handling exercised for real, while giving the
+// tests a single, low-level seam to assert against (same role `global.fetch`
+// played before this page migrated off hand-written apiFetch calls).
+const mockApiClientMutator = jest.fn();
+jest.mock('@/lib/apiClientMutator', () => ({
+  apiClientMutator: (...args: unknown[]) => mockApiClientMutator(...args),
+}));
 
 const mockDecodeFromImageUrl = jest.fn();
 jest.mock('@zxing/browser', () => ({
@@ -24,7 +33,12 @@ const useSWR = require('swr').default;
 const { useRouter } = require('next/router');
 const { suggestItemFromBarcode } = require('@/lib/suggestItemFromBarcode');
 
-global.fetch = jest.fn();
+// The generated SWR hook (useFindPendingPantryItem) passes its key to `swr`
+// as a thunk (`() => isEnabled ? [...] : null`), not a plain key — resolve it
+// the same way the real `swr` package would before matching on it.
+function resolveKey(key: unknown): unknown {
+  return typeof key === 'function' ? (key as () => unknown)() : key;
+}
 
 const mockMeasures: Measure[] = [
   { measureId: 'g', singular: 'gram', plural: 'grams', short: 'g' },
@@ -42,9 +56,9 @@ const push = jest.fn();
 
 function setup(item: PendingPantryItem = pendingItem) {
   useSWR.mockImplementation((key: unknown) =>
-    key === '/api/measures'
+    resolveKey(key) === '/api/measures'
       ? { data: mockMeasures, isLoading: false, mutate: jest.fn() }
-      : { data: item, isLoading: false, mutate: jest.fn() },
+      : { data: { data: item, status: 200, headers: new Headers() }, isLoading: false, mutate: jest.fn() },
   );
   return render(<ProcessDetailPage />);
 }
@@ -62,7 +76,7 @@ function pickMeasure() {
 
 describe('ProcessDetailPage', () => {
   beforeEach(() => {
-    (fetch as jest.Mock).mockReset();
+    mockApiClientMutator.mockReset();
     push.mockReset();
     (useRouter as jest.Mock).mockReturnValue({ isReady: true, query: { uuid: 'p1' }, push });
     (suggestItemFromBarcode as jest.Mock).mockReset();
@@ -128,10 +142,10 @@ describe('ProcessDetailPage', () => {
   });
 
   it('completes the pending item with a free-text month and advances straight to the next one in the backlog', async () => {
-    (fetch as jest.Mock).mockImplementation((url: string) =>
+    mockApiClientMutator.mockImplementation((url: string) =>
       url === '/api/pantry/pending'
-        ? Promise.resolve({ ok: true, json: async () => [{ uuid: 'p2' }] })
-        : Promise.resolve({ ok: true, json: async () => ({}) }),
+        ? Promise.resolve({ data: [{ uuid: 'p2' }], status: 200, headers: new Headers() })
+        : Promise.resolve({ data: {}, status: 200, headers: new Headers() }),
     );
     setup();
     await waitFor(() => expect(screen.getByLabelText('Name')).toHaveValue('Oat Milk'));
@@ -144,30 +158,33 @@ describe('ProcessDetailPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Add to pantry/ }));
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(
+      expect(mockApiClientMutator).toHaveBeenCalledWith(
         '/api/pantry/pending/p1/complete',
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({
-            name: 'Oat Milk',
-            brand: 'Oatly',
-            measure: 'g',
-            amount: 500,
-            expiration: '2027-06-01',
-            barcode: '1234567890123',
-          }),
-        }),
+        expect.objectContaining({ method: 'POST' }),
       );
+    });
+    // Compare as a parsed object, not a literal JSON string — key order in
+    // the serialized body is incidental (it falls out of how the payload
+    // object happens to be built) and shouldn't make this assertion brittle.
+    const [, options] = mockApiClientMutator.mock.calls.find(([url]) => url === '/api/pantry/pending/p1/complete')!;
+    expect(JSON.parse(options.body)).toEqual({
+      name: 'Oat Milk',
+      brand: 'Oatly',
+      measure: 'g',
+      amount: 500,
+      expiration: '2027-06-01',
+      barcode: '1234567890123',
+      remaining: 500,
     });
     // Straight to the next backlog item, not back to the list.
     await waitFor(() => expect(push).toHaveBeenCalledWith('/pantry/shop/process/p2'));
   });
 
   it('returns to the list once the backlog is empty after completing', async () => {
-    (fetch as jest.Mock).mockImplementation((url: string) =>
+    mockApiClientMutator.mockImplementation((url: string) =>
       url === '/api/pantry/pending'
-        ? Promise.resolve({ ok: true, json: async () => [] })
-        : Promise.resolve({ ok: true, json: async () => ({}) }),
+        ? Promise.resolve({ data: [], status: 200, headers: new Headers() })
+        : Promise.resolve({ data: {}, status: 200, headers: new Headers() }),
     );
     setup();
     await waitFor(() => expect(screen.getByLabelText('Name')).toHaveValue('Oat Milk'));
@@ -203,13 +220,13 @@ describe('ProcessDetailPage', () => {
   });
 
   it('discards the pending item and navigates back to the list', async () => {
-    (fetch as jest.Mock).mockResolvedValue({ ok: true });
+    mockApiClientMutator.mockResolvedValue({ data: undefined, status: 200, headers: new Headers() });
     setup();
 
     fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(
+      expect(mockApiClientMutator).toHaveBeenCalledWith(
         '/api/pantry/pending/p1',
         expect.objectContaining({ method: 'DELETE' }),
       );
@@ -219,7 +236,7 @@ describe('ProcessDetailPage', () => {
 
   it('shows a not-found state when the pending item is gone', () => {
     useSWR.mockImplementation((key: unknown) =>
-      key === '/api/measures'
+      resolveKey(key) === '/api/measures'
         ? { data: mockMeasures, isLoading: false, mutate: jest.fn() }
         : { data: undefined, error: new Error('Not found'), isLoading: false, mutate: jest.fn() },
     );
