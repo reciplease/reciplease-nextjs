@@ -34,6 +34,8 @@ type AllocationRow = {
   amount: string;
 };
 
+const EMPTY_ALLOCATION_KEY = -1;
+
 type RowState = {
   key: number;
   name: string;
@@ -93,14 +95,18 @@ function AllocationLine({
   allocation,
   pantryItems,
   chosenElsewhereInRow,
+  amountStillNeeded,
   onChange,
   onRemove,
+  removable,
 }: {
   allocation: AllocationRow;
   pantryItems: PantryItem[];
   chosenElsewhereInRow: Set<string>;
+  amountStillNeeded: number;
   onChange: (allocation: AllocationRow) => void;
   onRemove: () => void;
+  removable: boolean;
 }) {
   const selectable = pantryItems.filter(
     (item) => item.uuid === allocation.pantryItemId || !chosenElsewhereInRow.has(item.uuid)
@@ -109,7 +115,7 @@ function AllocationLine({
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
       <select
-        aria-label="From stock"
+        aria-label="From stock:"
         value={allocation.pantryItemId}
         onChange={(e) => {
           const item = pantryItems.find((i) => i.uuid === e.target.value);
@@ -117,7 +123,12 @@ function AllocationLine({
             onChange({ ...allocation, pantryItemId: '', pantryItemName: '' });
             return;
           }
-          onChange({ ...allocation, pantryItemId: item.uuid, pantryItemName: item.name });
+          onChange({
+            ...allocation,
+            pantryItemId: item.uuid,
+            pantryItemName: item.name,
+            amount: String(Math.min(item.remaining, amountStillNeeded || item.remaining)),
+          });
         }}
         className="flex-1 min-w-0 p-1.5 border border-[#ccc] rounded"
       >
@@ -139,7 +150,9 @@ function AllocationLine({
           className="w-24 min-w-0 p-1.5 border border-[#ccc] rounded"
         />
       )}
-      <button type="button" onClick={onRemove} aria-label="Remove allocation" className="shrink-0">×</button>
+      {removable && (
+        <button type="button" onClick={onRemove} aria-label="Remove allocation" className="shrink-0">×</button>
+      )}
     </div>
   );
 }
@@ -200,6 +213,11 @@ function IngredientRow({
   }, [suggestions, debouncedName, row, onChange]);
 
   function updateAllocation(key: number, updated: AllocationRow) {
+    if (key === EMPTY_ALLOCATION_KEY) {
+      if (!updated.pantryItemId) return;
+      onChange({ ...row, allocations: [...row.allocations, { ...updated, key: nextAllocationKey.current++ }] });
+      return;
+    }
     onChange({ ...row, allocations: row.allocations.map((a) => (a.key === key ? updated : a)) });
   }
 
@@ -213,6 +231,11 @@ function IngredientRow({
       allocations: [...row.allocations, { key: nextAllocationKey.current++, pantryItemId: '', pantryItemName: '', amount: '' }],
     });
   }
+
+  const displayAllocations =
+    row.allocations.length > 0
+      ? row.allocations
+      : [{ key: EMPTY_ALLOCATION_KEY, pantryItemId: '', pantryItemName: '', amount: '' }];
 
   const suggestedIds = new Set((suggestions ?? []).map((s) => s.uuid));
   const rankedPantryItems = [
@@ -259,7 +282,7 @@ function IngredientRow({
 
       <div className="col-span-2 sm:col-span-4 grid gap-1.5">
         <span className="text-sm text-[#666]">From stock:</span>
-        {row.allocations.map((allocation) => (
+        {displayAllocations.map((allocation) => (
           <AllocationLine
             key={allocation.key}
             allocation={allocation}
@@ -267,8 +290,15 @@ function IngredientRow({
             chosenElsewhereInRow={
               new Set(row.allocations.filter((a) => a.key !== allocation.key).map((a) => a.pantryItemId))
             }
+            amountStillNeeded={
+              (parseFloat(row.amount) || 0) -
+              row.allocations
+                .filter((a) => a.key !== allocation.key)
+                .reduce((sum, a) => sum + (parseFloat(a.amount) || 0), 0)
+            }
             onChange={(updated) => updateAllocation(allocation.key, updated)}
             onRemove={() => removeAllocation(allocation.key)}
+            removable={allocation.key !== EMPTY_ALLOCATION_KEY}
           />
         ))}
         <button type="button" onClick={addAllocation} className="text-sm w-fit">

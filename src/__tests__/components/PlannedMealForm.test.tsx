@@ -82,7 +82,7 @@ describe('PlannedMealForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     await settleDebounce();
 
-    const select = screen.getByLabelText('From stock');
+    const select = screen.getByLabelText('From stock:');
     const options = Array.from(select.querySelectorAll('option')).map((o) => o.getAttribute('value'));
     expect(options.slice(0, 2)).toEqual(['', 'item-b']);
   });
@@ -96,7 +96,7 @@ describe('PlannedMealForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     await settleDebounce();
 
-    await waitFor(() => expect(screen.getByLabelText('From stock')).toHaveValue('item-a'));
+    await waitFor(() => expect(screen.getByLabelText('From stock:')).toHaveValue('item-a'));
   });
 
   it('combines two partial-availability suggestions to cover the row', async () => {
@@ -108,8 +108,8 @@ describe('PlannedMealForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     await settleDebounce();
 
-    await waitFor(() => expect(screen.getAllByLabelText('From stock')).toHaveLength(2));
-    const values = screen.getAllByLabelText('From stock').map((el) => (el as HTMLSelectElement).value);
+    await waitFor(() => expect(screen.getAllByLabelText('From stock:')).toHaveLength(2));
+    const values = screen.getAllByLabelText('From stock:').map((el) => (el as HTMLSelectElement).value);
     expect(values).toEqual(['item-a', 'item-b']);
   });
 
@@ -122,7 +122,7 @@ describe('PlannedMealForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     await settleDebounce();
 
-    expect(screen.queryByLabelText('From stock')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('From stock:')).toHaveValue('');
   });
 
   it('does not reinstate an allocation the user explicitly cleared', async () => {
@@ -133,13 +133,13 @@ describe('PlannedMealForm', () => {
     fireEvent.change(screen.getByLabelText('New ingredient amount'), { target: { value: '100' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     await settleDebounce();
-    await waitFor(() => expect(screen.getByLabelText('From stock')).toHaveValue('item-a'));
+    await waitFor(() => expect(screen.getByLabelText('From stock:')).toHaveValue('item-a'));
 
     fireEvent.click(screen.getByLabelText('Remove allocation'));
-    expect(screen.queryByLabelText('From stock')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('From stock:')).toHaveValue('');
 
     await settleDebounce();
-    expect(screen.queryByLabelText('From stock')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('From stock:')).toHaveValue('');
   });
 
   it('supports adding a second allocation line manually', async () => {
@@ -154,6 +154,6 @@ describe('PlannedMealForm', () => {
     fireEvent.click(screen.getByRole('button', { name: '+ add another from stock' }));
     fireEvent.click(screen.getByRole('button', { name: '+ add another from stock' }));
 
-    expect(screen.getAllByLabelText('From stock')).toHaveLength(2);
+    expect(screen.getAllByLabelText('From stock:')).toHaveLength(2);
   });
 });
