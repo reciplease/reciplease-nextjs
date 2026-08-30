@@ -70,6 +70,15 @@ then a separate `e2e` job that installs Chromium and runs `yarn test:e2e`.
 - On Ubuntu 26.04/WSL2, `playwright install` itself can fail; if so, retry with
   `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64 npx playwright install`.
 
+## Code style
+
+No comments. None — not "what" comments, not "why" comments, not JSDoc.
+Code must be self-documenting: if a comment feels necessary, that's a signal
+to rename something, extract a well-named function/variable, or restructure
+the logic instead of explaining it. Clean Code rules here. This applies to
+new code and to code you touch; don't go out of your way to strip comments
+from files you aren't otherwise editing.
+
 ## Writing new tests
 
 - New `src/lib/*` helper or hook → `src/__tests__/lib/*.test.ts(x)`. SWR-based
