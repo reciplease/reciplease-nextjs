@@ -68,6 +68,7 @@ function mockMealSWR(result: { isLoading: boolean; data: PlannedMeal | undefined
     if (url === '/api/recipes') return { data: wrap([]) };
     if (url === '/api/pantry') return { data: wrap([]) };
     if (url === '/api/measures') return { data: [items] };
+    if (url === '/api/planned-meals/suggestions') return { data: wrap([]) };
     return { ...result, data: result.data ? wrap(result.data) : undefined };
   });
 }

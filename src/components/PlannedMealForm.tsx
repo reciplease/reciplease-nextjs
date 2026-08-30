@@ -1,23 +1,13 @@
-import { useActionState, useRef, useState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { z } from 'zod';
 import { useActiveHouse } from '@/lib/houses';
 import { useMeasures } from '@/lib/measures';
 import { toRecipe } from '@/lib/recipes';
 import { PlanMealBody } from '@/types/generated/zod';
-import { useFindAllRecipes, useFindAllPantryItems } from '@/types/generated/client';
+import { useFindAllRecipes, useFindAllPantryItems, useSuggestPantryItemsForPlannedMeal } from '@/types/generated/client';
 import { isSuccessResponse } from '@/lib/apiClientMutator';
 
-/**
- * PlanMealBody and UpdatePlannedMealBody (from the generated OpenAPI zod
- * schemas) are structurally identical for our purposes — both describe
- * { recipeId?, name (min 1), date, items?: [{ ingredient: { name, measure,
- * amount >= 0 }, allocations: [{ pantryItemId, barcode?, amount >= 0 }] }] }.
- * We use PlanMealBody as the shared source of truth and narrow it down to
- * this form's actual submitted shape (a single allocation per row, rather
- * than an array of allocations), reusing its business-rule constraints
- * (name required, amounts >= 0) rather than re-deriving them by hand.
- */
 const plannedMealFormSchema = z.object({
   name: PlanMealBody.shape.name,
   date: PlanMealBody.shape.date,
@@ -27,28 +17,36 @@ const plannedMealFormSchema = z.object({
       name: z.string(),
       measureId: z.string(),
       amount: z.number().positive('Enter an amount greater than 0 for each ingredient.'),
-      pantryItemId: z.string().optional(),
-      allocationAmount: z.number().min(0).optional(),
+      allocations: z.array(
+        z.object({
+          pantryItemId: z.string(),
+          amount: z.number().min(0),
+        })
+      ),
     })
   ),
 });
+
+type AllocationRow = {
+  key: number;
+  pantryItemId: string;
+  pantryItemName: string;
+  amount: string;
+};
 
 type RowState = {
   key: number;
   name: string;
   measureId: MeasureId;
   amount: string;
-  pantryItemId?: string;
-  pantryItemName?: string;
-  allocationAmount?: string;
+  allocations: AllocationRow[];
 };
 
 export type PlannedMealFormItem = {
   name: string;
   measureId: MeasureId;
   amount: number;
-  pantryItemId?: string;
-  allocationAmount?: number;
+  allocations: Array<{ pantryItemId: string; amount: number }>;
 };
 
 export type PlannedMealFormValues = {
@@ -60,41 +58,171 @@ export type PlannedMealFormValues = {
 
 export type PlannedMealFormInitial = PlannedMealFormValues;
 
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(timer);
+  }, [value, delayMs]);
+
+  return debounced;
+}
+
 function toDateInputValue(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
 function itemsToRows(items: PlannedMealFormItem[]): RowState[] {
+  let nextAllocationKey = 0;
   return items.map((item, index) => ({
     key: index,
     name: item.name,
     measureId: item.measureId,
     amount: String(item.amount),
-    pantryItemId: item.pantryItemId,
-    allocationAmount: item.allocationAmount !== undefined ? String(item.allocationAmount) : undefined,
+    allocations: item.allocations.map((allocation) => ({
+      key: nextAllocationKey++,
+      pantryItemId: allocation.pantryItemId,
+      pantryItemName: '',
+      amount: String(allocation.amount),
+    })),
   }));
 }
 
-/**
- * One planned-ingredient row. Rows can originate from picking an existing
- * pantry item (fully allocated), typing a freeform ingredient to buy (no
- * allocation), or a recipe's own ingredient list (partially allocated by
- * attaching stock afterwards) — all three end up as the same row shape, since
- * a PlannedIngredient doesn't care where it came from.
- */
+function AllocationLine({
+  allocation,
+  pantryItems,
+  chosenElsewhereInRow,
+  onChange,
+  onRemove,
+}: {
+  allocation: AllocationRow;
+  pantryItems: PantryItem[];
+  chosenElsewhereInRow: Set<string>;
+  onChange: (allocation: AllocationRow) => void;
+  onRemove: () => void;
+}) {
+  const selectable = pantryItems.filter(
+    (item) => item.uuid === allocation.pantryItemId || !chosenElsewhereInRow.has(item.uuid)
+  );
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      <select
+        aria-label="From stock"
+        value={allocation.pantryItemId}
+        onChange={(e) => {
+          const item = pantryItems.find((i) => i.uuid === e.target.value);
+          if (!item) {
+            onChange({ ...allocation, pantryItemId: '', pantryItemName: '' });
+            return;
+          }
+          onChange({ ...allocation, pantryItemId: item.uuid, pantryItemName: item.name });
+        }}
+        className="flex-1 min-w-0 p-1.5 border border-[#ccc] rounded"
+      >
+        <option value="">— none, add to shopping list —</option>
+        {selectable.map((item) => (
+          <option key={item.uuid} value={item.uuid}>
+            {item.brand ? `${item.brand} ` : ''}{item.name} ({item.remaining} {item.measure} left)
+          </option>
+        ))}
+      </select>
+      {allocation.pantryItemId && (
+        <input
+          type="number"
+          min="0"
+          step="any"
+          aria-label="Amount used from stock"
+          value={allocation.amount}
+          onChange={(e) => onChange({ ...allocation, amount: e.target.value })}
+          className="w-24 min-w-0 p-1.5 border border-[#ccc] rounded"
+        />
+      )}
+      <button type="button" onClick={onRemove} aria-label="Remove allocation" className="shrink-0">×</button>
+    </div>
+  );
+}
+
 function IngredientRow({
   row,
   measures,
   pantryItems,
+  recipeId,
+  excludeMealId,
   onChange,
   onRemove,
 }: {
   row: RowState;
   measures: Measure[];
   pantryItems: PantryItem[];
+  recipeId: string;
+  excludeMealId?: string;
   onChange: (row: RowState) => void;
   onRemove: () => void;
 }) {
+  const debouncedName = useDebouncedValue(row.name.trim(), 400);
+  const autoFilledFor = useRef<Set<string>>(new Set());
+  const nextAllocationKey = useRef(1000000 + row.key * 1000);
+
+  const { data: suggestionsResponse } = useSuggestPantryItemsForPlannedMeal(
+    { recipeId: recipeId || undefined, excludeMealId, ingredient: debouncedName },
+    { swr: { enabled: Boolean(debouncedName) } }
+  );
+  const suggestions =
+    suggestionsResponse && isSuccessResponse(suggestionsResponse) ? suggestionsResponse.data : undefined;
+
+  useEffect(() => {
+    if (!suggestions || !debouncedName) return;
+    const autoFillKey = `${row.key}:${debouncedName}`;
+    if (autoFilledFor.current.has(autoFillKey)) return;
+    autoFilledFor.current.add(autoFillKey);
+    if (row.allocations.length > 0) return;
+
+    const amountNeeded = parseFloat(row.amount) || 0;
+    let remaining = amountNeeded;
+    const newAllocations: AllocationRow[] = [];
+    for (const suggestion of suggestions) {
+      if (remaining <= 0) break;
+      if (suggestion.available <= 0) continue;
+      const amount = Math.min(suggestion.available, remaining);
+      newAllocations.push({
+        key: nextAllocationKey.current++,
+        pantryItemId: suggestion.uuid,
+        pantryItemName: suggestion.name,
+        amount: String(amount),
+      });
+      remaining -= amount;
+    }
+    if (newAllocations.length > 0) {
+      onChange({ ...row, allocations: newAllocations });
+    }
+  }, [suggestions, debouncedName, row, onChange]);
+
+  function updateAllocation(key: number, updated: AllocationRow) {
+    onChange({ ...row, allocations: row.allocations.map((a) => (a.key === key ? updated : a)) });
+  }
+
+  function removeAllocation(key: number) {
+    onChange({ ...row, allocations: row.allocations.filter((a) => a.key !== key) });
+  }
+
+  function addAllocation() {
+    onChange({
+      ...row,
+      allocations: [...row.allocations, { key: nextAllocationKey.current++, pantryItemId: '', pantryItemName: '', amount: '' }],
+    });
+  }
+
+  const suggestedIds = new Set((suggestions ?? []).map((s) => s.uuid));
+  const rankedPantryItems = [
+    ...(suggestions ?? []).flatMap((s) => {
+      const item = pantryItems.find((p) => p.uuid === s.uuid);
+      return item ? [item] : [];
+    }),
+    ...pantryItems.filter((item) => !suggestedIds.has(item.uuid)),
+  ];
+
   return (
     <li className="grid grid-cols-2 sm:grid-cols-[1fr_7rem_6rem_2rem] gap-x-2 gap-y-1 border-b border-[#eee] pb-2">
       <input
@@ -129,44 +257,23 @@ function IngredientRow({
         <button type="button" onClick={onRemove} aria-label="Remove ingredient" className="shrink-0">×</button>
       </div>
 
-      <div className="col-span-2 sm:col-span-4 flex flex-wrap items-center gap-2 text-sm">
-        <label htmlFor={`allocate-${row.key}`} className="text-[#666] shrink-0">From stock:</label>
-        <select
-          id={`allocate-${row.key}`}
-          value={row.pantryItemId ?? ''}
-          onChange={(e) => {
-            const item = pantryItems.find((i) => i.uuid === e.target.value);
-            if (!item) {
-              onChange({ ...row, pantryItemId: undefined, pantryItemName: undefined, allocationAmount: undefined });
-              return;
+      <div className="col-span-2 sm:col-span-4 grid gap-1.5">
+        <span className="text-sm text-[#666]">From stock:</span>
+        {row.allocations.map((allocation) => (
+          <AllocationLine
+            key={allocation.key}
+            allocation={allocation}
+            pantryItems={rankedPantryItems}
+            chosenElsewhereInRow={
+              new Set(row.allocations.filter((a) => a.key !== allocation.key).map((a) => a.pantryItemId))
             }
-            onChange({
-              ...row,
-              pantryItemId: item.uuid,
-              pantryItemName: item.name,
-              allocationAmount: String(Math.min(item.remaining, parseFloat(row.amount) || item.remaining)),
-            });
-          }}
-          className="flex-1 min-w-0 p-1.5 border border-[#ccc] rounded"
-        >
-          <option value="">— none, add to shopping list —</option>
-          {pantryItems.map((item) => (
-            <option key={item.uuid} value={item.uuid}>
-              {item.brand ? `${item.brand} ` : ''}{item.name} ({item.remaining} {item.measure} left)
-            </option>
-          ))}
-        </select>
-        {row.pantryItemId && (
-          <input
-            type="number"
-            min="0"
-            step="any"
-            aria-label="Amount used from stock"
-            value={row.allocationAmount ?? ''}
-            onChange={(e) => onChange({ ...row, allocationAmount: e.target.value })}
-            className="w-24 min-w-0 p-1.5 border border-[#ccc] rounded"
+            onChange={(updated) => updateAllocation(allocation.key, updated)}
+            onRemove={() => removeAllocation(allocation.key)}
           />
-        )}
+        ))}
+        <button type="button" onClick={addAllocation} className="text-sm w-fit">
+          + add another from stock
+        </button>
       </div>
     </li>
   );
@@ -175,20 +282,15 @@ function IngredientRow({
 interface Props {
   initial?: PlannedMealFormInitial;
   submitLabel: string;
+  excludeMealId?: string;
   onSubmit: (values: PlannedMealFormValues) => Promise<string | void>;
   onDelete?: () => void;
 }
 
-export default function PlannedMealForm({ initial, submitLabel, onSubmit, onDelete }: Props) {
+export default function PlannedMealForm({ initial, submitLabel, excludeMealId, onSubmit, onDelete }: Props) {
   const router = useRouter();
   const activeHouse = useActiveHouse();
   const measures = useMeasures();
-  // Note: unlike the previous hand-written SWR keys (['/api/recipes',
-  // activeHouse.id] / ['/api/pantry', activeHouse.id]), the generated hooks'
-  // cache keys don't include the active house id — switching houses won't by
-  // itself bust this cache. Gating on `enabled` still avoids fetching before
-  // a house is selected; a stale cross-house cache hit is a pre-existing risk
-  // shared with other pages migrated onto the generated client.
   const { data: recipesResponse } = useFindAllRecipes({ swr: { enabled: Boolean(activeHouse) } });
   const { data: pantryResponse } = useFindAllPantryItems(undefined, { swr: { enabled: Boolean(activeHouse) } });
   const recipes = recipesResponse && isSuccessResponse(recipesResponse)
@@ -225,6 +327,7 @@ export default function PlannedMealForm({ initial, submitLabel, onSubmit, onDele
         name: ingredient.name,
         measureId: ingredient.measure,
         amount: String(ingredient.amount),
+        allocations: [],
       }));
     setRows((prev) => [...prev, ...newRows]);
   }
@@ -236,6 +339,7 @@ export default function PlannedMealForm({ initial, submitLabel, onSubmit, onDele
       name: newIngredientName.trim(),
       measureId: newIngredientMeasure || measures[0]?.measureId || ('' as MeasureId),
       amount: newIngredientAmount,
+      allocations: [],
     }]);
     setNewIngredientName('');
     setNewIngredientAmount('');
@@ -252,10 +356,9 @@ export default function PlannedMealForm({ initial, submitLabel, onSubmit, onDele
         name: row.name.trim(),
         measureId: row.measureId || measures[0]?.measureId || '',
         amount: parseFloat(row.amount),
-        pantryItemId: row.pantryItemId,
-        allocationAmount: row.pantryItemId
-          ? parseFloat(row.allocationAmount || row.amount)
-          : undefined,
+        allocations: row.allocations
+          .filter((a) => a.pantryItemId)
+          .map((a) => ({ pantryItemId: a.pantryItemId, amount: parseFloat(a.amount || '0') })),
       })),
     });
 
@@ -268,8 +371,7 @@ export default function PlannedMealForm({ initial, submitLabel, onSubmit, onDele
         name: item.name,
         measureId: item.measureId as MeasureId,
         amount: item.amount,
-        pantryItemId: item.pantryItemId,
-        allocationAmount: item.allocationAmount,
+        allocations: item.allocations,
       }));
 
       const errorMessage = await onSubmit({
@@ -377,6 +479,8 @@ export default function PlannedMealForm({ initial, submitLabel, onSubmit, onDele
                 row={row}
                 measures={measures}
                 pantryItems={pantryItems ?? []}
+                recipeId={recipeId}
+                excludeMealId={excludeMealId}
                 onChange={(updated) => updateRow(row.key, updated)}
                 onRemove={() => removeRow(row.key)}
               />

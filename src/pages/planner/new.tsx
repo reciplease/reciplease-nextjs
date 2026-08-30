@@ -14,9 +14,7 @@ export default function NewPlannedMeal() {
         measure: item.measureId,
         amount: item.amount,
       },
-      allocations: item.pantryItemId
-        ? [{ pantryItemId: item.pantryItemId, amount: item.allocationAmount ?? item.amount }]
-        : [],
+      allocations: item.allocations,
     }));
 
     const result = await planMeal({
@@ -26,11 +24,6 @@ export default function NewPlannedMeal() {
       items,
     });
     if (!isSuccessResponse(result)) {
-      // The generated mutator resolves rather than throws on an HTTP-level
-      // error; result.data is an ErrorResponse for non-2xx responses (e.g.
-      // "A meal named 'Dinner' is already planned for this date"), but we
-      // don't have a more specific message to surface than the status-based
-      // default here.
       return describeErrorStatus(result.status);
     }
 

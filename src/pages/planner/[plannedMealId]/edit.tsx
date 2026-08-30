@@ -45,9 +45,7 @@ export default function EditPlannedMeal() {
         measure: item.measureId,
         amount: item.amount,
       },
-      allocations: item.pantryItemId
-        ? [{ pantryItemId: item.pantryItemId, amount: item.allocationAmount ?? item.amount }]
-        : [],
+      allocations: item.allocations,
     }));
 
     const result = await updatePlannedMeal(plannedMealId as string, {
@@ -112,6 +110,7 @@ export default function EditPlannedMeal() {
           submitLabel="Save changes"
           onSubmit={handleSubmit}
           onDelete={handleDelete}
+          excludeMealId={plannedMealId}
           initial={{
             name: meal.name,
             date: meal.date,
@@ -120,8 +119,10 @@ export default function EditPlannedMeal() {
               name: item.ingredient.name,
               measureId: item.ingredient.measure,
               amount: item.ingredient.amount,
-              pantryItemId: item.allocations[0]?.pantryItemId,
-              allocationAmount: item.allocations[0]?.amount,
+              allocations: item.allocations.map((allocation) => ({
+                pantryItemId: allocation.pantryItemId,
+                amount: allocation.amount,
+              })),
             })),
           }}
         />

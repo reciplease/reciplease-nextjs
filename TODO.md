@@ -1,17 +1,8 @@
 # TODO
 
-## Planner ingredient suggestions
-
-`GET /api/planned-recipes/{recipeId}/suggestions?ingredient={name}` exists on the backend
-(suggests current inventory items for a recipe ingredient, driven by the barcodes paired with
-that ingredient in previous plans, falling back to a name match) but isn't wired up anywhere
-in the frontend. `PlannedMealForm` (`src/components/PlannedMealForm.tsx`) currently makes the
-user manually pick an inventory item from the full list for each ingredient row — using the
-suggestions endpoint to pre-rank/pre-fill that picker would save the repetitive lookup.
-
 ## Google Health eat logging
 
-`EatFlow` (`src/components/inventory/EatFlow.tsx`) used to also optionally log the amount
+`EatFlow` (`src/components/pantry/EatFlow.tsx`) used to also optionally log the amount
 eaten to Google Health's food diary — a food-search/barcode-match sub-flow picked a food,
 then `POST /api/google-health/foods/log` on save. That's been pulled out for now: it only
 ever covered eating a single inventory item one at a time, with no equivalent for eating a
