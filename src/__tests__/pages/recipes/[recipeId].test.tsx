@@ -2,7 +2,6 @@ import { render, screen } from '@testing-library/react';
 import RecipePage from '@/pages/recipes/[recipeId]';
 
 jest.mock('swr');
-jest.mock('@/lib/houses');
 jest.mock('next/router', () => ({
   useRouter: () => ({ isReady: true, query: { recipeId: 'EREREREREREREREREREREQ' } }),
 }));
@@ -12,7 +11,6 @@ jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; h
 jest.mock('@/components/Metadata', () => () => null);
 
 const useSWR = require('swr').default;
-const { useActiveHouse } = require('@/lib/houses');
 
 const grams: Measure = { measureId: 'GRAMS', singular: 'gram', plural: 'grams', short: 'g' };
 const items: Measure = { measureId: 'ITEMS', singular: 'item', plural: 'items', short: 'item' };
@@ -21,7 +19,7 @@ const recipe: Recipe = {
   recipeId: '111111111111111111111111',
   recipeShortId: 'EREREREREREREREREREREQ',
   owned: 'true',
-  houseId: 'house-1',
+  ownerId: 'user-owner',
   createdBy: undefined,
   updatedBy: undefined,
   isPublic: false,
@@ -44,10 +42,6 @@ function mockRecipe(state: { isLoading: boolean; data: Recipe | undefined; error
 }
 
 describe('RecipePage', () => {
-  beforeEach(() => {
-    useActiveHouse.mockReturnValue(undefined);
-  });
-
   it('shows loading state', () => {
     mockRecipe({ isLoading: true, data: undefined, error: undefined });
     render(<RecipePage />);
@@ -79,22 +73,8 @@ describe('RecipePage', () => {
     expect(screen.getByText('Warm the tortillas')).toBeInTheDocument();
   });
 
-  it('does not show an edit link when the caller has no active house', () => {
+  it('shows an edit link when the caller owns the recipe', () => {
     mockRecipe({ isLoading: false, data: recipe, error: undefined });
-    render(<RecipePage />);
-    expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument();
-  });
-
-  it('does not show an edit link when the caller is only a READ_ONLY member', () => {
-    mockRecipe({ isLoading: false, data: recipe, error: undefined });
-    useActiveHouse.mockReturnValue({ id: 'house-1', name: 'Bayview Gardens', role: 'READ_ONLY' });
-    render(<RecipePage />);
-    expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument();
-  });
-
-  it('shows an edit link when the caller is an OWNER of the recipe house', () => {
-    mockRecipe({ isLoading: false, data: recipe, error: undefined });
-    useActiveHouse.mockReturnValue({ id: 'house-1', name: 'Bayview Gardens', role: 'OWNER' });
     render(<RecipePage />);
     expect(screen.getByRole('link', { name: 'Edit' })).toHaveAttribute(
       'href',
@@ -102,9 +82,12 @@ describe('RecipePage', () => {
     );
   });
 
-  it('does not show an edit link when the caller owns a different house', () => {
-    mockRecipe({ isLoading: false, data: recipe, error: undefined });
-    useActiveHouse.mockReturnValue({ id: 'some-other-house', name: 'Other House', role: 'OWNER' });
+  it('does not show an edit link when the recipe is not owned', () => {
+    mockRecipe({
+      isLoading: false,
+      data: { ...recipe, owned: 'false' as const },
+      error: undefined,
+    });
     render(<RecipePage />);
     expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument();
   });
@@ -112,7 +95,11 @@ describe('RecipePage', () => {
   it('shows the last updated timestamp when present', () => {
     mockRecipe({
       isLoading: false,
-      data: { ...recipe, updatedAt: '2026-06-10T12:00:00.000Z' },
+      data: {
+        ...recipe,
+        owned: 'false' as const,
+        updatedAt: '2026-06-10T12:00:00.000Z',
+      },
       error: undefined,
     });
     render(<RecipePage />);

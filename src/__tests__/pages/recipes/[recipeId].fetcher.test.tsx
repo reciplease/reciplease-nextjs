@@ -32,7 +32,6 @@ describe('RecipePage data fetching', () => {
         status: 200,
         json: async () => ({
           recipeId,
-          houseId: null,
           isPublic: true,
           name: 'Tacos',
           description: 'Tasty tacos',

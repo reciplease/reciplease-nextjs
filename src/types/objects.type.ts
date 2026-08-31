@@ -5,10 +5,9 @@ import type { components } from '@/types/generated/api';
 // to the generated OpenAPI schema, which now correctly marks fields
 // required/optional to match what the backend actually always returns.
 declare global {
-  // The shared shape both recipe views allOf onto — never includes house or
+  // The shared shape both recipe views allOf onto — never carries owner or
   // user info on its own, since PublicRecipe (returned to anonymous/public
-  // browsing and to callers outside the recipe's own house) must never carry
-  // them.
+  // browsing and to anyone who isn't the owner) must never expose them.
   type BaseRecipe = components['schemas']['RecipeDto'];
 
   // Adds the UI-only `recipeShortId` (derived client-side from `recipeId`,
@@ -17,13 +16,14 @@ declare global {
     recipeShortId: RecipeShortId;
   };
 
-  // Only returned to an authenticated caller who is a member of the recipe's
-  // own house — carries houseId and who created/last updated it.
+  // Only returned to the recipe's owner — carries ownerId and who created/last
+  // updated it.
   type OwnedRecipe = components['schemas']['OwnedRecipe'] & {
     recipeShortId: RecipeShortId;
   };
 
-  // Discriminated on `owned` — narrow with `if (recipe.owned) { ... recipe.houseId ... }`.
+  // Discriminated on `owned` — only OwnedRecipe (owned === 'true') grants its
+  // owner edit/toggle rights.
   type Recipe = PublicRecipe | OwnedRecipe;
 
   // Public-safe subset of a user for display — no email or provider identity.

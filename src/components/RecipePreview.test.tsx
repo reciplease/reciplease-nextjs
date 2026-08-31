@@ -32,6 +32,13 @@ const recipe: Recipe = {
   updatedAt: '2026-06-06T18:00:00Z',
 };
 
+const ownedRecipe: Recipe = {
+  ...recipe,
+  owned: 'true',
+  ownerId: 'user-owner',
+  isPublic: false,
+};
+
 describe('RecipePreview', () => {
   it('renders recipe name', () => {
     render(<RecipePreview recipe={recipe} />);
@@ -66,5 +73,44 @@ describe('RecipePreview', () => {
     expect(screen.getByText('Toast')).toHaveStyle({
       viewTransitionName: `recipe-title-${recipe.recipeId}`,
     });
+  });
+
+  it('shows a passive Public badge for a public non-owned recipe', () => {
+    render(<RecipePreview recipe={recipe} />);
+    expect(screen.getByText('Public')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Make private' })).not.toBeInTheDocument();
+  });
+
+  it('shows a passive Private badge for a private non-owned recipe', () => {
+    render(<RecipePreview recipe={{ ...recipe, isPublic: false }} />);
+    expect(screen.getByText('Private')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Make public' })).not.toBeInTheDocument();
+  });
+
+  it('shows a Private toggle button for a private owned recipe', () => {
+    render(<RecipePreview recipe={ownedRecipe} onToggleVisibility={jest.fn()} />);
+    expect(screen.getByRole('button', { name: 'Make public' })).toBeInTheDocument();
+  });
+
+  it('shows a Public toggle button for a public owned recipe', () => {
+    render(<RecipePreview recipe={{ ...ownedRecipe, isPublic: true }} onToggleVisibility={jest.fn()} />);
+    expect(screen.getByRole('button', { name: 'Make private' })).toBeInTheDocument();
+  });
+
+  it('calls onToggleVisibility when the toggle is clicked', () => {
+    const onToggle = jest.fn();
+    render(<RecipePreview recipe={ownedRecipe} onToggleVisibility={onToggle} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Make public' }));
+    expect(onToggle).toHaveBeenCalledWith(ownedRecipe);
+  });
+
+  it('does not navigate when the toggle is clicked', () => {
+    const onToggle = jest.fn();
+    render(<RecipePreview recipe={ownedRecipe} onToggleVisibility={onToggle} />);
+    const link = screen.getByRole('link');
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+    jest.spyOn(clickEvent, 'preventDefault');
+    fireEvent.click(screen.getByRole('button', { name: 'Make public' }));
+    expect(onToggle).toHaveBeenCalled();
   });
 });

@@ -3,19 +3,12 @@ import EditRecipe from '@/pages/recipes/[recipeId]/edit';
 import { full } from '@/lib/recipe-id';
 
 jest.mock('swr');
-jest.mock('@/lib/houses', () => ({
-  useActiveHouse: jest.fn(),
-}));
 jest.mock('next/router', () => ({ useRouter: jest.fn() }));
 jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; href: string }) => (
   <a href={href}>{children}</a>
 ));
 jest.mock('@/components/Metadata', () => () => null);
 
-// The generated client (src/types/generated/client.ts) calls this mutator
-// directly rather than `fetch` — mocking it here keeps the generated request
-// building/response envelope handling exercised for real, while giving the
-// tests a single, low-level seam to assert against.
 const mockApiClientMutator = jest.fn();
 jest.mock('@/lib/apiClientMutator', () => ({
   apiClientMutator: (...args: unknown[]) => mockApiClientMutator(...args),
@@ -30,12 +23,8 @@ jest.mock('@/lib/apiClientMutator', () => ({
 }));
 
 const useSWR = require('swr').default as jest.Mock;
-const { useActiveHouse } = require('@/lib/houses');
 const useRouter = require('next/router').useRouter as jest.Mock;
 
-// The generated useFindRecipeById hook passes its key to `swr` as a thunk,
-// not a plain key — resolve it the same way the real `swr` package would
-// before matching on it.
 function resolveKey(key: unknown): unknown {
   return typeof key === 'function' ? (key as () => unknown)() : key;
 }
@@ -54,7 +43,7 @@ const recipe: Recipe = {
   recipeId,
   recipeShortId,
   owned: 'true',
-  houseId: 'house-1',
+  ownerId: 'user-owner',
   createdBy: undefined,
   updatedBy: undefined,
   isPublic: false,
@@ -86,7 +75,6 @@ describe('EditRecipe page', () => {
     push.mockReset();
     back.mockReset();
     useRouter.mockReturnValue({ push, back, isReady: true, query: { recipeId: recipeShortId } });
-    useActiveHouse.mockReturnValue({ id: 'house-1', name: 'Bayview Gardens', role: 'OWNER' });
   });
 
   it('shows loading state', () => {
@@ -107,9 +95,8 @@ describe('EditRecipe page', () => {
     expect(screen.getByText('No recipe found')).toBeInTheDocument();
   });
 
-  it('shows a not-authorized message and link back when the caller is not an OWNER of the recipe house', () => {
-    mockRecipeSWR({ isLoading: false, data: recipe, error: undefined });
-    useActiveHouse.mockReturnValue({ id: 'house-1', name: 'Bayview Gardens', role: 'READ_ONLY' });
+  it('shows not-authorized when the recipe is not owned', () => {
+    mockRecipeSWR({ isLoading: false, data: { ...recipe, owned: 'false' as const }, error: undefined });
     render(<EditRecipe />);
     expect(screen.getByText('You do not have permission to edit this recipe.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Back to recipe' })).toHaveAttribute(

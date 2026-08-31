@@ -4,6 +4,9 @@ import Recipe from '@/pages/recipes/[recipeId]';
 import useSWR from 'swr';
 import { fetchOrRedirect } from '@/lib/publicPageFetch';
 import { toRecipe, type BackendRecipe } from '@/lib/recipes';
+import { updateRecipe, PublicRecipeOwned } from '@/types/generated/client';
+import { isSuccessResponse } from '@/lib/apiClientMutator';
+import { useCallback } from 'react';
 
 const fetcher = async (url: string): Promise<Recipe[]> => {
   const backendRecipes = await fetchOrRedirect<BackendRecipe[]>(url);
@@ -11,7 +14,29 @@ const fetcher = async (url: string): Promise<Recipe[]> => {
 };
 
 export default function Recipes() {
-  const { data: recipes, error, isLoading } = useSWR(`/api/recipes`, fetcher);
+  const { data: recipes, error, isLoading, mutate } = useSWR(`/api/recipes`, fetcher);
+
+  const toggleVisibility = useCallback(
+    async (recipe: Recipe) => {
+      const response = await updateRecipe(recipe.recipeId, {
+        name: recipe.name,
+        description: recipe.description ?? '',
+        steps: recipe.steps,
+        isPublic: !recipe.isPublic,
+        sourceUrl: recipe.sourceUrl ?? '',
+        owned: PublicRecipeOwned.false,
+        ingredients: recipe.ingredients.map((ingredient) => ({
+          name: ingredient.name,
+          measure: ingredient.measure,
+          amount: ingredient.amount,
+        })),
+      });
+      if (isSuccessResponse(response)) {
+        mutate();
+      }
+    },
+    [mutate],
+  );
 
   if (isLoading) {
     return (
@@ -52,7 +77,10 @@ export default function Recipes() {
               className="fade-rise-in"
               style={{ animationDelay: `${Math.min(index, 10) * 40}ms` }}
             >
-              <RecipePreview recipe={recipe} />
+              <RecipePreview
+                recipe={recipe}
+                onToggleVisibility={recipe.owned === 'true' ? toggleVisibility : undefined}
+              />
             </li>
           ))}
         </ul>

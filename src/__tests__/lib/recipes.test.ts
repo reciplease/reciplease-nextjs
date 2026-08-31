@@ -10,7 +10,7 @@ describe('toRecipe', () => {
     const backend: BackendRecipe = {
       recipeId,
       owned: 'true',
-      houseId: 'house-1',
+      ownerId: 'user-owner',
       isPublic: true,
       name: 'Tacos',
       description: 'Tasty tacos',
@@ -26,7 +26,7 @@ describe('toRecipe', () => {
       recipeId,
       recipeShortId,
       owned: 'true',
-      houseId: 'house-1',
+      ownerId: 'user-owner',
       isPublic: true,
       name: 'Tacos',
       description: 'Tasty tacos',

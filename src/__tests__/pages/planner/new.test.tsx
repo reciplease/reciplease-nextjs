@@ -46,7 +46,7 @@ const mockRecipe: Recipe = {
   recipeId: 'recipe-1',
   recipeShortId: 'r1',
   owned: 'true',
-  houseId: 'h1',
+  ownerId: 'user-owner',
   createdBy: undefined,
   updatedBy: undefined,
   isPublic: false,

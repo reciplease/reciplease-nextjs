@@ -79,6 +79,9 @@ the logic instead of explaining it. Clean Code rules here. This applies to
 new code and to code you touch; don't go out of your way to strip comments
 from files you aren't otherwise editing.
 
+If you are editing a comment, remove it unless it adds something the code
+itself does not already describe.
+
 ## Writing new tests
 
 - New `src/lib/*` helper or hook → `src/__tests__/lib/*.test.ts(x)`. SWR-based

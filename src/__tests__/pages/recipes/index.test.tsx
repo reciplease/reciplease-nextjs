@@ -7,6 +7,12 @@ jest.mock('next/link', () => ({ children, href }: { children: React.ReactNode; h
 ));
 jest.mock('@/components/Metadata', () => () => null);
 
+const mockApiClientMutator = jest.fn();
+jest.mock('@/lib/apiClientMutator', () => ({
+  apiClientMutator: (...args: unknown[]) => mockApiClientMutator(...args),
+  isSuccessResponse: (response: { status: number }) => response.status >= 200 && response.status < 300,
+}));
+
 const useSWR = require('swr').default;
 
 const recipes: Recipe[] = [
@@ -18,7 +24,8 @@ const recipes: Recipe[] = [
     sourceUrl: '',
     ingredients: [],
     steps: [],
-    owned: 'false',
+    owned: 'true',
+    ownerId: 'user-owner',
     isPublic: false,
     updatedAt: '2026-06-06T18:00:00Z',
   },
@@ -38,30 +45,42 @@ const recipes: Recipe[] = [
 
 describe('Recipes list page', () => {
   it('shows loading state', () => {
-    useSWR.mockReturnValue({ isLoading: true, data: undefined, error: undefined });
+    useSWR.mockReturnValue({ isLoading: true, data: undefined, error: undefined, mutate: jest.fn() });
     render(<Recipes />);
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
   it('shows not found when error', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: undefined, error: new Error('fail') });
+    useSWR.mockReturnValue({ isLoading: false, data: undefined, error: new Error('fail'), mutate: jest.fn() });
     render(<Recipes />);
     expect(screen.getByText('No recipes found')).toBeInTheDocument();
   });
 
   it('shows not found when there are no recipes and no error', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: undefined, error: undefined });
+    useSWR.mockReturnValue({ isLoading: false, data: undefined, error: undefined, mutate: jest.fn() });
     render(<Recipes />);
     expect(screen.getByText('No recipes found')).toBeInTheDocument();
   });
 
   it('renders a preview for each recipe', () => {
-    useSWR.mockReturnValue({ isLoading: false, data: recipes, error: undefined });
+    useSWR.mockReturnValue({ isLoading: false, data: recipes, error: undefined, mutate: jest.fn() });
     render(<Recipes />);
 
     expect(screen.getByRole('link', { name: /Tacos/ })).toHaveAttribute('href', '/recipes/short-1');
     expect(screen.getByText('Tasty tacos')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Soup/ })).toHaveAttribute('href', '/recipes/short-2');
     expect(screen.getByText('No description found')).toBeInTheDocument();
+  });
+
+  it('shows a Private toggle button for owned recipes', () => {
+    useSWR.mockReturnValue({ isLoading: false, data: recipes, error: undefined, mutate: jest.fn() });
+    render(<Recipes />);
+    expect(screen.getByRole('button', { name: 'Make public' })).toBeInTheDocument();
+  });
+
+  it('shows a passive badge for non-owned recipes', () => {
+    useSWR.mockReturnValue({ isLoading: false, data: recipes, error: undefined, mutate: jest.fn() });
+    render(<Recipes />);
+    expect(screen.getAllByText('Private').length).toBeGreaterThanOrEqual(1);
   });
 });

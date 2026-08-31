@@ -4,7 +4,6 @@ import { useRouter } from 'next/router';
 import useSWR from 'swr';
 import { full } from '@/lib/recipe-id';
 import { formatTimestamp } from '@/lib/formatDate';
-import { useActiveHouse } from '@/lib/houses';
 import { recipeTitleTransitionName } from '@/lib/viewTransitionNames';
 import { fetchOrRedirect } from '@/lib/publicPageFetch';
 import { toRecipe, type BackendRecipe } from '@/lib/recipes';
@@ -27,15 +26,8 @@ export default function Recipe() {
     error,
     isLoading,
   } = useSWR(recipeId ? `/api/recipes/${recipeId}` : null, fetcher);
-  const activeHouse = useActiveHouse();
   const measures = useMeasures();
-  // Editable only if the caller owns the house this recipe actually belongs
-  // to — being an OWNER elsewhere doesn't grant edit rights on someone else's
-  // (possibly public) recipe.
-  const editable =
-    recipe?.owned === 'true' &&
-    activeHouse?.role === 'OWNER' &&
-    activeHouse.id === recipe.houseId;
+  const editable = recipe?.owned === 'true';
 
   if (!router.isReady || isLoading) {
     return (

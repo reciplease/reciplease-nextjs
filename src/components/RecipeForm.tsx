@@ -298,7 +298,7 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
             checked={isPublic}
             onChange={(e) => setIsPublic(e.target.checked)}
           />
-          Public (visible to everyone, not just your house)
+          Public (visible to everyone, including anonymous visitors)
         </label>
       </div>
 

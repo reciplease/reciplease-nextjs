@@ -4,8 +4,7 @@ import RecipeForm, { RecipeFormValues } from '@/components/RecipeForm';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { full } from '@/lib/recipe-id';
-import { useActiveHouse } from '@/lib/houses';
-import { toRecipe } from '@/lib/recipes';
+import { toRecipe, type BackendRecipe } from '@/lib/recipes';
 import { useFindRecipeById, deleteRecipeById, updateRecipe, PublicRecipeOwned } from '@/types/generated/client';
 import { isSuccessResponse, describeErrorStatus } from '@/lib/apiClientMutator';
 
@@ -20,13 +19,9 @@ export default function EditRecipe() {
   } = useFindRecipeById(recipeId as string, {
     swr: { enabled: Boolean(recipeId) },
   });
-  const recipe = recipeResponse && isSuccessResponse(recipeResponse) ? toRecipe(recipeResponse.data) : undefined;
+  const recipe = recipeResponse && isSuccessResponse(recipeResponse) ? toRecipe(recipeResponse.data as BackendRecipe) : undefined;
   const recipeError = error || (recipeResponse && !isSuccessResponse(recipeResponse));
-  const activeHouse = useActiveHouse();
-  const editable =
-    recipe?.owned === 'true' &&
-    activeHouse?.role === 'OWNER' &&
-    activeHouse.id === recipe.houseId;
+  const editable = recipe?.owned === 'true';
 
   const [deleteError, handleDelete, deleting] = useActionState(async (): Promise<string | null> => {
     if (!window.confirm(`Delete "${recipe?.name}"? This can't be undone.`)) return null;

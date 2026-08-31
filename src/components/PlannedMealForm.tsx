@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { z } from 'zod';
 import { useActiveHouse } from '@/lib/houses';
 import { useMeasures } from '@/lib/measures';
-import { toRecipe } from '@/lib/recipes';
+import { toRecipe, type BackendRecipe } from '@/lib/recipes';
 import { PlanMealBody } from '@/types/generated/zod';
 import { useFindAllRecipes, useFindAllPantryItems, useSuggestPantryItemsForPlannedMeal } from '@/types/generated/client';
 import { isSuccessResponse } from '@/lib/apiClientMutator';
@@ -324,7 +324,7 @@ export default function PlannedMealForm({ initial, submitLabel, excludeMealId, o
   const { data: recipesResponse } = useFindAllRecipes({ swr: { enabled: Boolean(activeHouse) } });
   const { data: pantryResponse } = useFindAllPantryItems(undefined, { swr: { enabled: Boolean(activeHouse) } });
   const recipes = recipesResponse && isSuccessResponse(recipesResponse)
-    ? recipesResponse.data.map(toRecipe)
+    ? recipesResponse.data.map((r) => toRecipe(r as BackendRecipe))
     : undefined;
   const pantryItems = pantryResponse && isSuccessResponse(pantryResponse) ? pantryResponse.data : undefined;
 

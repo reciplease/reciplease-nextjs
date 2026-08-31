@@ -4,7 +4,7 @@ import Metadata from '@/components/Metadata';
 import WeekCalendar from '@/components/planner/WeekCalendar';
 import { useActiveHouse } from '@/lib/houses';
 import { formatDate } from '@/lib/formatDate';
-import { toPlannedMeal } from '@/lib/plannedMeals';
+import { toPlannedMeal, type BackendPlannedMeal } from '@/lib/plannedMeals';
 import { addDays, mondayOf, toIsoDate } from '@/lib/week';
 import { shorten } from '@/lib/recipe-id';
 import { useFindPlannedMealsByDateRange, markPlannedMealEaten } from '@/types/generated/client';
@@ -34,7 +34,7 @@ export default function Planner() {
     { swr: { enabled: Boolean(activeHouse) } },
   );
   const meals = mealsResponse && isSuccessResponse(mealsResponse)
-    ? mealsResponse.data.map(toPlannedMeal)
+    ? mealsResponse.data.map((m) => toPlannedMeal(m as BackendPlannedMeal))
     : undefined;
   const mealsError = error || (mealsResponse && !isSuccessResponse(mealsResponse));
 

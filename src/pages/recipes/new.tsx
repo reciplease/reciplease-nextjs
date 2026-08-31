@@ -2,7 +2,7 @@ import { useActionState, useState } from 'react';
 import { useRouter } from 'next/router';
 import Metadata from '@/components/Metadata';
 import RecipeForm, { type RecipeFormInitial, type RecipeFormValues } from '@/components/RecipeForm';
-import { toRecipe } from '@/lib/recipes';
+import { toRecipe, type BackendRecipe } from '@/lib/recipes';
 import { createRecipe, addRecipeIngredient, PublicRecipeOwned } from '@/types/generated/client';
 import { isSuccessResponse, describeErrorStatus } from '@/lib/apiClientMutator';
 
@@ -58,7 +58,7 @@ export default function NewRecipe() {
     if (!isSuccessResponse(createResponse)) {
       return describeErrorStatus(createResponse.status);
     }
-    const recipe: Recipe = toRecipe(createResponse.data);
+    const recipe: Recipe = toRecipe(createResponse.data as BackendRecipe);
 
     // Ingredients attach one-by-one on the backend.
     for (const ingredient of values.ingredients) {

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { full } from '@/lib/recipe-id';
 import { useActiveHouse } from '@/lib/houses';
-import { toPlannedMeal } from '@/lib/plannedMeals';
+import { toPlannedMeal, type BackendPlannedMeal } from '@/lib/plannedMeals';
 import { useFindPlannedMealById, deletePlannedMealById, updatePlannedMeal } from '@/types/generated/client';
 import { isSuccessResponse, describeErrorStatus } from '@/lib/apiClientMutator';
 
@@ -20,7 +20,7 @@ export default function EditPlannedMeal() {
   } = useFindPlannedMealById(plannedMealId as string, {
     swr: { enabled: Boolean(plannedMealId) },
   });
-  const meal = mealResponse && isSuccessResponse(mealResponse) ? toPlannedMeal(mealResponse.data) : undefined;
+  const meal = mealResponse && isSuccessResponse(mealResponse) ? toPlannedMeal(mealResponse.data as BackendPlannedMeal) : undefined;
   const mealError = error || (mealResponse && !isSuccessResponse(mealResponse));
   const activeHouse = useActiveHouse();
   const editable =
