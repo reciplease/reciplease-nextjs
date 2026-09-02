@@ -19,7 +19,6 @@ const recipe: Recipe = {
   recipeId: '111111111111111111111111',
   recipeShortId: 'EREREREREREREREREREREQ',
   owned: 'true',
-  ownerId: 'user-owner',
   createdBy: undefined,
   updatedBy: undefined,
   isPublic: false,

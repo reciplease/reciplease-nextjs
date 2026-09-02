@@ -43,7 +43,6 @@ const recipe: Recipe = {
   recipeId,
   recipeShortId,
   owned: 'true',
-  ownerId: 'user-owner',
   createdBy: undefined,
   updatedBy: undefined,
   isPublic: false,

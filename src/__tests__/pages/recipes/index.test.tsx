@@ -25,7 +25,6 @@ const recipes: Recipe[] = [
     ingredients: [],
     steps: [],
     owned: 'true',
-    ownerId: 'user-owner',
     isPublic: false,
     updatedAt: '2026-06-06T18:00:00Z',
   },

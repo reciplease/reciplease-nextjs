@@ -35,7 +35,6 @@ const recipe: Recipe = {
 const ownedRecipe: Recipe = {
   ...recipe,
   owned: 'true',
-  ownerId: 'user-owner',
   isPublic: false,
 };
 

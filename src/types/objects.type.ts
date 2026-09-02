@@ -16,8 +16,8 @@ declare global {
     recipeShortId: RecipeShortId;
   };
 
-  // Only returned to the recipe's owner — carries ownerId and who created/last
-  // updated it.
+  // Only returned to the recipe's owner — carries createdBy/updatedBy and who
+  // created/last updated it.
   type OwnedRecipe = components['schemas']['OwnedRecipe'] & {
     recipeShortId: RecipeShortId;
   };
