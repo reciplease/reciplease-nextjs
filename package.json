@@ -47,7 +47,6 @@
     "eslint-config-prettier": "^9.1.0",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
-    "netlify-plugin-cypress": "~2.2.1",
     "openapi-typescript": "^7.13.0",
     "orval": "^8.27.0",
     "postcss": "^8.5.15",

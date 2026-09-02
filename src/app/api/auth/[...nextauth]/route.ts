@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { decode } from 'next-auth/jwt';
 import { authOptions } from '@/lib/auth-options';
+import { allSetCookies } from '@/lib/cookies';
 
 const handler = NextAuth(authOptions);
 
@@ -37,22 +38,6 @@ function parseSetCookie(raw: string): { name: string; value: string } {
     name: raw.slice(0, eq),
     value: raw.slice(eq + 1, semi === -1 ? undefined : semi),
   };
-}
-
-/** Every `Set-Cookie` header value on a Response, however this runtime exposes them. */
-function allSetCookies(res: Response): string[] {
-  const getSetCookie = (res.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie;
-  if (typeof getSetCookie === 'function') return getSetCookie.call(res.headers);
-  // Fallback for runtimes without Headers#getSetCookie() (added in undici/Node 18.14+):
-  // most fetch implementations still yield one forEach entry per Set-Cookie header
-  // (it's specifically exempted from header-combining), so this is a reasonable
-  // best-effort — but if we ever see just one combined value, that's still handled
-  // fine below since we're only looking for the session-token cookie(s) by name.
-  const out: string[] = [];
-  res.headers.forEach((value, key) => {
-    if (key.toLowerCase() === 'set-cookie') out.push(value);
-  });
-  return out;
 }
 
 /**

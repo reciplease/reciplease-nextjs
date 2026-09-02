@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { isJwtExpired } from '@/lib/jwt';
+import { allSetCookies } from '@/lib/cookies';
 
 // Require a live Reciplease session for all pages, with two twists over a bare
 // NextAuth session check:
@@ -47,17 +48,6 @@ function loginRedirect(req: NextRequest): NextResponse {
   const url = new URL('/login', req.url);
   url.searchParams.set('callbackUrl', req.nextUrl.pathname + req.nextUrl.search);
   return NextResponse.redirect(url);
-}
-
-/** Every `Set-Cookie` header value on a Response, however this runtime exposes them. */
-function allSetCookies(res: Response): string[] {
-  const getSetCookie = (res.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie;
-  if (typeof getSetCookie === 'function') return getSetCookie.call(res.headers);
-  const out: string[] = [];
-  res.headers.forEach((value, key) => {
-    if (key.toLowerCase() === 'set-cookie') out.push(value);
-  });
-  return out;
 }
 
 /**

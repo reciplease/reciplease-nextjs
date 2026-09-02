@@ -3,7 +3,6 @@ import { useRouter } from 'next/router';
 import { useEffect } from 'react';
 import useSWR from 'swr';
 import type { ReactNode } from 'react';
-import styles from '@/components/AccessGate.module.scss';
 import type { components } from '@/types/generated/api';
 
 type Access = { status: number };
@@ -35,7 +34,7 @@ const meFetcher = async (url: string): Promise<Me> => {
 };
 
 function Centered({ children }: { children: ReactNode }) {
-  return <div className={styles.gate}>{children}</div>;
+  return <div className='flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8 text-center'>{children}</div>;
 }
 
 /**
@@ -114,7 +113,7 @@ export default function AccessGate({ children }: { children: ReactNode }) {
     return (
       <Centered>
         <p>Couldn&apos;t reach Reciplease. Check your connection and try again.</p>
-        <button onClick={() => retryProbe()}>Try again</button>
+        <button className='cursor-pointer rounded-[6px] border border-current bg-transparent px-5 py-2.5 text-base' onClick={() => retryProbe()}>Try again</button>
       </Centered>
     );
   }
@@ -132,7 +131,7 @@ export default function AccessGate({ children }: { children: ReactNode }) {
             ? `${session.user.handle} doesn't have access yet — you need an invite to a house.`
             : 'This account doesn’t have access yet — you need an invite to a house.'}
         </p>
-        <button onClick={() => signOut()}>Sign out</button>
+        <button className='cursor-pointer rounded-[6px] border border-current bg-transparent px-5 py-2.5 text-base' onClick={() => signOut()}>Sign out</button>
       </Centered>
     );
   }
@@ -141,7 +140,7 @@ export default function AccessGate({ children }: { children: ReactNode }) {
     return (
       <Centered>
         <p>Couldn&apos;t reach Reciplease. Check your connection and try again.</p>
-        <button onClick={() => retryMe()}>Try again</button>
+        <button className='cursor-pointer rounded-[6px] border border-current bg-transparent px-5 py-2.5 text-base' onClick={() => retryMe()}>Try again</button>
       </Centered>
     );
   }

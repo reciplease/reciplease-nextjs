@@ -4,7 +4,6 @@ import PantryFab from '@/components/PantryFab';
 import PlannerFab from '@/components/PlannerFab';
 import { Inter } from 'next/font/google';
 import { useRouter } from 'next/router';
-import styles from '@/components/Layout.module.scss';
 import type { JSX } from 'react';
 
 const font = Inter({ subsets: ['latin'] });
@@ -29,7 +28,7 @@ export default function Layout({ children }: { children: JSX.Element }) {
     // while page content (main) sits in the centred reading column by default.
     <div className={`${font.className} content-grid${sectionTheme}`}>
       <Header />
-      <main className={styles.main}>{children}</main>
+      <main className='pt-4 pb-24'>{children}</main>
       {onPantryItemDetail ? null : onPantry ? <PantryFab /> : onPlanner ? <PlannerFab /> : <RecipeFab />}
     </div>
   );
