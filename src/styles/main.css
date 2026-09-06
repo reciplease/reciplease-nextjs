@@ -18,100 +18,47 @@
   --color-planner-highlight: #2c5282; /* dark blue — the planner section accent */
 }
 
-/* The pantry/planner sections recolour their accent to green/dark blue.
-   Applying one of these classes on a wrapper overrides --color-highlight for
-   everything beneath it (nav underline, FAB, focus rings, bg-highlight/
-   border-highlight utilities, …). Used by the Layout for in-chrome pages and
-   (pantry only) by the standalone full-screen scanner. */
-.pantry-theme {
-  --color-highlight: var(--color-pantry-highlight);
-}
-
-.planner-theme {
-  --color-highlight: var(--color-planner-highlight);
-}
-
-/* Keep the reset in @layer base so Tailwind's utilities (a later layer) can
-   override it — otherwise unlayered rules beat every margin/padding utility. */
+/* Element defaults and state hooks live in @layer base so Tailwind's
+   utilities (a later layer) can override them — an unlayered rule would
+   beat every utility, whatever its specificity. Tailwind's own preflight
+   (box-sizing/margin/padding reset, list-style: none, a's inherit colour)
+   is emitted in the same layer at the @import, so rules here that restate
+   it can just be dropped rather than repeated. */
 @layer base {
-  * {
-    box-sizing: border-box;
+  html,
+  body {
+    min-height: 100vh;
+    max-width: 100vw;
+  }
+
+  /* Reserve the scrollbar's width at all times, whether or not the page
+     actually needs to scroll. Without this, the centred content-grid column
+     shifts sideways when navigating between a tall page (e.g. pantry, which
+     scrolls) and a short one (e.g. recipes/planner, which doesn't) — the
+     classic Windows-style reserved-width scrollbar comes and goes with them. */
+  html {
+    scrollbar-gutter: stable;
+  }
+
+  /* Preflight already inherits colour on <a>; only the no-underline default
+     needs stating, and staying in base it can be overridden per-link with an
+     `underline` utility. */
+  a {
+    text-decoration: none;
+  }
+
+  /* Reset browser default dialog styles so Tailwind classes take full control */
+  dialog {
+    color: inherit;
+    background: transparent;
+    border: none;
     padding: 0;
-    margin: 0;
+    max-width: 100vw;
   }
-}
 
-/**
- * Content grid: children sit in a centred, reading-width column by default,
- * but can break out to a wider track or full width via .breakout / .full-bleed.
- * The minmax() gutters centre the column and guarantee a side margin;
- * min(…, 100% - 3rem) keeps it responsive without media queries (the 3rem
- * matches the 1.5rem gutters, so small screens keep a comfortable margin).
- */
-.content-grid {
-  display: grid;
-  grid-template-columns:
-    [full-start] minmax(1.5rem, 1fr)
-    [content-start] min(80ch, 100% - 3rem) [content-end]
-    minmax(1.5rem, 1fr) [full-end];
-}
-
-.content-grid > * {
-  grid-column: content;
-}
-
-.content-grid > .breakout {
-  grid-column: 2 / -2;
-}
-
-.content-grid > .full-bleed {
-  grid-column: full;
-}
-
-body > * {
-  max-width: 140ch;
-  margin-inline: auto;
-}
-
-.debug {
-  &, & * {
-    outline: 0.2rem solid rgba(255 0 0 / 1);
-  }
-}
-
-html,
-body {
-  min-height: 100vh;
-  max-width: 100vw;
-}
-
-/* Reserve the scrollbar's width at all times, whether or not the page
-   actually needs to scroll. Without this, the centred content-grid column
-   shifts sideways when navigating between a tall page (e.g. pantry, which
-   scrolls) and a short one (e.g. recipes/planner, which doesn't) — the
-   classic Windows-style reserved-width scrollbar comes and goes with them. */
-html {
-  scrollbar-gutter: stable;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-/* Reset browser default dialog styles so Tailwind classes take full control */
-dialog {
-  color: inherit;
-  background: transparent;
-  border: none;
-  padding: 0;
-  max-width: 100vw;
-}
-
-/* Default button look: 2px secondary-colour border with slightly rounded
-   corners. In @layer base so components can still override via Tailwind
-   utilities (e.g. the FAB's rounded-full, the Google sign-in button). */
-@layer base {
+  /* Default button look: 2px secondary-colour border with slightly rounded
+     corners. Components can still override via Tailwind utilities (e.g. the
+     FAB's rounded-full, the Google sign-in button). */
   button {
     padding: 0.5rem;
     border: 2px solid var(--color-secondary, #383e56);
@@ -137,71 +84,104 @@ dialog {
   select {
     color-scheme: inherit;
   }
-}
 
-/* In @layer base so a `list-disc` / `list-decimal` utility can opt back in
-   (unlayered rules would otherwise beat Tailwind's utilities layer). */
-@layer base {
-  ul, ol {
-    list-style: none;
-  }
-}
-
-/* The app is dark-only. The SettingsProvider (src/lib/settings.tsx) always
-   reflects .theme-dark onto <html>, which the Tailwind `dark:` variant keys off. */
-html.theme-dark {
-  color-scheme: dark;
-  background: black;
-
-  select,
-  select option {
+  /* The app is dark-only. The SettingsProvider (src/lib/settings.tsx) always
+     reflects .theme-dark onto <html>, which the Tailwind `dark:` variant keys off. */
+  html.theme-dark {
     color-scheme: dark;
-    background-color: #1a1a1a;
-    color: white;
+    background: black;
+
+    select,
+    select option {
+      color-scheme: dark;
+      background-color: #1a1a1a;
+      color: white;
+    }
+  }
+
+  /* Reduced animations. Driven by the .reduce-motion class the SettingsProvider
+     applies (from the user's explicit choice or prefers-reduced-motion). Near-
+     instant rather than 0s so animation/transition end events still fire.
+     !important so it wins regardless of layer, and an important base-layer
+     rule outranks important rules in later layers. */
+  html.reduce-motion,
+  html.reduce-motion *,
+  html.reduce-motion *::before,
+  html.reduce-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
-/* Reduced animations. Driven by the .reduce-motion class the SettingsProvider
-   applies (from the user's explicit choice or prefers-reduced-motion). Near-
-   instant rather than 0s so animation/transition end events still fire. */
-html.reduce-motion,
-html.reduce-motion *,
-html.reduce-motion *::before,
-html.reduce-motion *::after {
-  animation-duration: 0.01ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0.01ms !important;
-  scroll-behavior: auto !important;
-}
-
-/* (Cross-page view-transition styles removed along with the manual Pages-Router
-   transition driver — see the note in src/pages/_app.tsx. Re-add on the App
-   Router migration.) */
-
-/* Staggered entrance for grid items (e.g. the recipes list). Pair with the
-   `fade-rise-in` utility class plus an inline `animation-delay` derived from
-   the item's index — see src/pages/recipes/index.tsx. The .reduce-motion
-   override above already collapses the duration to ~0, so no separate
-   opt-out is needed here. */
-@keyframes fade-rise-in {
-  from {
-    opacity: 0;
-    transform: translateY(0.5rem);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.fade-rise-in {
-  animation: fade-rise-in 0.3s ease-out backwards;
-}
-
-/* Shared look for RecipeForm/PlannedMealForm text/number/select fields —
-   pair with layout utilities (w-full, min-w-0, col-span-2, …) per usage;
-   a later utility class (e.g. p-1.5) overrides this by Tailwind's layer order. */
+/* Reusable classes: layouts, modifiers and shared component looks. Like base,
+   utilities override these by layer order — that's how .fab's @apply'd
+   bottom-6 yields to a plain bottom-24. */
 @layer components {
+  /* The pantry/planner sections recolour their accent to green/dark blue.
+     Applying one of these classes on a wrapper overrides --color-highlight for
+     everything beneath it (nav underline, FAB, focus rings, bg-highlight/
+     border-highlight utilities, …). Used by the Layout for in-chrome pages and
+     (pantry only) by the standalone full-screen scanner. */
+  .pantry-theme {
+    --color-highlight: var(--color-pantry-highlight);
+  }
+
+  .planner-theme {
+    --color-highlight: var(--color-planner-highlight);
+  }
+
+  /**
+   * Content grid: children sit in a centred, reading-width column by default,
+   * but can break out to a wider track or full width via .breakout / .full-bleed.
+   * The minmax() gutters centre the column and guarantee a side margin;
+   * min(…, 100% - 3rem) keeps it responsive without media queries (the 3rem
+   * matches the 1.5rem gutters, so small screens keep a comfortable margin).
+   */
+  .content-grid {
+    display: grid;
+    grid-template-columns:
+      [full-start] minmax(1.5rem, 1fr)
+      [content-start] min(80ch, 100% - 3rem) [content-end]
+      minmax(1.5rem, 1fr) [full-end];
+  }
+
+  .content-grid > * {
+    grid-column: content;
+  }
+
+  .content-grid > .breakout {
+    grid-column: 2 / -2;
+  }
+
+  .content-grid > .full-bleed {
+    grid-column: full;
+  }
+
+  body > * {
+    max-width: 140ch;
+    margin-inline: auto;
+  }
+
+  .debug {
+    &, & * {
+      outline: 0.2rem solid rgba(255 0 0 / 1);
+    }
+  }
+
+  /* Staggered entrance for grid items (e.g. the recipes list). Pair with the
+     `fade-rise-in` utility class plus an inline `animation-delay` derived from
+     the item's index — see src/pages/recipes/index.tsx. The .reduce-motion
+     override above already collapses the duration to ~0, so no separate
+     opt-out is needed here. */
+  .fade-rise-in {
+    animation: fade-rise-in 0.3s ease-out backwards;
+  }
+
+  /* Shared look for RecipeForm/PlannedMealForm text/number/select fields —
+     pair with layout utilities (w-full, min-w-0, col-span-2, …) per usage;
+     a later utility class (e.g. p-1.5) overrides this by Tailwind's layer order. */
   .field {
     @apply p-2 text-base border border-[#ccc] rounded placeholder:text-[#999];
   }
@@ -220,3 +200,20 @@ html.reduce-motion *::after {
     @apply fixed bottom-6 right-[max(1rem,calc(50vw_-_40ch))] z-50 flex h-14 w-14 items-center justify-center rounded-full border-0 bg-highlight leading-none text-white shadow-lg transition transition-transform hover:scale-110 hover:bg-highlight/90 hover:shadow-xl active:scale-95 focus:outline-none focus:ring-2 focus:ring-highlight/60 focus:ring-offset-2;
   }
 }
+
+/* Keyframes stay out of any layer: animations match them by name, so the
+   @layer the keyframes live in doesn't govern whether they apply. */
+@keyframes fade-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* (Cross-page view-transition styles removed along with the manual Pages-Router
+   transition driver — see the note in src/pages/_app.tsx. Re-add on the App
+   Router migration.) */
