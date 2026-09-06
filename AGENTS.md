@@ -28,6 +28,24 @@
   root (e.g. a symlink into another git worktree) — use a real `node_modules`
   for anything that needs `next dev`/`next build` to actually run.
 
+## Target devices
+
+The app must stay usable on a **colour e-ink tablet** (slow panel refresh,
+not grayscale — don't drop colour to "optimise" for it). Practically this
+means treating every device as `prefers-reduced-motion: reduce`-first:
+animations/transitions are a progressive enhancement, never load-bearing for
+understanding the UI. The app already has a reduce-motion system — reuse it,
+don't build a parallel one:
+
+- `src/lib/settings.tsx` reads `prefers-reduced-motion` on load and exposes a
+  manual "Reduced"/"Automatic" override in Settings.
+- Both apply the `.reduce-motion` class to `<html>`; `src/styles/main.scss`
+  zeroes out `animation-duration`/`transition-duration` under it.
+- Any new CSS animation (Tailwind `animate-*` utilities included) is covered
+  automatically as long as it's a real CSS `animation`/`transition` — don't
+  implement motion with `setInterval`/`requestAnimationFrame` loops that
+  bypass this.
+
 Quick reference for what test suites exist in this repo and how to run them.
 
 ## Test suites
