@@ -5,15 +5,6 @@ import type { components } from '@/types/generated/api';
 
 export type GoogleHealthConnection = components['schemas']['GoogleHealthConnectionStatusDto'];
 
-// Best guess at Google Health's meal type enum — needs verification against
-// the live API once available (developers.google.com/health).
-export const MEAL_TYPES: { value: string; label: string }[] = [
-  { value: 'BREAKFAST', label: 'Breakfast' },
-  { value: 'LUNCH', label: 'Lunch' },
-  { value: 'DINNER', label: 'Dinner' },
-  { value: 'SNACK', label: 'Snack' },
-];
-
 // Whether the current user has linked Google Health. Gated on session status
 // like useHouses() — no point issuing the request while signed out.
 export function useGoogleHealthConnection() {

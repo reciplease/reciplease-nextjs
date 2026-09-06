@@ -190,7 +190,7 @@ export default function Header() {
   ) : (
     <Link
       href="/login"
-      // The global `a { color: inherit }` reset in main.scss is unlayered, so
+      // The global `a { color: inherit }` reset in main.css is unlayered, so
       // it beats Tailwind's utility layer — force this one with `!`, otherwise
       // the text inherits the header's light colour and disappears against
       // this button's white background.

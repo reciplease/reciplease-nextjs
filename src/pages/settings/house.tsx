@@ -34,7 +34,7 @@ function RoleSelect({
 }) {
   return (
     // p-2 matches the 0.5rem padding buttons get for free from the global
-    // `button` base style (main.scss), so this lines up with the buttons next
+    // `button` base style (main.css), so this lines up with the buttons next
     // to it without either needing its own height override.
     <select
       aria-label="Role"

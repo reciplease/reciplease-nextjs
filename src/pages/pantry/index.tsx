@@ -110,7 +110,7 @@ function PantryTile({
 }
 
 // 110px min comfortably fits ~5 across the page's 80ch reading column
-// (see .content-grid in main.scss) regardless of monitor width — widening
+// (see .content-grid in main.css) regardless of monitor width — widening
 // that column isn't the fix, these were just too big. auto-fill (not
 // auto-fit): auto-fit collapses unused tracks and hands their share of the
 // row to the populated ones via the `1fr`, so a short list (e.g. 2 items)

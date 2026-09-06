@@ -10,7 +10,7 @@ const font = Inter({ subsets: ['latin'] });
 
 // The pantry/planner sections recolour their accent (darker green / dark
 // blue) via the shared .pantry-theme/.planner-theme classes (see
-// main.scss), which override --color-highlight for everything beneath them:
+// main.css), which override --color-highlight for everything beneath them:
 // the nav's active underline, the FAB, focus rings, and Tailwind utilities
 // like bg-highlight that resolve the variable at use.
 export default function Layout({ children }: { children: JSX.Element }) {

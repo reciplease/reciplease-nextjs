@@ -18,7 +18,8 @@ Needs a proper design before reintroducing:
 - Whatever shape that shared logging call takes, both entry points should go through it,
   rather than duplicating the food-search-then-log UI in two places.
 
-The removed food-search/barcode-match UI and the `/api/google-health/foods/log` proxy route
-are both still intact (see `src/lib/googleHealth.ts`, `src/lib/foodSearch.ts`,
-`src/components/scanner/BarcodeScanner.tsx`) — only `EatFlow`'s use of them was removed, as
-a starting point to build the real flow from once it's designed.
+The food-search/barcode-match UI, `src/lib/foodSearch.ts`, `MEAL_TYPES`, and the
+`/api/google-health/foods/log` proxy route were deleted as dead code (nothing called them —
+see the ponytail-audit run on 2026-09-06). The last commit where they still existed intact is
+`dd1a4e1` — check out that commit (or `git show dd1a4e1:src/lib/foodSearch.ts` etc.) to recover
+the starting point for the real flow once it's designed.

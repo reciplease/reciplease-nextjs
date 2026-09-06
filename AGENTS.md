@@ -39,7 +39,7 @@ don't build a parallel one:
 
 - `src/lib/settings.tsx` reads `prefers-reduced-motion` on load and exposes a
   manual "Reduced"/"Automatic" override in Settings.
-- Both apply the `.reduce-motion` class to `<html>`; `src/styles/main.scss`
+- Both apply the `.reduce-motion` class to `<html>`; `src/styles/main.css`
   zeroes out `animation-duration`/`transition-duration` under it.
 - Any new CSS animation (Tailwind `animate-*` utilities included) is covered
   automatically as long as it's a real CSS `animation`/`transition` — don't

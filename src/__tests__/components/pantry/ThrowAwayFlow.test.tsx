@@ -72,9 +72,7 @@ describe('ThrowAwayFlow', () => {
       );
       expect(onSaved).toHaveBeenCalled();
     });
-    // Thrown-away food was never eaten, so nothing may reach the food diary.
     expect(mockApiClientMutator).toHaveBeenCalledTimes(1);
-    expect(mockApiClientMutator).not.toHaveBeenCalledWith('/api/google-health/foods/log', expect.anything());
   });
 
   it('clamps remaining to zero (never deletes) when more than what is left gets binned', async () => {
