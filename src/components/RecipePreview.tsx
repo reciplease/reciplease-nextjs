@@ -26,6 +26,11 @@ export default function RecipePreview({ recipe, onToggleUpvote, onToggleVisibili
         }
       >
         {recipe.name}
+        {recipe.sourceUrl && (
+          <span role="img" aria-label="Has source link" title="Has source link" className="ml-1 no-underline">
+            🌐
+          </span>
+        )}
       </h4>
       <p className="line-clamp-2 grow basis-64 text-sm">{recipe.description ?? 'No description found'}</p>
       <span className="shrink-0 text-xs" onClick={(e) => e.stopPropagation()}>

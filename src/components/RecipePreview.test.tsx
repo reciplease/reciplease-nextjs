@@ -61,6 +61,16 @@ describe('RecipePreview', () => {
     expect(screen.getByRole('link')).toHaveAttribute('href', '/recipes/abc123');
   });
 
+  it('shows a source link icon when the recipe has a source URL', () => {
+    render(<RecipePreview recipe={{ ...recipe, sourceUrl: 'https://example.com' }} />);
+    expect(screen.getByLabelText('Has source link')).toBeInTheDocument();
+  });
+
+  it('does not show a source link icon when the recipe has no source URL', () => {
+    render(<RecipePreview recipe={recipe} />);
+    expect(screen.queryByLabelText('Has source link')).not.toBeInTheDocument();
+  });
+
   it('has no view-transition-name until clicked', () => {
     render(<RecipePreview recipe={recipe} />);
     expect(screen.getByText('Toast')).not.toHaveStyle({
