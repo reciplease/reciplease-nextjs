@@ -1,6 +1,7 @@
 import { useActionState, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Metadata from '@/components/Metadata';
+import LoadingBox from '@/components/LoadingBox';
 import MdyDateInput from '@/components/MdyDateInput';
 import PantryImage from '@/components/PantryImage';
 import { compressToBase64 } from '@/lib/imageCapture';
@@ -52,7 +53,7 @@ export default function EditPantryItem() {
     return (
       <>
         <Metadata title="Loading" description="Loading pantry item..." />
-        <p>Loading...</p>
+        <LoadingBox label="Loading..." className="min-h-64" />
       </>
     );
   }

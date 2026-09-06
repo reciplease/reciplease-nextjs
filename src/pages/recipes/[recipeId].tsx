@@ -1,4 +1,5 @@
 import Metadata from '@/components/Metadata';
+import LoadingBox from '@/components/LoadingBox';
 import SourceLink from '@/components/SourceLink';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -36,7 +37,7 @@ export default function Recipe() {
         <Metadata title={'Loading Recipe'} description={'Loading recipe...'} />
 
         <section>
-          <p>Loading...</p>
+          <LoadingBox label="Loading..." className="min-h-64" />
         </section>
       </>
     );

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
+import LoadingBox from '@/components/LoadingBox';
 import { toDataUrl } from '@/lib/imageCapture';
 import { useActiveHouse } from '@/lib/houses';
 import { useFindAllPendingPantryItems, discardPendingPantryItem } from '@/types/generated/client';
@@ -58,7 +59,7 @@ export default function ProcessListPage() {
     return (
       <>
         <Metadata title="Loading" description="Loading pending items..." />
-        <p>Loading...</p>
+        <LoadingBox label="Loading..." className="min-h-64" />
       </>
     );
   }

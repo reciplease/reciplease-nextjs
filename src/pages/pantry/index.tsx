@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
+import LoadingBox from '@/components/LoadingBox';
 import PantryImage from '@/components/PantryImage';
 import ThrowAwayPanel from '@/components/pantry/ThrowAwayPanel';
 import SortFilterMenu, {
@@ -170,7 +171,7 @@ export default function PantryList() {
     return (
       <>
         <Metadata title="Loading Pantry" description="Loading pantry..." />
-        <p>Loading...</p>
+        <LoadingBox label="Loading..." className="min-h-64" />
       </>
     );
   }

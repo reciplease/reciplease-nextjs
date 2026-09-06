@@ -1,6 +1,7 @@
 import { useSession, signIn } from 'next-auth/react';
 import { useState } from 'react';
 import useSWR from 'swr';
+import LoadingBox from '@/components/LoadingBox';
 import { registerPasskey } from '@/lib/passkey';
 import type { components } from '@/types/generated/api';
 
@@ -89,7 +90,7 @@ export default function LinkedAccounts({ returnTo }: { returnTo: string }) {
       )}
 
       {isLoading ? (
-        <p className="text-sm opacity-70">Loading…</p>
+        <LoadingBox label="Loading…" className="min-h-16" />
       ) : (
         <ul className="mt-3 flex flex-col gap-2">
           {ALL_PROVIDERS.map((provider) => {

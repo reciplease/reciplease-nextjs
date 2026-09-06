@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { useEffect } from 'react';
 import useSWR from 'swr';
 import type { ReactNode } from 'react';
+import LoadingBox from '@/components/LoadingBox';
 import type { components } from '@/types/generated/api';
 
 type Access = { status: number };
@@ -106,7 +107,7 @@ export default function AccessGate({ children }: { children: ReactNode }) {
   // "Redirecting to sign in…", "Checking access…"), which on a single page load
   // reads as a sequence of different flashing popups rather than one smooth wait.
   if (status === 'loading' || needsReauth) {
-    return <Centered>Loading…</Centered>;
+    return <Centered><LoadingBox label="Loading…" className="w-64" /></Centered>;
   }
 
   if (probeError) {
@@ -119,7 +120,7 @@ export default function AccessGate({ children }: { children: ReactNode }) {
   }
 
   if (isLoading || !data) {
-    return <Centered>Loading…</Centered>;
+    return <Centered><LoadingBox label="Loading…" className="w-64" /></Centered>;
   }
 
   if (data.status === 403) {
@@ -146,7 +147,7 @@ export default function AccessGate({ children }: { children: ReactNode }) {
   }
 
   if (meLoading || !me) {
-    return <Centered>Loading…</Centered>;
+    return <Centered><LoadingBox label="Loading…" className="w-64" /></Centered>;
   }
 
   if (me.status === 200 && !me.handle) {

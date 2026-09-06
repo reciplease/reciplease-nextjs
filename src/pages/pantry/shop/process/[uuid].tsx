@@ -2,6 +2,7 @@ import { useActionState, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
+import LoadingBox from '@/components/LoadingBox';
 import MdyDateInput from '@/components/MdyDateInput';
 import MeasureAmountFields from '@/components/scanner/MeasureAmountFields';
 import CandidatePills from '@/components/scanner/CandidatePills';
@@ -69,7 +70,7 @@ export default function ProcessDetailPage() {
     return (
       <>
         <Metadata title="Loading" description="Loading pending item..." />
-        <p>Loading...</p>
+        <LoadingBox label="Loading..." className="min-h-64" />
       </>
     );
   }

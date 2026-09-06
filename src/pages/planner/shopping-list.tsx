@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
+import LoadingBox from '@/components/LoadingBox';
 import { useActiveHouse } from '@/lib/houses';
 import { toShoppingList } from '@/lib/plannedMeals';
 import { useFindShoppingList } from '@/types/generated/client';
@@ -33,7 +34,7 @@ export default function ShoppingListPage() {
     return (
       <>
         <Metadata title="Loading Shopping List" description="Loading shopping list..." />
-        <p>Loading...</p>
+        <LoadingBox label="Loading..." className="min-h-64" />
       </>
     );
   }

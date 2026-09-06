@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
+import LoadingBox from '@/components/LoadingBox';
 import { useGoogleHealthConnection } from '@/lib/googleHealth';
 import { disconnectGoogleHealth } from '@/types/generated/client';
 import { isSuccessResponse, describeErrorStatus } from '@/lib/apiClientMutator';
@@ -56,7 +57,7 @@ export default function GoogleHealthConnection() {
       )}
 
       {isLoading ? (
-        <p className="text-sm opacity-70">Loading…</p>
+        <LoadingBox label="Loading…" className="min-h-16" />
       ) : data?.connected ? (
         <div className="flex items-center gap-3">
           <span className="text-sm text-highlight">Connected</span>

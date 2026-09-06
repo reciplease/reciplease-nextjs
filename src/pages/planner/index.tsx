@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Metadata from '@/components/Metadata';
+import LoadingBox from '@/components/LoadingBox';
 import WeekCalendar from '@/components/planner/WeekCalendar';
 import { useActiveHouse } from '@/lib/houses';
 import { formatDate } from '@/lib/formatDate';
@@ -63,7 +64,7 @@ export default function Planner() {
         </p>
 
         {!activeHouse || isLoading ? (
-          <p>Loading...</p>
+          <LoadingBox label="Loading..." className="min-h-64" />
         ) : mealsError || !weekMeals ? (
           <p>Could not load planned meals</p>
         ) : (

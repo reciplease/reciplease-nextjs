@@ -1,4 +1,5 @@
 import useSWR from 'swr';
+import LoadingBox from '@/components/LoadingBox';
 import type { LinkPreview, RecipeMeta } from '@/lib/link-preview';
 
 const fetcher = async (url: string): Promise<LinkPreview> => {
@@ -14,13 +15,13 @@ function formatRecipeMetaLine(meta: RecipeMeta): string {
   return [meta.time, meta.servings, rating].filter(Boolean).join(' · ');
 }
 
-const CARD_CLASSNAME =
-  'mb-4 flex items-center gap-3 rounded-lg border-2 border-secondary p-2 transition-colors hover:bg-secondary hover:text-white';
+const CARD_BASE_CLASSNAME = 'mb-4 flex items-center gap-3 rounded-lg border-2 p-2';
+const CARD_CLASSNAME = `${CARD_BASE_CLASSNAME} border-secondary transition-colors hover:bg-secondary hover:text-white`;
 
 export default function SourceLink({ url }: { url: string }) {
   const { data, error } = useSWR(`/api/link-preview?url=${encodeURIComponent(url)}`, fetcher);
 
-  if (!data || error) {
+  if (error) {
     return (
       <a
         href={url}
@@ -31,6 +32,10 @@ export default function SourceLink({ url }: { url: string }) {
         Source: {url}
       </a>
     );
+  }
+
+  if (!data) {
+    return <LoadingBox label="Loading preview…" className="mb-4 min-h-16" />;
   }
 
   if (data.type === 'youtube') {

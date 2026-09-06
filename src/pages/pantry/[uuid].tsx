@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Metadata from '@/components/Metadata';
+import LoadingBox from '@/components/LoadingBox';
 import PantryImage from '@/components/PantryImage';
 import EatFlow from '@/components/pantry/EatFlow';
 import ThrowAwayFlow from '@/components/pantry/ThrowAwayFlow';
@@ -47,7 +48,7 @@ export default function PantryItemPage() {
     return (
       <>
         <Metadata title="Loading" description="Loading pantry item..." />
-        <p>Loading...</p>
+        <LoadingBox label="Loading..." className="min-h-64" />
       </>
     );
   }

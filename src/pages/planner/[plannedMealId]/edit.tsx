@@ -1,5 +1,6 @@
 import { useActionState } from 'react';
 import Metadata from '@/components/Metadata';
+import LoadingBox from '@/components/LoadingBox';
 import PlannedMealForm, { PlannedMealFormValues } from '@/components/PlannedMealForm';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -67,7 +68,7 @@ export default function EditPlannedMeal() {
         <Metadata title="Loading Meal" description="Loading planned meal..." />
 
         <section>
-          <p>Loading...</p>
+          <LoadingBox label="Loading..." className="min-h-64" />
         </section>
       </>
     );

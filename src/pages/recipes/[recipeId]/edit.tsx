@@ -1,5 +1,6 @@
 import { useActionState } from 'react';
 import Metadata from '@/components/Metadata';
+import LoadingBox from '@/components/LoadingBox';
 import RecipeForm, { RecipeFormValues } from '@/components/RecipeForm';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -68,7 +69,7 @@ export default function EditRecipe() {
         <Metadata title="Loading Recipe" description="Loading recipe..." />
 
         <section>
-          <p>Loading...</p>
+          <LoadingBox label="Loading..." className="min-h-64" />
         </section>
       </>
     );

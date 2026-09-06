@@ -6,11 +6,12 @@ jest.mock('swr');
 const useSWR = require('swr').default;
 
 describe('SourceLink', () => {
-  it('renders a plain link while loading', () => {
+  it('renders a loading placeholder while the preview is loading', () => {
     useSWR.mockReturnValue({ data: undefined, error: undefined });
     render(<SourceLink url="https://www.bbcgoodfood.com/recipes/toast" />);
-    const link = screen.getByRole('link', { name: /Source: https:\/\/www\.bbcgoodfood\.com/ });
-    expect(link).toHaveAttribute('href', 'https://www.bbcgoodfood.com/recipes/toast');
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.getByText('Loading preview…')).toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('renders a plain link when the preview fails to load', () => {

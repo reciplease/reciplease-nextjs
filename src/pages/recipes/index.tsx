@@ -1,5 +1,6 @@
 import RecipePreview from '@/components/RecipePreview';
 import Metadata from '@/components/Metadata';
+import LoadingBox from '@/components/LoadingBox';
 import Recipe from '@/pages/recipes/[recipeId]';
 import useSWR from 'swr';
 import { fetchOrRedirect } from '@/lib/publicPageFetch';
@@ -47,7 +48,7 @@ export default function Recipes() {
         />
 
         <section className="grid">
-          <p>Loading...</p>
+          <LoadingBox label="Loading..." className="min-h-64" />
         </section>
       </>
     );

@@ -1,4 +1,5 @@
 import Metadata from '@/components/Metadata';
+import LoadingBox from '@/components/LoadingBox';
 import { BACKEND_URL } from '@/lib/backend-url';
 import { GetServerSidePropsContext } from 'next';
 import Link from 'next/link';
@@ -84,7 +85,7 @@ export default function InvitePage({ code, initialPreview }: Props) {
       <>
         <Metadata title="Invite" description="Loading invite..." />
         <section>
-          <p>Loading...</p>
+          <LoadingBox label="Loading..." className="min-h-64" />
         </section>
       </>
     );
