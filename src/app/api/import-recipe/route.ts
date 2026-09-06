@@ -1,5 +1,5 @@
 import { type NextRequest } from 'next/server';
-import { extractRecipeFromJsonLd, parseImportedRecipe } from '@/lib/import-recipe';
+import { extractJsonLdBlocks, extractRecipeFromJsonLd, parseImportedRecipe } from '@/lib/import-recipe';
 
 // Only allow fetching from known recipe sites to prevent SSRF.
 const ALLOWED_HOSTNAMES = new Set([
@@ -10,20 +10,6 @@ const ALLOWED_HOSTNAMES = new Set([
   'www.hellofresh.co.uk',
   'hellofresh.co.uk',
 ]);
-
-function extractJsonLdBlocks(html: string): unknown[] {
-  const blocks: unknown[] = [];
-  const re = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(html)) !== null) {
-    try {
-      blocks.push(JSON.parse(match[1]));
-    } catch {
-      // Skip unparseable blocks
-    }
-  }
-  return blocks;
-}
 
 export async function POST(req: NextRequest): Promise<Response> {
   let url: string | undefined;

@@ -1,6 +1,20 @@
+import { extractJsonLdBlocks, extractRecipeFromJsonLd, type SchemaOrgRecipe } from './import-recipe';
+
+export type RecipeMeta = {
+  time: string | null;
+  servings: string | null;
+  rating: { value: number; count: number } | null;
+};
+
 export type LinkPreview =
   | { type: 'youtube'; title: string | null; channelName: string | null; thumbnailUrl: string | null }
-  | { type: 'website'; title: string | null; siteName: string; image: string | null };
+  | {
+      type: 'website';
+      title: string | null;
+      siteName: string;
+      image: string | null;
+      recipeMeta: RecipeMeta | null;
+    };
 
 const YOUTUBE_HOSTNAMES = new Set([
   'youtube.com',
@@ -93,7 +107,58 @@ export function parseWebsitePreview(html: string, pageUrl: string): LinkPreview 
   const title = extractMetaContent(html, 'og:title') ?? extractTitleTag(html);
   const rawImage = extractMetaContent(html, 'og:image');
   const image = rawImage ? resolveUrl(rawImage, pageUrl) : null;
-  return { type: 'website', title, siteName, image };
+  const recipeMeta = extractRecipeMeta(html);
+  return { type: 'website', title, siteName, image, recipeMeta };
+}
+
+function findRecipeSchema(html: string): SchemaOrgRecipe | null {
+  for (const block of extractJsonLdBlocks(html)) {
+    const schema = extractRecipeFromJsonLd(block);
+    if (schema) return schema;
+  }
+  return null;
+}
+
+function extractRecipeMeta(html: string): RecipeMeta | null {
+  const schema = findRecipeSchema(html);
+  if (!schema) return null;
+
+  const time = formatDuration(schema.totalTime) ?? formatDuration(schema.cookTime);
+  const servings = formatServings(schema.recipeYield);
+  const rating = formatRating(schema.aggregateRating);
+
+  if (!time && !servings && !rating) return null;
+  return { time, servings, rating };
+}
+
+function formatDuration(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const match = value.match(/^PT(?:(\d+)H)?(?:(\d+)M)?$/);
+  if (!match) return null;
+  const hours = match[1] ? parseInt(match[1], 10) : 0;
+  const minutes = match[2] ? parseInt(match[2], 10) : 0;
+  if (hours === 0 && minutes === 0) return null;
+  if (hours === 0) return `${minutes} min`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
+}
+
+function formatServings(value: unknown): string | null {
+  const first = Array.isArray(value) ? value[0] : value;
+  if (typeof first === 'number' && Number.isFinite(first)) return `Serves ${first}`;
+  if (typeof first === 'string' && first.trim()) {
+    return /^\d+$/.test(first.trim()) ? `Serves ${first.trim()}` : first.trim();
+  }
+  return null;
+}
+
+function formatRating(value: unknown): { value: number; count: number } | null {
+  if (!value || typeof value !== 'object') return null;
+  const node = value as Record<string, unknown>;
+  const ratingValue = Number(node.ratingValue);
+  if (!Number.isFinite(ratingValue)) return null;
+  const ratingCount = Number(node.ratingCount ?? node.reviewCount ?? 0);
+  return { value: Math.round(ratingValue * 10) / 10, count: Number.isFinite(ratingCount) ? ratingCount : 0 };
 }
 
 export type YoutubeOembedResponse = {

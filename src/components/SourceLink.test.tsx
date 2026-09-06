@@ -56,6 +56,7 @@ describe('SourceLink', () => {
         siteName: 'BBC Good Food',
         title: 'Lemon Drizzle Cake',
         image: 'https://www.bbcgoodfood.com/images/cake.jpg',
+        recipeMeta: null,
       },
       error: undefined,
     });
@@ -68,10 +69,49 @@ describe('SourceLink', () => {
 
   it('falls back to the site name as the title when no title is available', () => {
     useSWR.mockReturnValue({
-      data: { type: 'website', siteName: 'example.com', title: null, image: null },
+      data: { type: 'website', siteName: 'example.com', title: null, image: null, recipeMeta: null },
       error: undefined,
     });
     render(<SourceLink url="https://www.example.com/recipe" />);
     expect(screen.getAllByText('example.com')).toHaveLength(2);
+  });
+
+  it('renders time, servings and rating when recipe metadata is available', () => {
+    useSWR.mockReturnValue({
+      data: {
+        type: 'website',
+        siteName: 'HelloFresh',
+        title: 'Creamy Garden Herb Chicken',
+        image: null,
+        recipeMeta: { time: '35 min', servings: 'Serves 2', rating: { value: 4.4, count: 14007 } },
+      },
+      error: undefined,
+    });
+    render(<SourceLink url="https://www.hellofresh.com/recipes/creamy-garden-herb-chicken" />);
+    expect(screen.getByText('35 min · Serves 2 · ★4.4 (14,007)')).toBeInTheDocument();
+  });
+
+  it('omits missing recipe metadata parts from the summary line', () => {
+    useSWR.mockReturnValue({
+      data: {
+        type: 'website',
+        siteName: 'Good Food',
+        title: 'Pavlova',
+        image: null,
+        recipeMeta: { time: '1h 40m', servings: null, rating: null },
+      },
+      error: undefined,
+    });
+    render(<SourceLink url="https://www.bbcgoodfood.com/recipes/pavlova" />);
+    expect(screen.getByText('1h 40m')).toBeInTheDocument();
+  });
+
+  it('does not render a metadata line when recipeMeta is null', () => {
+    useSWR.mockReturnValue({
+      data: { type: 'website', siteName: 'example.com', title: null, image: null, recipeMeta: null },
+      error: undefined,
+    });
+    render(<SourceLink url="https://www.example.com/recipe" />);
+    expect(screen.queryByText(/min|Serves|★/)).not.toBeInTheDocument();
   });
 });

@@ -126,6 +126,7 @@ describe('parseWebsitePreview', () => {
       siteName: 'BBC Good Food',
       title: 'Lemon Drizzle Cake',
       image: 'https://www.bbcgoodfood.com/images/cake.jpg',
+      recipeMeta: null,
     });
   });
 
@@ -143,6 +144,85 @@ describe('parseWebsitePreview', () => {
   it('has a null image when og:image is missing', () => {
     const result = parseWebsitePreview('<html></html>', 'https://www.example.com/recipe');
     expect(result).toMatchObject({ image: null });
+  });
+
+  it('has a null recipeMeta when there is no schema.org Recipe JSON-LD', () => {
+    const result = parseWebsitePreview('<html></html>', 'https://www.example.com/recipe');
+    expect(result).toMatchObject({ recipeMeta: null });
+  });
+
+  function jsonLdRecipe(overrides: Record<string, unknown>): string {
+    return `<script type="application/ld+json">${JSON.stringify({
+      '@type': 'Recipe',
+      name: 'Test recipe',
+      ...overrides,
+    })}</script>`;
+  }
+
+  it('extracts total time, servings and rating from schema.org Recipe JSON-LD', () => {
+    const html = jsonLdRecipe({
+      totalTime: 'PT1H40M',
+      recipeYield: 6,
+      aggregateRating: { '@type': 'AggregateRating', ratingValue: '4.411008743468058', ratingCount: '14007' },
+    });
+    const result = parseWebsitePreview(html, 'https://www.bbcgoodfood.com/recipes/pavlova');
+    expect(result).toMatchObject({
+      recipeMeta: { time: '1h 40m', servings: 'Serves 6', rating: { value: 4.4, count: 14007 } },
+    });
+  });
+
+  it('formats a minutes-only duration', () => {
+    const html = jsonLdRecipe({ totalTime: 'PT35M' });
+    expect(parseWebsitePreview(html, 'https://example.com/recipe')).toMatchObject({
+      recipeMeta: { time: '35 min' },
+    });
+  });
+
+  it('formats an hours-only duration', () => {
+    const html = jsonLdRecipe({ totalTime: 'PT2H' });
+    expect(parseWebsitePreview(html, 'https://example.com/recipe')).toMatchObject({
+      recipeMeta: { time: '2h' },
+    });
+  });
+
+  it('falls back to cookTime when totalTime is missing', () => {
+    const html = jsonLdRecipe({ cookTime: 'PT20M' });
+    expect(parseWebsitePreview(html, 'https://example.com/recipe')).toMatchObject({
+      recipeMeta: { time: '20 min' },
+    });
+  });
+
+  it('formats a string recipeYield that is not purely numeric as-is', () => {
+    const html = jsonLdRecipe({ recipeYield: '4 servings' });
+    expect(parseWebsitePreview(html, 'https://example.com/recipe')).toMatchObject({
+      recipeMeta: { servings: '4 servings' },
+    });
+  });
+
+  it('formats a numeric string recipeYield with a "Serves" prefix', () => {
+    const html = jsonLdRecipe({ recipeYield: '4' });
+    expect(parseWebsitePreview(html, 'https://example.com/recipe')).toMatchObject({
+      recipeMeta: { servings: 'Serves 4' },
+    });
+  });
+
+  it('takes the first element of an array recipeYield', () => {
+    const html = jsonLdRecipe({ recipeYield: [4, '4-6 servings'] });
+    expect(parseWebsitePreview(html, 'https://example.com/recipe')).toMatchObject({
+      recipeMeta: { servings: 'Serves 4' },
+    });
+  });
+
+  it('has a null recipeMeta when the Recipe JSON-LD has none of the recognised fields', () => {
+    const html = jsonLdRecipe({});
+    expect(parseWebsitePreview(html, 'https://example.com/recipe')).toMatchObject({ recipeMeta: null });
+  });
+
+  it('ignores an unparseable duration format', () => {
+    const html = jsonLdRecipe({ totalTime: 'not-a-duration' });
+    expect(parseWebsitePreview(html, 'https://example.com/recipe')).toMatchObject({
+      recipeMeta: null,
+    });
   });
 });
 

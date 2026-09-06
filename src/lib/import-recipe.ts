@@ -93,9 +93,25 @@ const SchemaOrgRecipeSchema = z.object({
   // ItemList object ({ itemListElement: [...] }) — normalizeInstructions() below
   // handles all three shapes, so validate loosely here and defer shape-narrowing to it.
   recipeInstructions: z.unknown().optional(),
+  totalTime: z.unknown().optional(),
+  cookTime: z.unknown().optional(),
+  recipeYield: z.unknown().optional(),
+  aggregateRating: z.unknown().optional(),
 });
 
 export type SchemaOrgRecipe = z.infer<typeof SchemaOrgRecipeSchema>;
+
+export function extractJsonLdBlocks(html: string): unknown[] {
+  const blocks: unknown[] = [];
+  const re = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(html)) !== null) {
+    try {
+      blocks.push(JSON.parse(match[1]));
+    } catch {}
+  }
+  return blocks;
+}
 
 // Recursively finds a schema.org Recipe object in arbitrary JSON-LD.
 // Handles both top-level @type layouts (HelloFresh) and @graph-wrapped layouts (BBC Good Food).

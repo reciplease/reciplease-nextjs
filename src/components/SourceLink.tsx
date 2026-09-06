@@ -1,11 +1,18 @@
 import useSWR from 'swr';
-import type { LinkPreview } from '@/lib/link-preview';
+import type { LinkPreview, RecipeMeta } from '@/lib/link-preview';
 
 const fetcher = async (url: string): Promise<LinkPreview> => {
   const res = await fetch(url);
   if (!res.ok) throw new Error('Failed to load link preview');
   return res.json();
 };
+
+function formatRecipeMetaLine(meta: RecipeMeta): string {
+  const rating = meta.rating
+    ? `★${meta.rating.value}${meta.rating.count ? ` (${meta.rating.count.toLocaleString()})` : ''}`
+    : null;
+  return [meta.time, meta.servings, rating].filter(Boolean).join(' · ');
+}
 
 const CARD_CLASSNAME =
   'mb-4 flex items-center gap-3 rounded-lg border-2 border-secondary p-2 transition-colors hover:bg-secondary hover:text-white';
@@ -52,6 +59,9 @@ export default function SourceLink({ url }: { url: string }) {
       <span className="min-w-0">
         <span className="block truncate text-sm font-medium">{data.title ?? data.siteName}</span>
         <span className="block truncate text-xs opacity-70">{data.siteName}</span>
+        {data.recipeMeta && (
+          <span className="block truncate text-xs opacity-70">{formatRecipeMetaLine(data.recipeMeta)}</span>
+        )}
       </span>
     </a>
   );

@@ -107,6 +107,7 @@ describe('GET /api/link-preview', () => {
         siteName: 'BBC Good Food',
         title: 'Lemon Drizzle Cake',
         image: 'https://www.bbcgoodfood.com/images/cake.jpg',
+        recipeMeta: null,
       });
     });
 
@@ -127,6 +128,22 @@ describe('GET /api/link-preview', () => {
       mockNetworkError();
       const res = await get('https://www.example.com/timeout');
       expect(res.status).toBe(502);
+    });
+
+    it('enriches the preview with time, servings and rating from schema.org Recipe JSON-LD', async () => {
+      mockHtml(`
+        <meta property="og:site_name" content="HelloFresh">
+        <script type="application/ld+json">${JSON.stringify({
+          '@type': 'Recipe',
+          name: 'Creamy Garden Herb Chicken',
+          totalTime: 'PT35M',
+          recipeYield: 2,
+          aggregateRating: { '@type': 'AggregateRating', ratingValue: '4.411', ratingCount: '14007' },
+        })}</script>
+      `);
+      const res = await get('https://www.hellofresh.com/recipes/creamy-garden-herb-chicken');
+      const body = await res.json();
+      expect(body.recipeMeta).toEqual({ time: '35 min', servings: 'Serves 2', rating: { value: 4.4, count: 14007 } });
     });
   });
 });
