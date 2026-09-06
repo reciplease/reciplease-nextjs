@@ -69,7 +69,7 @@ test.describe('Planner form — plan a meal', () => {
 
     await page.getByLabel('Recipe', { exact: true }).selectOption('r1');
     await expect(loadButton).toBeEnabled();
-    await expect(loadButton).toBeInViewport();
+    await expect(loadButton).toBeInViewport({ ratio: 1 });
 
     await loadButton.click();
     await expect(page.getByLabel('Ingredient name', { exact: true }).first()).toHaveValue('Plain flour');
@@ -96,7 +96,7 @@ test.describe('Planner form — plan a meal', () => {
     await page.getByRole('button', { name: 'Load ingredients' }).click();
 
     await page.getByLabel('From stock:').first().selectOption('i1');
-    await expect(page.getByLabel('Amount used from stock').first()).toBeInViewport();
+    await expect(page.getByLabel('Amount used from stock').first()).toBeInViewport({ ratio: 1 });
 
     const [bodyWidth, viewportWidth] = await page.evaluate(() => [
       document.documentElement.scrollWidth,

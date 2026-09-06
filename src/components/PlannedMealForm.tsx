@@ -147,7 +147,7 @@ function AllocationLine({
           aria-label="Amount used from stock"
           value={allocation.amount}
           onChange={(e) => onChange({ ...allocation, amount: e.target.value })}
-          className="w-24 min-w-0 p-1.5 border border-[#ccc] rounded"
+          className="field w-24 min-w-0 p-1.5"
         />
       )}
       {removable && (
@@ -254,13 +254,13 @@ function IngredientRow({
         value={row.name}
         onChange={(e) => onChange({ ...row, name: e.target.value })}
         placeholder="Ingredient name…"
-        className="col-span-2 sm:col-span-1 min-w-0 p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
+        className="field col-span-2 sm:col-span-1 min-w-0"
       />
       <select
         aria-label="Measure"
         value={row.measureId || measures[0]?.measureId || ''}
         onChange={(e) => onChange({ ...row, measureId: e.target.value as MeasureId })}
-        className="w-full min-w-0 p-2 text-base border border-[#ccc] rounded"
+        className="field w-full min-w-0"
       >
         {measures.map((m) => (
           <option key={m.measureId} value={m.measureId}>{m.plural}</option>
@@ -275,7 +275,7 @@ function IngredientRow({
           value={row.amount}
           onChange={(e) => onChange({ ...row, amount: e.target.value })}
           placeholder="Amount"
-          className="w-full min-w-0 p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
+          className="field w-full min-w-0"
         />
         <button type="button" onClick={onRemove} aria-label="Remove ingredient" className="shrink-0">×</button>
       </div>
@@ -437,7 +437,7 @@ export default function PlannedMealForm({ initial, submitLabel, excludeMealId, o
             value={date}
             onChange={(e) => setDate(e.target.value)}
             required
-            className="p-2 text-base border border-[#ccc] rounded w-fit"
+            className="field w-fit"
           />
         </label>
       </div>
@@ -449,7 +449,7 @@ export default function PlannedMealForm({ initial, submitLabel, excludeMealId, o
             aria-label="Recipe"
             value={recipeId}
             onChange={(e) => setRecipeId(e.target.value)}
-            className="w-full sm:flex-1 min-w-0 p-2 text-base border border-[#ccc] rounded"
+            className="field w-full sm:flex-1 min-w-0"
           >
             <option value="">— no recipe —</option>
             {(recipes ?? []).map((recipe) => (
@@ -471,13 +471,13 @@ export default function PlannedMealForm({ initial, submitLabel, excludeMealId, o
             value={newIngredientName}
             onChange={(e) => setNewIngredientName(e.target.value)}
             placeholder="Ingredient name…"
-            className="col-span-2 sm:col-span-1 min-w-0 p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
+            className="field col-span-2 sm:col-span-1 min-w-0"
           />
           <select
             aria-label="New ingredient measure"
             value={newIngredientMeasure || measures[0]?.measureId || ''}
             onChange={(e) => setNewIngredientMeasure(e.target.value as MeasureId)}
-            className="min-w-0 p-2 text-base border border-[#ccc] rounded"
+            className="field min-w-0"
           >
             {measures.map((m) => (
               <option key={m.measureId} value={m.measureId}>{m.plural}</option>
@@ -491,7 +491,7 @@ export default function PlannedMealForm({ initial, submitLabel, excludeMealId, o
             value={newIngredientAmount}
             onChange={(e) => setNewIngredientAmount(e.target.value)}
             placeholder="Amount"
-            className="min-w-0 p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
+            className="field min-w-0"
           />
           <button type="button" onClick={addIngredientToBuy} className="col-span-2 sm:col-span-1">Add</button>
         </div>
@@ -527,7 +527,7 @@ export default function PlannedMealForm({ initial, submitLabel, excludeMealId, o
             type="submit"
             formAction={onDelete}
             disabled={submitting}
-            className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
+            className="btn-danger"
           >
             Delete meal
           </button>

@@ -102,13 +102,13 @@ function IngredientRow({
         value={name}
         onChange={(e) => onName(e.target.value)}
         placeholder="Add an ingredient…"
-        className="p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
+        className="field min-w-0"
       />
       <select
         aria-label={`Measure ${number}`}
         value={effectiveMeasureId}
         onChange={(e) => onMeasure(e.target.value)}
-        className="w-full p-2 text-base border border-[#ccc] rounded"
+        className="field w-full min-w-0"
       >
         {(measures ?? []).map((m) => (
           <option key={m.measureId} value={m.measureId}>
@@ -124,7 +124,7 @@ function IngredientRow({
         value={amount}
         onChange={(e) => onAmount(e.target.value)}
         placeholder="Amount"
-        className="w-full p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
+        className="field w-full min-w-0"
       />
       <span className="flex items-center justify-center">
         {removable && (
@@ -278,7 +278,7 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
           aria-label="Description"
           placeholder="Add a description..."
           rows={2}
-          className="p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
+          className="field"
         />
 
         {initial?.sourceUrl && (
@@ -346,7 +346,7 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
                 }}
                 placeholder="Describe this step"
                 rows={2}
-                className="flex-1 p-2 text-base border border-[#ccc] rounded placeholder:text-[#999]"
+                className="field flex-1 min-w-0"
               />
               <button
                 type="button"
@@ -373,7 +373,7 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
             type="submit"
             formAction={onDelete}
             disabled={submitting}
-            className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
+            className="btn-danger"
           >
             Delete recipe
           </button>

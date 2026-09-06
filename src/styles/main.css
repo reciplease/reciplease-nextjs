@@ -83,7 +83,6 @@ html,
 body {
   min-height: 100vh;
   max-width: 100vw;
-  overflow-x: hidden;
 }
 
 /* Reserve the scrollbar's width at all times, whether or not the page
@@ -197,4 +196,17 @@ html.reduce-motion *::after {
 
 .fade-rise-in {
   animation: fade-rise-in 0.3s ease-out backwards;
+}
+
+/* Shared look for RecipeForm/PlannedMealForm text/number/select fields —
+   pair with layout utilities (w-full, min-w-0, col-span-2, …) per usage;
+   a later utility class (e.g. p-1.5) overrides this by Tailwind's layer order. */
+@layer components {
+  .field {
+    @apply p-2 text-base border border-[#ccc] rounded placeholder:text-[#999];
+  }
+
+  .btn-danger {
+    @apply border-red-600 text-red-600 hover:bg-red-600 hover:text-white;
+  }
 }
