@@ -47,7 +47,7 @@ export default function RecipePreview({ recipe, onToggleUpvote, onToggleVisibili
               e.stopPropagation();
               onToggleVisibility?.(recipe);
             }}
-            className="rounded border border-secondary px-2 py-1 hover:bg-secondary hover:text-white"
+            className="rounded border border-secondary px-2 py-1 bg-secondary/60 text-white hover:bg-secondary"
           >
             {recipe.isPublic ? 'Public' : 'Private'}
           </button>
@@ -66,7 +66,7 @@ export default function RecipePreview({ recipe, onToggleUpvote, onToggleVisibili
               e.stopPropagation();
               onToggleUpvote(recipe);
             }}
-            className="rounded border border-secondary px-2 py-1 hover:bg-secondary hover:text-white"
+            className="rounded border border-secondary px-2 py-1 bg-highlight/60 text-white hover:bg-highlight"
           >
             {recipe.upvoteCount} {recipe.upvotedByCurrentUser ? '▲' : '△'}
           </button>
