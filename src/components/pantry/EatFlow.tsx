@@ -1,6 +1,7 @@
 import { useActionState, useState } from 'react';
 import { updatePantryItem } from '@/types/generated/client';
 import { isSuccessResponse, describeErrorStatus } from '@/lib/apiClientMutator';
+import BottomSheet from '@/components/BottomSheet';
 
 interface EatFlowProps {
   uuid: string;
@@ -41,7 +42,7 @@ export default function EatFlow({ uuid, item, onSaved }: EatFlowProps) {
         aria-label="Log eaten"
         title="Log eaten"
         onClick={openPanel}
-        className="fixed bottom-6 right-[max(1rem,calc(50vw_-_40ch))] z-50 flex h-14 w-14 items-center justify-center rounded-full border-0 bg-highlight leading-none text-white shadow-lg transition transition-transform hover:scale-110 hover:bg-highlight/90 hover:shadow-xl active:scale-95 focus:outline-none focus:ring-2 focus:ring-highlight/60 focus:ring-offset-2"
+        className="fab"
       >
         <span className="-mt-0.5 text-3xl">−</span>
       </button>
@@ -101,58 +102,43 @@ function EatPanel({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-[80ch] rounded-t-lg border-2 border-secondary bg-black p-4 text-white"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-3 flex items-center justify-between">
-          <h4 className="text-lg font-semibold">Log {item.name} eaten</h4>
-          <button type="button" aria-label="Close" onClick={onClose} className="cursor-pointer text-xl leading-none">
-            ×
-          </button>
+    <BottomSheet title={`Log ${item.name} eaten`} onClose={onClose}>
+      <form action={handleSubmit} className="grid gap-3">
+        <div>
+          <label htmlFor="amount-eaten" className="mb-1 block text-sm">
+            Amount eaten
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              id="amount-eaten"
+              type="number"
+              min="0"
+              step="any"
+              value={amountEaten}
+              onChange={(e) => setAmountEaten(e.target.value)}
+              className="w-24 p-2 text-base"
+            />
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={handleEatAll}
+              className="cursor-pointer border-0 bg-transparent p-0 text-sm underline disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Ate it all
+            </button>
+          </div>
         </div>
 
-        <form action={handleSubmit} className="grid gap-3">
-          <div>
-            <label htmlFor="amount-eaten" className="mb-1 block text-sm">
-              Amount eaten
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                id="amount-eaten"
-                type="number"
-                min="0"
-                step="any"
-                value={amountEaten}
-                onChange={(e) => setAmountEaten(e.target.value)}
-                className="w-24 p-2 text-base"
-              />
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={handleEatAll}
-                className="cursor-pointer border-0 bg-transparent p-0 text-sm underline disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Ate it all
-              </button>
-            </div>
-          </div>
+        {error && (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
+        )}
 
-          {error && (
-            <p role="alert" className="text-sm text-red-600">
-              {error}
-            </p>
-          )}
-
-          <button type="submit" disabled={submitting || !amountEaten} className="cursor-pointer px-2 py-1 text-sm">
-            {submitting ? 'Saving...' : 'Save'}
-          </button>
-        </form>
-      </div>
-    </div>
+        <button type="submit" disabled={submitting || !amountEaten} className="cursor-pointer px-2 py-1 text-sm">
+          {submitting ? 'Saving...' : 'Save'}
+        </button>
+      </form>
+    </BottomSheet>
   );
 }

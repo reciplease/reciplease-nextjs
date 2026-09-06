@@ -209,4 +209,14 @@ html.reduce-motion *::after {
   .btn-danger {
     @apply border-red-600 text-red-600 hover:bg-red-600 hover:text-white;
   }
+
+  /* Floating action buttons. The right edge aligns to the content grid's
+     right edge: the column is min(80ch, 100vw - 2rem) wide and centred, so
+     its edge sits 50vw - 40ch from the viewport's right, and max(1rem, …)
+     collapses to a 1rem gutter on narrow screens. Uses the theme accent
+     (bg-highlight, recoloured per section); a utility class (bottom-24,
+     bg-secondary, …) overrides this by Tailwind's layer order. */
+  .fab {
+    @apply fixed bottom-6 right-[max(1rem,calc(50vw_-_40ch))] z-50 flex h-14 w-14 items-center justify-center rounded-full border-0 bg-highlight leading-none text-white shadow-lg transition transition-transform hover:scale-110 hover:bg-highlight/90 hover:shadow-xl active:scale-95 focus:outline-none focus:ring-2 focus:ring-highlight/60 focus:ring-offset-2;
+  }
 }

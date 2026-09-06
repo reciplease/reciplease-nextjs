@@ -65,7 +65,7 @@ export default function GoogleHealthConnection() {
             type="button"
             disabled={busy}
             onClick={disconnect}
-            className="cursor-pointer rounded border-2 border-red-600 px-2 text-sm text-red-600 hover:bg-red-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="btn-danger rounded text-sm"
           >
             {busy ? 'Disconnecting…' : 'Disconnect'}
           </button>

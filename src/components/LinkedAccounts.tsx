@@ -112,7 +112,7 @@ export default function LinkedAccounts({ returnTo }: { returnTo: string }) {
                     disabled={isOnlyMethod || busy === provider.id}
                     title={isOnlyMethod ? "You can't remove your only sign-in method" : undefined}
                     onClick={() => unlink(provider.id)}
-                    className="cursor-pointer rounded border-2 border-red-600 px-2 text-sm text-red-600 hover:bg-red-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    className="btn-danger rounded text-sm"
                   >
                     {busy === provider.id ? 'Unlinking…' : 'Unlink'}
                   </button>

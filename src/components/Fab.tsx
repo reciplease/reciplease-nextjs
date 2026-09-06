@@ -16,15 +16,7 @@ export default function Fab({ href, label }: { href: string; label: string }) {
   if (router.pathname === href) return null;
 
   return (
-    // Align the FAB's right edge to the content grid's right edge: the column is
-    // min(80ch, 100vw - 2rem) centred, so its edge sits 50vw - 40ch from the
-    // viewport's right. max(1rem, …) collapses to a 1rem gutter on narrow screens.
-    <Link
-      href={href}
-      aria-label={label}
-      title={label}
-      className="fixed bottom-6 right-[max(1rem,calc(50vw_-_40ch))] z-50 flex h-14 w-14 items-center justify-center rounded-full border-0 bg-highlight leading-none text-white shadow-lg transition transition-transform hover:scale-110 hover:bg-highlight/90 hover:shadow-xl active:scale-95 focus:outline-none focus:ring-2 focus:ring-highlight/60 focus:ring-offset-2"
-    >
+    <Link href={href} aria-label={label} title={label} className="fab">
       {/* Large glyph lives here so the button's own font-size stays 1rem,
           keeping the `ch` in `right` aligned with the column's 80ch. */}
       <span className="-mt-0.5 text-3xl">+</span>

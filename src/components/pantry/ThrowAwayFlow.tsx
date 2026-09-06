@@ -25,7 +25,7 @@ export default function ThrowAwayFlow({ uuid, item, onSaved }: ThrowAwayFlowProp
         aria-label="Throw away"
         title="Throw away"
         onClick={() => setOpen(true)}
-        className="fixed bottom-24 right-[max(1rem,calc(50vw_-_40ch))] z-50 flex h-14 w-14 items-center justify-center rounded-full border-0 bg-secondary leading-none text-white shadow-lg transition transition-transform hover:scale-110 hover:bg-secondary/90 hover:shadow-xl active:scale-95 focus:outline-none focus:ring-2 focus:ring-secondary/60 focus:ring-offset-2"
+        className="fab bottom-24 bg-secondary hover:bg-secondary/90 focus:ring-secondary/60"
       >
         <span className="text-2xl" aria-hidden="true">🗑</span>
       </button>

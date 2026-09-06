@@ -3,11 +3,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
 
-// Positioning copied from Fab.tsx: align the FAB's right edge to the content
-// grid's right edge (min(80ch, 100vw - 2rem) centred), collapsing to a 1rem
-// gutter on narrow screens.
-const FAB_RIGHT = 'right-[max(1rem,calc(50vw_-_40ch))]';
-
 // FAB for the pantry section. Unlike the single-destination Fab, this one
 // expands into two options: pencil = add a single item via the scan wizard,
 // trolley = capture a whole shopping trip for later processing.
@@ -50,7 +45,7 @@ export default function PantryFab() {
       )}
 
       {open && (
-        <div className={`fixed bottom-24 ${FAB_RIGHT} z-50 flex flex-col items-end gap-3`}>
+        <div className="fixed bottom-24 right-[max(1rem,calc(50vw_-_40ch))] z-50 flex flex-col items-end gap-3">
           <Link
             href="/pantry/scan"
             aria-label="Add one item"
@@ -84,7 +79,7 @@ export default function PantryFab() {
         aria-expanded={open}
         title="Add to pantry"
         onClick={() => setOpen((o) => !o)}
-        className={`fixed bottom-6 ${FAB_RIGHT} z-50 flex h-14 w-14 items-center justify-center rounded-full border-0 bg-highlight leading-none text-white shadow-lg transition transition-transform hover:scale-110 hover:bg-highlight/90 hover:shadow-xl active:scale-95 focus:outline-none focus:ring-2 focus:ring-highlight/60 focus:ring-offset-2`}
+        className="fab"
       >
         {/* Large glyph lives here so the button's own font-size stays 1rem,
             keeping the `ch` in `right` aligned with the column's 80ch. */}
