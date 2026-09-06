@@ -55,6 +55,8 @@ const recipe: Recipe = {
   ],
   steps: ['Brown the beef', 'Warm the tortillas'],
   updatedAt: '2026-06-06T18:00:00Z',
+  upvoteCount: 0,
+  upvotedByCurrentUser: false,
 };
 
 function mockRecipeSWR(result: { isLoading: boolean; data: Recipe | undefined; error: Error | undefined }) {

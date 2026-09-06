@@ -5,7 +5,7 @@ import Recipe from '@/pages/recipes/[recipeId]';
 import useSWR from 'swr';
 import { fetchOrRedirect } from '@/lib/publicPageFetch';
 import { toRecipe, type BackendRecipe } from '@/lib/recipes';
-import { updateRecipe, PublicRecipeOwned } from '@/types/generated/client';
+import { updateRecipe, upvoteRecipe, removeRecipeUpvote, PublicRecipeOwned } from '@/types/generated/client';
 import { isSuccessResponse } from '@/lib/apiClientMutator';
 import { useCallback } from 'react';
 
@@ -32,6 +32,18 @@ export default function Recipes() {
           amount: ingredient.amount,
         })),
       });
+      if (isSuccessResponse(response)) {
+        mutate();
+      }
+    },
+    [mutate],
+  );
+
+  const toggleUpvote = useCallback(
+    async (recipe: Recipe) => {
+      const response = recipe.upvotedByCurrentUser
+        ? await removeRecipeUpvote(recipe.recipeId)
+        : await upvoteRecipe(recipe.recipeId);
       if (isSuccessResponse(response)) {
         mutate();
       }
@@ -80,6 +92,7 @@ export default function Recipes() {
             >
               <RecipePreview
                 recipe={recipe}
+                onToggleUpvote={toggleUpvote}
                 onToggleVisibility={recipe.owned === 'true' ? toggleVisibility : undefined}
               />
             </li>

@@ -4,10 +4,11 @@ import { recipeTitleTransitionName } from '@/lib/viewTransitionNames';
 
 interface Props {
   recipe: Recipe;
+  onToggleUpvote?: (recipe: Recipe) => void;
   onToggleVisibility?: (recipe: Recipe) => void;
 }
 
-export default function RecipePreview({ recipe, onToggleVisibility }: Props) {
+export default function RecipePreview({ recipe, onToggleUpvote, onToggleVisibility }: Props) {
   const [navigating, setNavigating] = useState(false);
 
   return (
@@ -27,6 +28,27 @@ export default function RecipePreview({ recipe, onToggleVisibility }: Props) {
         {recipe.name}
       </h4>
       <p className="line-clamp-2 grow basis-64 text-sm">{recipe.description ?? 'No description found'}</p>
+      <span className="shrink-0 text-xs" onClick={(e) => e.stopPropagation()}>
+        {onToggleUpvote ? (
+          <button
+            type="button"
+            aria-pressed={recipe.upvotedByCurrentUser}
+            aria-label={recipe.upvotedByCurrentUser ? 'Remove upvote' : 'Upvote'}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onToggleUpvote(recipe);
+            }}
+            className="mr-2 rounded border border-secondary px-2 py-1 hover:bg-secondary hover:text-white"
+          >
+            {recipe.upvoteCount} {recipe.upvotedByCurrentUser ? '▲' : '△'}
+          </button>
+        ) : (
+          <span className="mr-2 rounded border border-secondary px-2 py-1" aria-label={`${recipe.upvoteCount} upvotes`}>
+            {recipe.upvoteCount} △
+          </span>
+        )}
+      </span>
       <span className="shrink-0 text-xs" onClick={(e) => e.stopPropagation()}>
         {recipe.owned === 'true' ? (
           <button

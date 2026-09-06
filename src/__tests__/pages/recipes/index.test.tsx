@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import Recipes from '@/pages/recipes';
 
 jest.mock('swr');
@@ -27,6 +27,8 @@ const recipes: Recipe[] = [
     owned: 'true',
     isPublic: false,
     updatedAt: '2026-06-06T18:00:00Z',
+    upvoteCount: 0,
+    upvotedByCurrentUser: false,
   },
   {
     recipeId: '222222222222222222222222',
@@ -39,6 +41,8 @@ const recipes: Recipe[] = [
     owned: 'false',
     isPublic: false,
     updatedAt: '2026-06-06T18:00:00Z',
+    upvoteCount: 0,
+    upvotedByCurrentUser: false,
   },
 ];
 
@@ -81,5 +85,17 @@ describe('Recipes list page', () => {
     useSWR.mockReturnValue({ isLoading: false, data: recipes, error: undefined, mutate: jest.fn() });
     render(<Recipes />);
     expect(screen.getAllByText('Private').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('calls the upvote mutation and revalidates on click', async () => {
+    mockApiClientMutator.mockResolvedValue({ data: undefined, status: 200, headers: new Headers() });
+    const mutate = jest.fn();
+    useSWR.mockReturnValue({ isLoading: false, data: recipes, error: undefined, mutate });
+    render(<Recipes />);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Upvote' })[0]);
+
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    expect(mockApiClientMutator).toHaveBeenCalledWith('/api/recipes/111111111111111111111111/upvote', expect.anything());
   });
 });

@@ -19,6 +19,8 @@ describe('toRecipe', () => {
       createdBy: { userId: 'user-1', handle: 'alice' },
       updatedBy: { userId: 'user-2', handle: 'bob' },
       updatedAt: '2026-06-10T12:00:00.000Z',
+      upvoteCount: 0,
+      upvotedByCurrentUser: false,
     };
 
     expect(toRecipe(backend)).toEqual({
@@ -34,6 +36,8 @@ describe('toRecipe', () => {
       createdBy: { userId: 'user-1', handle: 'alice' },
       updatedBy: { userId: 'user-2', handle: 'bob' },
       updatedAt: '2026-06-10T12:00:00.000Z',
+      upvoteCount: 0,
+      upvotedByCurrentUser: false,
     });
   });
 
@@ -48,6 +52,8 @@ describe('toRecipe', () => {
       steps: [],
       ingredients: [],
       updatedAt: '2026-06-10T12:00:00.000Z',
+      upvoteCount: 0,
+      upvotedByCurrentUser: false,
     };
 
     expect(toRecipe(backend)).toEqual({
@@ -61,6 +67,8 @@ describe('toRecipe', () => {
       steps: [],
       ingredients: [],
       updatedAt: '2026-06-10T12:00:00.000Z',
+      upvoteCount: 0,
+      upvotedByCurrentUser: false,
     });
   });
 });

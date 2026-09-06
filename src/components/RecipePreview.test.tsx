@@ -30,6 +30,8 @@ const recipe: Recipe = {
   ingredients: [],
   steps: [],
   updatedAt: '2026-06-06T18:00:00Z',
+  upvoteCount: 0,
+  upvotedByCurrentUser: false,
 };
 
 const ownedRecipe: Recipe = {
@@ -111,5 +113,28 @@ describe('RecipePreview', () => {
     jest.spyOn(clickEvent, 'preventDefault');
     fireEvent.click(screen.getByRole('button', { name: 'Make public' }));
     expect(onToggle).toHaveBeenCalled();
+  });
+
+  it('shows a passive upvote count when no toggle handler is given', () => {
+    render(<RecipePreview recipe={{ ...recipe, upvoteCount: 3 }} />);
+    expect(screen.getByLabelText('3 upvotes')).toHaveTextContent('3');
+    expect(screen.queryByRole('button', { name: 'Upvote' })).not.toBeInTheDocument();
+  });
+
+  it('shows an upvote button when a toggle handler is given', () => {
+    render(<RecipePreview recipe={recipe} onToggleUpvote={jest.fn()} />);
+    expect(screen.getByRole('button', { name: 'Upvote' })).toHaveTextContent('0');
+  });
+
+  it('marks an already-upvoted recipe as pressed', () => {
+    render(<RecipePreview recipe={{ ...recipe, upvotedByCurrentUser: true }} onToggleUpvote={jest.fn()} />);
+    expect(screen.getByRole('button', { name: 'Remove upvote' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('calls onToggleUpvote when the upvote button is clicked', () => {
+    const onToggle = jest.fn();
+    render(<RecipePreview recipe={recipe} onToggleUpvote={onToggle} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Upvote' }));
+    expect(onToggle).toHaveBeenCalledWith(recipe);
   });
 });

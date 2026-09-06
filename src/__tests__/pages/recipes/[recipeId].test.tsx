@@ -31,6 +31,8 @@ const recipe: Recipe = {
   ],
   steps: ['Brown the beef', 'Warm the tortillas'],
   updatedAt: '',
+  upvoteCount: 0,
+  upvotedByCurrentUser: false,
 };
 
 function mockRecipe(state: { isLoading: boolean; data: Recipe | undefined; error: Error | undefined }) {

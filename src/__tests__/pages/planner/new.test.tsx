@@ -55,6 +55,8 @@ const mockRecipe: Recipe = {
   ingredients: [{ name: 'bread', measure: items.measureId ?? 'item', amount: 2 }],
   steps: [],
   updatedAt: '2026-06-06T18:00:00Z',
+  upvoteCount: 0,
+  upvotedByCurrentUser: false,
 };
 
 const mockPantryItem: PantryItem = {
