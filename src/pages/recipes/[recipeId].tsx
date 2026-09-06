@@ -1,4 +1,5 @@
 import Metadata from '@/components/Metadata';
+import SourceLink from '@/components/SourceLink';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
@@ -89,16 +90,7 @@ export default function Recipe() {
           <p className="text-sm text-[#666]">Created by {recipe.createdBy.handle}</p>
         )}
         <p className="my-4">{recipe.description}</p>
-        {recipe.sourceUrl && (
-          <a
-            href={recipe.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-[#666] hover:underline truncate block mb-4"
-          >
-            Source: {recipe.sourceUrl}
-          </a>
-        )}
+        {recipe.sourceUrl && <SourceLink url={recipe.sourceUrl} />}
         <h4 className="mt-12">Ingredients</h4>
         <ul className="ms-16 list-disc">
           {recipe.ingredients.map((ingredient, index) => (
