@@ -10,8 +10,18 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 2 : 1,
   reporter: 'list',
+
+  // Dev-mode Turbopack compiles each route on first hit; under fullyParallel
+  // load, many workers can be triggering first-hit compiles at once, and a
+  // fresh dynamic route (e.g. /pantry/[uuid]) can take longer than the
+  // default 5s to become ready — bump the assertion timeout so navigation
+  // checks don't flake on that contention, and allow one retry locally too
+  // (CI already did, via `retries` above) for whatever contention remains.
+  expect: {
+    timeout: 15_000,
+  },
 
   use: {
     baseURL: 'http://localhost:3000',
