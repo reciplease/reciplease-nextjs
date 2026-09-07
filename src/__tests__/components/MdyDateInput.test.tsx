@@ -17,7 +17,13 @@ function ControlledDateInput({ onChange }: { onChange: (isoDate: string) => void
   );
 }
 
+function setLocale(locale: string) {
+  Object.defineProperty(window.navigator, 'language', { value: locale, configurable: true });
+}
+
 describe('MdyDateInput', () => {
+  beforeEach(() => setLocale('en-GB'));
+
   function setup() {
     const onChange = jest.fn();
     render(<ControlledDateInput onChange={onChange} />);
@@ -121,6 +127,30 @@ describe('MdyDateInput', () => {
     expect(month).toHaveFocus();
 
     fireEvent.change(month, { target: { value: '02' } });
+    expect(year).toHaveFocus();
+  });
+
+  it.each([
+    ['en-GB', ['Day', 'Month', 'Year']],
+    ['en-US', ['Month', 'Day', 'Year']],
+    ['ja-JP', ['Year', 'Month', 'Day']],
+  ])('orders the segments by the %s locale', (locale, expected) => {
+    setLocale(locale);
+    render(<ControlledDateInput onChange={jest.fn()} />);
+
+    expect(screen.getAllByRole('textbox').map((input) => input.getAttribute('aria-label'))).toEqual(
+      expected,
+    );
+  });
+
+  it('advances focus in locale order', () => {
+    setLocale('en-US');
+    const { day, month, year } = setup();
+
+    fireEvent.change(month, { target: { value: '02' } });
+    expect(day).toHaveFocus();
+
+    fireEvent.change(day, { target: { value: '05' } });
     expect(year).toHaveFocus();
   });
 
