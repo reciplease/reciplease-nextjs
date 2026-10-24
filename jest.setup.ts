@@ -1,5 +1,10 @@
 import '@testing-library/jest-dom';
 
+// jsdom doesn't expose structuredClone, which fake-indexeddb needs to store records.
+if (typeof structuredClone === 'undefined') {
+  globalThis.structuredClone = (value: unknown) => require('v8').deserialize(require('v8').serialize(value));
+}
+
 // jsdom doesn't implement matchMedia, which the SettingsProvider uses to read
 // prefers-color-scheme / prefers-reduced-motion. Default to "not matched".
 if (typeof window !== 'undefined' && !window.matchMedia) {

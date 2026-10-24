@@ -1,11 +1,8 @@
-// Durable backup of the shop-capture failed-upload queue, keyed per house. A crashed
-// browser, killed phone, or logout must not silently lose captures that failed to
-// upload — localStorage (not sessionStorage) survives all three, since it isn't
-// tab- or session-scoped.
+import { addCapture } from '@/lib/shopOutbox';
+
 const storageKey = (houseId: string) => `reciplease:shop-failed:${houseId}`;
 
-export function loadFailedQueue(houseId: string): CreatePendingPantryItem[] {
-  if (typeof window === 'undefined') return [];
+function readLegacyQueue(houseId: string): CreatePendingPantryItem[] {
   try {
     const raw = window.localStorage.getItem(storageKey(houseId));
     return raw ? JSON.parse(raw) : [];
@@ -14,11 +11,12 @@ export function loadFailedQueue(houseId: string): CreatePendingPantryItem[] {
   }
 }
 
-export function saveFailedQueue(houseId: string, items: CreatePendingPantryItem[]): void {
-  if (typeof window === 'undefined') return;
-  if (items.length === 0) {
-    window.localStorage.removeItem(storageKey(houseId));
-  } else {
-    window.localStorage.setItem(storageKey(houseId), JSON.stringify(items));
+export async function migrateFailedQueue(houseId: string): Promise<void> {
+  const legacy = readLegacyQueue(houseId);
+  if (legacy.length === 0) return;
+  const migratedAt = Date.now();
+  for (let index = 0; index < legacy.length; index++) {
+    await addCapture({ ...legacy[index], scanId: crypto.randomUUID(), houseId, capturedAt: migratedAt + index });
   }
+  window.localStorage.removeItem(storageKey(houseId));
 }

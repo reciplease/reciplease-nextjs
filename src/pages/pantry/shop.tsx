@@ -1,33 +1,34 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Metadata from '@/components/Metadata';
 import PhotoCaptureInput from '@/components/scanner/PhotoCaptureInput';
 import { useActiveHouse } from '@/lib/houses';
 import { toDataUrl } from '@/lib/imageCapture';
-import { loadFailedQueue, saveFailedQueue } from '@/lib/shopFailedQueue';
-import { useFindAllPendingPantryItems, createPendingPantryItem } from '@/types/generated/client';
+import { migrateFailedQueue } from '@/lib/shopFailedQueue';
+import { addCapture, EMPTY_DRAFT, listCaptures, loadDraft, saveDraft, type ShopDraft } from '@/lib/shopOutbox';
+import { useFindAllPendingPantryItems } from '@/types/generated/client';
 import { isSuccessResponse } from '@/lib/apiClientMutator';
 
-// The fast "add a whole shop" capture loop. Unlike the single-item scan flow,
-// the three captures here (barcode, expiration photo, measure photo) are
-// independent and order-free — a shopper can do them in whatever order suits
-// what they're holding, redo any one of them, and Submit whenever, with
-// however many (including zero) filled in. Nothing is digitised here — Submit
-// posts a PendingPantryItem for later processing on /pantry/shop/process,
-// so the in-store loop stays as quick as possible. The barcode itself isn't
-// decoded here either — only a photo of it is captured, and it's read during
-// processing, where the shopper isn't rushing and lighting/framing can be redone.
+const UPLOAD_RETRY_MS = 15000;
+
+type SyncCapableRegistration = ServiceWorkerRegistration & {
+  sync?: { register(tag: string): Promise<void> };
+};
+
+async function requestUpload() {
+  if (!('serviceWorker' in navigator)) return;
+  const registration = (await navigator.serviceWorker.ready) as SyncCapableRegistration;
+  registration.active?.postMessage({ type: 'flush-shop' });
+  await registration.sync?.register('shop-upload').catch(() => {});
+}
+
 export default function ShopPage() {
   const router = useRouter();
 
   const activeHouse = useActiveHouse();
-  // The count reflects this house's actual pending backlog — including items
-  // captured in an earlier session, not just this page load — so it never
-  // understates what's queued up for /pantry/shop/process.
-  // Note: the generated hook's cache key isn't house-scoped (unlike the
-  // hand-written `[url, houseId]` key this replaced) — switching house no
-  // longer forces a refetch here. Left as-is per the migration's accepted
-  // key-shape trade-off.
+  const houseId = activeHouse?.id;
+  const forbidden = Boolean(activeHouse) && activeHouse?.role !== 'OWNER';
+
   const { data: pendingItemsResponse, mutate: mutatePending } = useFindAllPendingPantryItems({
     swr: { enabled: Boolean(activeHouse) },
   });
@@ -35,116 +36,90 @@ export default function ShopPage() {
     pendingItemsResponse && isSuccessResponse(pendingItemsResponse) ? pendingItemsResponse.data : undefined;
   const savedCount = pendingItems?.length ?? 0;
 
-  const [barcodeImage, setBarcodeImage] = useState<string | null>(null);
-  const [expirationImage, setExpirationImage] = useState<string | null>(null);
-  const [measureImage, setMeasureImage] = useState<string | null>(null);
-  // Payloads whose upload failed — kept for retry so a flaky connection in the
-  // shop can't silently drop captures. Backed by localStorage (see
-  // shopFailedQueue) so a crashed browser, killed phone, or logout doesn't lose
-  // them either.
-  const [failed, setFailed] = useState<CreatePendingPantryItem[]>([]);
-  // True while a retry sweep (automatic or manual) is in flight, so the banner
-  // can show progress instead of a Retry button a second tap would duplicate.
-  const [retrying, setRetrying] = useState(false);
-  // How many uploads the in-flight retry sweep started with — `failed` itself
-  // is cleared up front (each item lands back in it individually if it fails
-  // again), so the "Retrying N…" copy needs its own snapshot to display.
-  const [retryingCount, setRetryingCount] = useState(0);
-  // Uploads still in flight — Done is held back while any are, so a failure on
-  // the last capture surfaces as the retry banner instead of being lost by
-  // navigating away before it lands.
-  const [inflight, setInflight] = useState(0);
-  // A 403 means this member can't add items at all — retrying can never help.
-  const [forbidden, setForbidden] = useState(false);
+  const [draft, setDraft] = useState<ShopDraft>(EMPTY_DRAFT);
+  const [draftHouseId, setDraftHouseId] = useState<string | null>(null);
+  const [waitingCount, setWaitingCount] = useState(0);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const { barcodeImage, expirationImage, measureImage } = draft;
+  const capturePhoto = (field: keyof ShopDraft) => (image: string) =>
+    setDraft((prior) => ({ ...prior, [field]: image }));
 
-  // Hydrate any failed uploads left over from a previous session (crash, kill,
-  // logout) as soon as we know which house we're in.
-  useEffect(() => {
-    if (!activeHouse) return;
-    const stored = loadFailedQueue(activeHouse.id);
-    // Hydrating from localStorage (an external system) when the house id we
-    // need to key it by becomes available — not deriving state from props.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (stored.length > 0) setFailed(stored);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeHouse?.id]);
+  const refreshWaiting = useCallback(async () => {
+    if (!houseId) return;
+    setWaitingCount((await listCaptures(houseId)).length);
+  }, [houseId]);
 
   useEffect(() => {
-    if (!activeHouse) return;
-    saveFailedQueue(activeHouse.id, failed);
-  }, [activeHouse, failed]);
-
-  // Bumped on every successful upload — a plain counter rather than calling
-  // retryFailed directly from submit(), so the auto-retry decision is made
-  // from an effect (which always sees the render's real `failed`/`retrying`)
-  // instead of a stale closure captured at some earlier, possibly-outdated
-  // point in submit's async chain.
-  const [successPulse, setSuccessPulse] = useState(0);
-
-  // Uploads fire-and-continue: the next capture starts immediately while the
-  // (small) payload uploads in the background.
-  const submit = useCallback(async (payload: CreatePendingPantryItem) => {
-    setInflight((count) => count + 1);
-    try {
-      const result = await createPendingPantryItem(payload);
-      if (!isSuccessResponse(result)) {
-        // A 403 means this member can't add items at all, so it's surfaced
-        // distinctly rather than queued for retry (see `forbidden` above).
-        if (result.status === 403) {
-          setForbidden(true);
-        } else {
-          setFailed((prior) => [...prior, payload]);
-        }
-        return;
+    if (!houseId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await migrateFailedQueue(houseId);
+        const stored = await loadDraft(houseId);
+        if (cancelled) return;
+        setDraft((prior) => ({
+          barcodeImage: prior.barcodeImage ?? stored.barcodeImage,
+          expirationImage: prior.expirationImage ?? stored.expirationImage,
+          measureImage: prior.measureImage ?? stored.measureImage,
+        }));
+        await refreshWaiting();
+      } catch {
+        setSaveFailed(true);
       }
-      await mutatePending();
-      setSuccessPulse((count) => count + 1);
-    } catch {
-      setFailed((prior) => [...prior, payload]);
-    } finally {
-      setInflight((count) => count - 1);
-    }
-  }, [mutatePending]);
-
-  function retryFailed() {
-    if (failed.length === 0 || retrying) return;
-    const toRetry = failed;
-    setFailed([]);
-    setRetryingCount(toRetry.length);
-    setRetrying(true);
-    Promise.allSettled(toRetry.map(submit)).finally(() => setRetrying(false));
-  }
-
-  // A successful upload (new capture or a retry) is the signal that
-  // connectivity is back — use it to clear any backlog automatically rather
-  // than waiting for a manual tap. Skipped on the initial mount (pulse
-  // starts at 0, so there's nothing to react to yet).
-  const isInitialPulse = useRef(true);
-  useEffect(() => {
-    if (isInitialPulse.current) {
-      isInitialPulse.current = false;
-      return;
-    }
-    retryFailed();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [successPulse]);
-
-  // Submit is intentionally unvalidated — any subset (including none) of the
-  // three captures can be posted, so a shopper never has to backtrack to fill
-  // in a step they don't have (no barcode on loose veg, no printed date on
-  // some packs).
-  function handleSubmit() {
-    const payload: CreatePendingPantryItem = {
-      ...(barcodeImage ? { barcodeImage } : {}),
-      ...(expirationImage ? { expirationImage } : {}),
-      ...(measureImage ? { measureImage } : {}),
+      if (!cancelled) setDraftHouseId(houseId);
+    })();
+    return () => {
+      cancelled = true;
     };
-    if (Object.keys(payload).length > 0) {
-      submit(payload);
+  }, [houseId, refreshWaiting]);
+
+  useEffect(() => {
+    if (!houseId || draftHouseId !== houseId) return;
+    saveDraft(houseId, draft).catch(() => {});
+  }, [houseId, draftHouseId, draft]);
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type !== 'shop-outbox-changed') return;
+      refreshWaiting();
+      mutatePending();
+    };
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, [refreshWaiting, mutatePending]);
+
+  useEffect(() => {
+    if (waitingCount === 0) return;
+    requestUpload();
+    const retryTimer = setInterval(requestUpload, UPLOAD_RETRY_MS);
+    window.addEventListener('online', requestUpload);
+    return () => {
+      clearInterval(retryTimer);
+      window.removeEventListener('online', requestUpload);
+    };
+  }, [waitingCount]);
+
+  async function handleSubmit() {
+    if (!houseId || forbidden) return;
+    const submitted = draft;
+    if (!barcodeImage && !expirationImage && !measureImage) return;
+    setDraft(EMPTY_DRAFT);
+    try {
+      await addCapture({
+        scanId: crypto.randomUUID(),
+        houseId,
+        capturedAt: Date.now(),
+        ...(barcodeImage ? { barcodeImage } : {}),
+        ...(expirationImage ? { expirationImage } : {}),
+        ...(measureImage ? { measureImage } : {}),
+      });
+      setSaveFailed(false);
+      await refreshWaiting();
+    } catch {
+      setDraft(submitted);
+      setSaveFailed(true);
     }
-    setBarcodeImage(null);
-    setExpirationImage(null);
-    setMeasureImage(null);
   }
 
   return (
@@ -160,7 +135,7 @@ export default function ShopPage() {
           <div className="flex flex-wrap items-center gap-3">
             <h3 className="text-xl font-semibold mr-auto">Add a whole shop</h3>
             <div className="bg-zinc-900 rounded-full px-4 py-1.5 text-sm text-zinc-300">
-              {savedCount} {savedCount === 1 ? 'item' : 'items'} captured
+              {savedCount + waitingCount} {savedCount + waitingCount === 1 ? 'item' : 'items'} captured
             </div>
             {/* Small and tucked away from the main thumb zone — ending a capture
                 session is rare and hard to undo, so it shouldn't be as easy to
@@ -168,10 +143,9 @@ export default function ShopPage() {
             <button
               type="button"
               onClick={() => router.push('/pantry/shop/process')}
-              disabled={inflight > 0}
-              className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold rounded-full disabled:opacity-40"
+              className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold rounded-full"
             >
-              {inflight > 0 ? 'Uploading…' : 'Process →'}
+              Process →
             </button>
           </div>
 
@@ -181,26 +155,24 @@ export default function ShopPage() {
             </p>
           )}
 
-          {(failed.length > 0 || retrying) && (
-            <div
-              className={`border rounded-lg px-4 py-3 flex items-center justify-between gap-3 ${
-                retrying ? 'bg-orange-950/80 border-orange-800' : 'bg-red-950/80 border-red-800'
-              }`}
-            >
-              <p className={`text-sm ${retrying ? 'text-orange-200' : 'text-red-200'}`}>
-                {retrying
-                  ? `Retrying ${retryingCount} failed ${retryingCount === 1 ? 'upload' : 'uploads'}…`
-                  : `${failed.length} ${failed.length === 1 ? 'item' : 'items'} failed to upload.`}
+          {saveFailed && (
+            <p className="text-sm text-red-200 bg-red-950/80 border border-red-800 rounded-lg px-4 py-3">
+              Couldn&apos;t save this capture on your device — storage may be full or unavailable.
+            </p>
+          )}
+
+          {waitingCount > 0 && (
+            <div className="border rounded-lg px-4 py-3 flex items-center justify-between gap-3 bg-orange-950/80 border-orange-800">
+              <p className="text-sm text-orange-200">
+                {waitingCount} {waitingCount === 1 ? 'item' : 'items'} saved on this device, waiting to upload.
               </p>
-              {!retrying && (
-                <button
-                  type="button"
-                  onClick={retryFailed}
-                  className="px-4 py-1.5 bg-red-700 text-white text-sm font-semibold rounded-lg hover:bg-red-600"
-                >
-                  Retry
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={requestUpload}
+                className="px-4 py-1.5 bg-orange-700 text-white text-sm font-semibold rounded-lg hover:bg-orange-600"
+              >
+                Upload now
+              </button>
             </div>
           )}
 
@@ -212,7 +184,7 @@ export default function ShopPage() {
               <h4 className="text-sm font-semibold text-zinc-300 mr-auto">Barcode</h4>
               <PhotoCaptureInput
                 label={barcodeImage ? 'Retake barcode photo' : 'Take barcode photo'}
-                onCaptured={setBarcodeImage}
+                onCaptured={capturePhoto('barcodeImage')}
                 maxDim={800}
                 quality={0.85}
               />
@@ -233,7 +205,7 @@ export default function ShopPage() {
               <h4 className="text-sm font-semibold text-zinc-300 mr-auto">Expiration date</h4>
               <PhotoCaptureInput
                 label={expirationImage ? 'Retake picture of expiration' : 'Take picture of expiration'}
-                onCaptured={setExpirationImage}
+                onCaptured={capturePhoto('expirationImage')}
               />
             </div>
             {expirationImage && (
@@ -252,7 +224,7 @@ export default function ShopPage() {
               <h4 className="text-sm font-semibold text-zinc-300 mr-auto">Measure</h4>
               <PhotoCaptureInput
                 label={measureImage ? 'Retake picture of measure' : 'Take picture of measure'}
-                onCaptured={setMeasureImage}
+                onCaptured={capturePhoto('measureImage')}
               />
             </div>
             {measureImage && (
@@ -269,7 +241,8 @@ export default function ShopPage() {
           <button
             type="button"
             onClick={handleSubmit}
-            className="w-full px-6 py-4 bg-highlight text-white font-semibold text-lg rounded-lg"
+            disabled={forbidden}
+            className="w-full px-6 py-4 bg-highlight text-white font-semibold text-lg rounded-lg disabled:opacity-40"
           >
             Submit
           </button>

@@ -1,5 +1,7 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import 'fake-indexeddb/auto';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import ShopPage from '@/pages/pantry/shop';
+import { listCaptures, loadDraft } from '@/lib/shopOutbox';
 
 jest.mock('next/router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('@/components/Metadata', () => () => null);
@@ -8,34 +10,41 @@ jest.mock('@/lib/imageCapture', () => ({
   toDataUrl: (base64: string) => `data:image/jpeg;base64,${base64}`,
 }));
 jest.mock('swr');
+
+let mockHouse = { id: 'house-1', name: 'Home', role: 'OWNER' };
 jest.mock('@/lib/houses', () => ({
-  useActiveHouse: () => ({ id: 'house-1', name: 'Home' }),
+  useActiveHouse: () => mockHouse,
 }));
 
-// The generated client (src/types/generated/client.ts) calls this mutator
-// directly rather than `fetch` — mocking it here keeps the generated request
-// building/response envelope handling exercised for real, while giving the
-// tests a single, low-level seam to assert against (same role `global.fetch`
-// played before this page migrated off hand-written apiFetch calls).
-const mockApiClientMutator = jest.fn();
+jest.mock('@/lib/shopOutbox', () => {
+  const actual = jest.requireActual('@/lib/shopOutbox');
+  return { ...actual, addCapture: jest.fn(actual.addCapture) };
+});
+
 jest.mock('@/lib/apiClientMutator', () => ({
-  apiClientMutator: (...args: unknown[]) => mockApiClientMutator(...args),
   isSuccessResponse: (response: { status: number }) => response.status >= 200 && response.status < 300,
-  describeErrorStatus: (status: number) => {
-    if (status === 401) return 'Please sign in again.';
-    if (status === 403) return "You don't have permission to do that.";
-    if (status === 404) return "That couldn't be found.";
-    if (status >= 400 && status < 500) return 'Please check your input and try again.';
-    return 'Something went wrong. Please try again.';
-  },
 }));
 
 const { compressToBase64 } = require('@/lib/imageCapture');
+const outbox = require('@/lib/shopOutbox');
 const useSWR = require('swr').default;
 
-function mockPostOk() {
-  mockApiClientMutator.mockResolvedValue({ data: {}, status: 200, headers: new Headers() });
-}
+const postMessage = jest.fn();
+const registerSync = jest.fn();
+let workerListeners: ((event: { data: unknown }) => void)[] = [];
+
+beforeAll(() => {
+  Object.defineProperty(navigator, 'serviceWorker', {
+    configurable: true,
+    value: {
+      ready: Promise.resolve({ active: { postMessage }, sync: { register: registerSync } }),
+      addEventListener: (_type: string, listener: (event: { data: unknown }) => void) => workerListeners.push(listener),
+      removeEventListener: (_type: string, listener: (event: { data: unknown }) => void) => {
+        workerListeners = workerListeners.filter((existing) => existing !== listener);
+      },
+    },
+  });
+});
 
 async function capturePhoto(label: string, base64: string) {
   (compressToBase64 as jest.Mock).mockResolvedValueOnce(base64);
@@ -45,7 +54,6 @@ async function capturePhoto(label: string, base64: string) {
   await waitFor(() => screen.getByLabelText(retakeLabel));
 }
 
-// Drive one full capture: barcode + both photos, in any order, then submit.
 async function captureAndSubmitOneItem() {
   await capturePhoto('Take barcode photo', 'barcode-base64');
   await capturePhoto('Take picture of expiration', 'exp-base64');
@@ -53,15 +61,21 @@ async function captureAndSubmitOneItem() {
   fireEvent.click(screen.getByText('Submit'));
 }
 
-beforeEach(() => {
-  window.localStorage.clear();
-});
+async function waitingBanner(text: RegExp) {
+  return waitFor(() => expect(screen.getByText(text)).toBeInTheDocument());
+}
 
 describe('ShopPage', () => {
   const mutate = jest.fn();
 
   beforeEach(() => {
-    mockApiClientMutator.mockReset();
+    indexedDB = new IDBFactory();
+    window.localStorage.clear();
+    mockHouse = { id: 'house-1', name: 'Home', role: 'OWNER' };
+    workerListeners = [];
+    postMessage.mockReset();
+    registerSync.mockReset().mockResolvedValue(undefined);
+    outbox.addCapture.mockClear();
     (compressToBase64 as jest.Mock).mockReset();
     mutate.mockReset();
     useSWR.mockReturnValue({ data: { data: [], status: 200, headers: new Headers() }, mutate, isLoading: false });
@@ -92,7 +106,6 @@ describe('ShopPage', () => {
   it('captures the three steps in any order and shows a preview of each', async () => {
     render(<ShopPage />);
 
-    // Photos first, barcode last — order is not enforced.
     await capturePhoto('Take picture of measure', 'measure-base64');
     expect(screen.getByAltText('Measure photo preview')).toHaveAttribute(
       'src',
@@ -112,178 +125,203 @@ describe('ShopPage', () => {
     );
   });
 
-  it('captures a barcode photo + both other photos and posts the pending item on submit', async () => {
-    mockPostOk();
+  it('stores a submitted capture on the device with a scan id and asks the service worker to upload it', async () => {
     render(<ShopPage />);
 
     await captureAndSubmitOneItem();
 
-    expect(mockApiClientMutator).toHaveBeenCalledWith(
-      '/api/pantry/pending',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({
-          barcodeImage: 'barcode-base64',
-          expirationImage: 'exp-base64',
-          measureImage: 'measure-base64',
-        }),
-      }),
-    );
-    // A successful upload revalidates the pending count from the backend
-    // rather than incrementing a local counter.
-    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    await waitingBanner(/1 item saved on this device, waiting to upload/);
+    const stored = await listCaptures('house-1');
+    expect(stored).toEqual([
+      {
+        scanId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+        houseId: 'house-1',
+        capturedAt: expect.any(Number),
+        barcodeImage: 'barcode-base64',
+        expirationImage: 'exp-base64',
+        measureImage: 'measure-base64',
+      },
+    ]);
+    await waitFor(() => expect(postMessage).toHaveBeenCalledWith({ type: 'flush-shop' }));
+    expect(registerSync).toHaveBeenCalledWith('shop-upload');
+    expect(screen.getByText('1 item captured')).toBeInTheDocument();
   });
 
   it('submits with only some captures filled in — no validation blocks it', async () => {
-    mockPostOk();
     render(<ShopPage />);
 
     await capturePhoto('Take barcode photo', 'barcode-base64');
     fireEvent.click(screen.getByText('Submit'));
 
-    await waitFor(() => {
-      expect(mockApiClientMutator).toHaveBeenCalledWith(
-        '/api/pantry/pending',
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({ barcodeImage: 'barcode-base64' }),
-        }),
-      );
-    });
-    await waitFor(() => expect(mutate).toHaveBeenCalled());
-  });
-
-  it('shows a red retry banner when an upload fails, and retrying re-posts it', async () => {
-    mockApiClientMutator.mockRejectedValueOnce(new Error('500 Internal Server Error'));
-    render(<ShopPage />);
-
-    await captureAndSubmitOneItem();
-
-    await waitFor(() => {
-      expect(screen.getByText(/1 item failed to upload/)).toBeInTheDocument();
-    });
-    expect(screen.getByText(/1 item failed to upload/).closest('div')).toHaveClass('bg-red-950/80');
-    expect(mutate).not.toHaveBeenCalled();
-
-    mockPostOk();
-    fireEvent.click(screen.getByText('Retry'));
-
-    await waitFor(() => expect(mutate).toHaveBeenCalled());
-    expect(screen.queryByText(/failed to upload/)).not.toBeInTheDocument();
-    // Original + retry.
-    expect(mockApiClientMutator).toHaveBeenCalledTimes(2);
-  });
-
-  it('turns the banner orange and hides Retry while a retry sweep is in flight', async () => {
-    mockApiClientMutator.mockRejectedValueOnce(new Error('500 Internal Server Error'));
-    render(<ShopPage />);
-
-    await captureAndSubmitOneItem();
-    await waitFor(() => screen.getByText(/1 item failed to upload/));
-
-    let resolveRetry!: (value: unknown) => void;
-    mockApiClientMutator.mockReturnValueOnce(new Promise((resolve) => { resolveRetry = resolve; }));
-    fireEvent.click(screen.getByText('Retry'));
-
-    await waitFor(() => expect(screen.getByText(/Retrying 1 failed upload/)).toBeInTheDocument());
-    expect(screen.getByText(/Retrying 1 failed upload/).closest('div')).toHaveClass('bg-orange-950/80');
-    expect(screen.queryByText('Retry')).not.toBeInTheDocument();
-
-    resolveRetry({ data: {}, status: 200, headers: new Headers() });
-    await waitFor(() => expect(screen.queryByText(/Retrying/)).not.toBeInTheDocument());
-  });
-
-  it('auto-retries the failed queue once a new submission succeeds', async () => {
-    mockApiClientMutator.mockRejectedValueOnce(new Error('500 Internal Server Error'));
-    render(<ShopPage />);
-
-    await captureAndSubmitOneItem();
-    await waitFor(() => screen.getByText(/1 item failed to upload/));
-
-    mockPostOk();
-    await captureAndSubmitOneItem();
-
-    // Original failing submit + the new successful one + the auto-retry of the failed one.
-    await waitFor(() => expect(mockApiClientMutator).toHaveBeenCalledTimes(3));
-    await waitFor(() => expect(screen.queryByText(/failed to upload/)).not.toBeInTheDocument());
-  });
-
-  it('persists the failed queue to localStorage and reloads it on the next mount', async () => {
-    mockApiClientMutator.mockRejectedValueOnce(new Error('500 Internal Server Error'));
-    const { unmount } = render(<ShopPage />);
-
-    await captureAndSubmitOneItem();
-    await waitFor(() => screen.getByText(/1 item failed to upload/));
-
-    const stored = JSON.parse(window.localStorage.getItem('reciplease:shop-failed:house-1') ?? '[]');
-    expect(stored).toHaveLength(1);
-
-    unmount();
-    render(<ShopPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/1 item failed to upload/)).toBeInTheDocument();
+    await waitingBanner(/1 item saved on this device/);
+    const [stored] = await listCaptures('house-1');
+    expect(stored).toEqual({
+      scanId: expect.any(String),
+      houseId: 'house-1',
+      capturedAt: expect.any(Number),
+      barcodeImage: 'barcode-base64',
     });
   });
 
-  it('counts an upload that throws as failed too', async () => {
-    mockApiClientMutator.mockRejectedValueOnce(new Error('offline'));
+  it('gives every capture its own scan id', async () => {
     render(<ShopPage />);
 
     await captureAndSubmitOneItem();
+    await waitingBanner(/1 item saved on this device/);
+    await captureAndSubmitOneItem();
+    await waitingBanner(/2 items saved on this device/);
 
-    await waitFor(() => {
-      expect(screen.getByText(/1 item failed to upload/)).toBeInTheDocument();
-    });
+    const scanIds = (await listCaptures('house-1')).map((capture) => capture.scanId);
+    expect(new Set(scanIds).size).toBe(2);
   });
 
-  it('does not post anything when submitting with nothing captured', async () => {
+  it('does not store anything when submitting with nothing captured', async () => {
     render(<ShopPage />);
 
     fireEvent.click(screen.getByText('Submit'));
 
-    expect(mockApiClientMutator).not.toHaveBeenCalled();
-    expect(mutate).not.toHaveBeenCalled();
+    await act(async () => {});
+    expect(outbox.addCapture).not.toHaveBeenCalled();
     expect(screen.getByText('0 items captured')).toBeInTheDocument();
   });
 
   it('resets all three captures after submit, ready for the next item', async () => {
-    mockPostOk();
     render(<ShopPage />);
 
     await captureAndSubmitOneItem();
 
-    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    await waitingBanner(/1 item saved on this device/);
     expect(screen.getByLabelText('Take barcode photo')).toBeInTheDocument();
     expect(screen.getByLabelText('Take picture of expiration')).toBeInTheDocument();
     expect(screen.getByLabelText('Take picture of measure')).toBeInTheDocument();
   });
 
-  it('disables the Process button while an upload is still in flight', async () => {
-    let resolveUpload!: (value: unknown) => void;
-    mockApiClientMutator.mockReturnValue(new Promise((resolve) => { resolveUpload = resolve; }));
+  it('keeps unsubmitted photos across a reload', async () => {
+    const { unmount } = render(<ShopPage />);
+    await capturePhoto('Take barcode photo', 'barcode-base64');
+    await waitFor(async () => expect((await loadDraft('house-1')).barcodeImage).toBe('barcode-base64'));
+    unmount();
+
     render(<ShopPage />);
 
-    await captureAndSubmitOneItem();
-
-    expect(screen.getByRole('button', { name: /Uploading/ })).toBeDisabled();
-
-    resolveUpload({ data: {}, status: 200, headers: new Headers() });
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Process →' })).not.toBeDisabled(),
+      expect(screen.getByAltText('Barcode photo preview')).toHaveAttribute(
+        'src',
+        'data:image/jpeg;base64,barcode-base64',
+      ),
     );
   });
 
-  it('explains a permission failure instead of offering a retry', async () => {
-    mockApiClientMutator.mockResolvedValue({ data: { timestamp: '', status: 403, error: 'Forbidden', path: '' }, status: 403, headers: new Headers() });
+  it('clears the saved draft once it is submitted', async () => {
+    const { unmount } = render(<ShopPage />);
+    await captureAndSubmitOneItem();
+    await waitingBanner(/1 item saved on this device/);
+    await waitFor(async () => expect((await loadDraft('house-1')).barcodeImage).toBeNull());
+    unmount();
+
+    render(<ShopPage />);
+
+    await waitingBanner(/1 item saved on this device/);
+    expect(screen.queryByAltText('Barcode photo preview')).not.toBeInTheDocument();
+  });
+
+  it('shows captures still waiting to upload after a reload', async () => {
+    const { unmount } = render(<ShopPage />);
+    await captureAndSubmitOneItem();
+    await waitingBanner(/1 item saved on this device/);
+    unmount();
+
+    render(<ShopPage />);
+
+    await waitingBanner(/1 item saved on this device/);
+  });
+
+  it('refreshes once the service worker reports the outbox changed', async () => {
+    render(<ShopPage />);
+    await captureAndSubmitOneItem();
+    await waitingBanner(/1 item saved on this device/);
+
+    indexedDB = new IDBFactory();
+    act(() => workerListeners.forEach((listener) => listener({ data: { type: 'shop-outbox-changed' } })));
+
+    await waitFor(() => expect(screen.queryByText(/waiting to upload/)).not.toBeInTheDocument());
+    expect(mutate).toHaveBeenCalled();
+  });
+
+  it('ignores unrelated service worker messages', async () => {
+    render(<ShopPage />);
+    await act(async () => {});
+
+    act(() => workerListeners.forEach((listener) => listener({ data: { type: 'other' } })));
+
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it('lets the user trigger an upload by hand', async () => {
+    render(<ShopPage />);
+    await captureAndSubmitOneItem();
+    await waitingBanner(/1 item saved on this device/);
+    postMessage.mockClear();
+
+    fireEvent.click(screen.getByText('Upload now'));
+
+    await waitFor(() => expect(postMessage).toHaveBeenCalledWith({ type: 'flush-shop' }));
+  });
+
+  it('asks the service worker to upload again when the connection comes back', async () => {
+    render(<ShopPage />);
+    await captureAndSubmitOneItem();
+    await waitingBanner(/1 item saved on this device/);
+    postMessage.mockClear();
+
+    act(() => {
+      window.dispatchEvent(new Event('online'));
+    });
+
+    await waitFor(() => expect(postMessage).toHaveBeenCalledWith({ type: 'flush-shop' }));
+  });
+
+  it('does not ask for an upload when nothing is waiting', async () => {
+    render(<ShopPage />);
+    await act(async () => {});
+
+    expect(postMessage).not.toHaveBeenCalled();
+  });
+
+  it('keeps the photos and explains when the device cannot store the capture', async () => {
+    outbox.addCapture.mockRejectedValueOnce(new Error('QuotaExceededError'));
     render(<ShopPage />);
 
     await captureAndSubmitOneItem();
 
-    await waitFor(() => {
-      expect(screen.getByText(/permission/)).toBeInTheDocument();
-    });
-    expect(screen.queryByText('Retry')).not.toBeInTheDocument();
+    await waitingBanner(/Couldn't save this capture on your device/);
+    expect(screen.getByAltText('Barcode photo preview')).toBeInTheDocument();
+    expect(screen.queryByText(/waiting to upload/)).not.toBeInTheDocument();
+  });
+
+  it('explains a permission failure instead of storing captures for a read-only member', async () => {
+    mockHouse = { id: 'house-1', name: 'Home', role: 'MEMBER' };
+    render(<ShopPage />);
+
+    await capturePhoto('Take barcode photo', 'barcode-base64');
+
+    expect(screen.getByText(/permission/)).toBeInTheDocument();
+    expect(screen.getByText('Submit')).toBeDisabled();
+  });
+
+  it('moves a failed-upload queue left in localStorage by the old version into the outbox', async () => {
+    window.localStorage.setItem(
+      'reciplease:shop-failed:house-1',
+      JSON.stringify([{ barcodeImage: 'old-barcode' }, { measureImage: 'old-measure' }]),
+    );
+
+    render(<ShopPage />);
+
+    await waitingBanner(/2 items saved on this device/);
+    expect(window.localStorage.getItem('reciplease:shop-failed:house-1')).toBeNull();
+    const stored = await listCaptures('house-1');
+    expect(stored.map((capture) => capture.barcodeImage ?? capture.measureImage)).toEqual(['old-barcode', 'old-measure']);
+    expect(new Set(stored.map((capture) => capture.scanId)).size).toBe(2);
   });
 
   it('the small top-right Process button navigates to the processing page', () => {
