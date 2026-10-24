@@ -38,7 +38,9 @@ test.describe('Shop capture with a flaky connection', () => {
       });
     });
 
+    const hydrated = page.waitForResponse('**/api/houses');
     await page.goto('/pantry/shop');
+    await hydrated;
     await page.evaluate(() => navigator.serviceWorker.ready);
 
     await page.getByLabel('Take barcode photo').setInputFiles({ name: 'barcode.png', mimeType: 'image/png', buffer: PNG });
@@ -55,7 +57,7 @@ test.describe('Shop capture with a flaky connection', () => {
     expect(bulkBodies).toHaveLength(0);
 
     connected = true;
-    await page.getByRole('button', { name: 'Upload now' }).click();
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
 
     await expect(page.getByText(/waiting to upload/)).toBeHidden();
     expect(bulkBodies).toHaveLength(1);
