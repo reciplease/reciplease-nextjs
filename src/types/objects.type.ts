@@ -41,10 +41,7 @@ declare global {
   // `houseId` (unused by the UI).
   type PantryItem = Omit<components['schemas']['PantryItem'], 'houseId'>;
 
-  type CreatePantryItem = Pick<
-    components['schemas']['PantryItem'],
-    'name' | 'measure' | 'amount' | 'expiration' | 'brand' | 'barcode' | 'image'
-  >;
+  type CreatePantryItem = components['schemas']['PantryItemRequest'];
 
   // A shopping-trip capture (barcode photo + other photos) awaiting digitisation into
   // a PantryItem — every capture step is skippable, so all fields but the id are

@@ -26,6 +26,7 @@ const pantryItemA: PantryItem = {
   measure: 'g',
   amount: 500,
   remaining: 500,
+  expiration: '2099-12-31',
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
 };
@@ -36,6 +37,7 @@ const pantryItemB: PantryItem = {
   measure: 'g',
   amount: 300,
   remaining: 300,
+  expiration: '2099-12-31',
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
 };
