@@ -10,6 +10,7 @@ import { recipeTitleTransitionName } from '@/lib/viewTransitionNames';
 import { fetchOrRedirect } from '@/lib/publicPageFetch';
 import { toRecipe, type BackendRecipe } from '@/lib/recipes';
 import { useMeasures, findMeasure } from '@/lib/measures';
+import { describeTiming } from '@/lib/recipe-timing';
 
 const fetcher = async (url: string): Promise<Recipe> => {
   const backendRecipe = await fetchOrRedirect<BackendRecipe>(url);
@@ -56,6 +57,8 @@ export default function Recipe() {
     );
   }
 
+  const timing = describeTiming(recipe);
+
   return (
     <>
       <Metadata title={`${recipe.name}`} description={'View recipe'} />
@@ -91,6 +94,7 @@ export default function Recipe() {
           <p className="text-sm text-[#666]">Created by {recipe.createdBy.handle}</p>
         )}
         <p className="my-4">{recipe.description}</p>
+        {timing.length > 0 && <p className="my-4 text-sm text-[#666]">{timing.join(' · ')}</p>}
         {recipe.sourceUrl && <SourceLink url={recipe.sourceUrl} />}
         <h4 className="mt-12">Ingredients</h4>
         <ul className="ms-16 list-disc">

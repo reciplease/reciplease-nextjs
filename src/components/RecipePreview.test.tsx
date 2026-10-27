@@ -41,6 +41,16 @@ const ownedRecipe: Recipe = {
 };
 
 describe('RecipePreview', () => {
+  it('shows prep time, cook time and servings when present', () => {
+    render(<RecipePreview recipe={{ ...recipe, prepTimeMinutes: 5, cookTimeMinutes: 40, servings: 4 }} />);
+    expect(screen.getByText('Prep 5 min · Cook 40 min · Serves 4')).toBeInTheDocument();
+  });
+
+  it('shows no timing line when none of the fields are set', () => {
+    render(<RecipePreview recipe={recipe} />);
+    expect(screen.queryByText(/Prep|Cook|Serves/)).not.toBeInTheDocument();
+  });
+
   it('renders recipe name', () => {
     render(<RecipePreview recipe={recipe} />);
     expect(screen.getByText('Toast')).toBeInTheDocument();

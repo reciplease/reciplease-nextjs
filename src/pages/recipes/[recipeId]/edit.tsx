@@ -49,6 +49,9 @@ export default function EditRecipe() {
       steps: values.steps,
       isPublic: values.isPublic,
       sourceUrl: values.sourceUrl ?? '',
+      prepTimeMinutes: values.prepTimeMinutes ?? undefined,
+      cookTimeMinutes: values.cookTimeMinutes ?? undefined,
+      servings: values.servings ?? undefined,
       owned: PublicRecipeOwned.false,
       ingredients: values.ingredients.map((ingredient) => ({
         name: ingredient.name,
@@ -116,6 +119,9 @@ export default function EditRecipe() {
             steps: recipe.steps,
             isPublic: recipe.isPublic ?? false,
             sourceUrl: recipe.sourceUrl,
+            prepTimeMinutes: recipe.prepTimeMinutes,
+            cookTimeMinutes: recipe.cookTimeMinutes,
+            servings: recipe.servings,
             ingredients: recipe.ingredients.map((ingredient) => ({
               name: ingredient.name,
               measureId: ingredient.measure,

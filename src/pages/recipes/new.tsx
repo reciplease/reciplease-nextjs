@@ -49,6 +49,9 @@ export default function NewRecipe() {
       steps: values.steps,
       isPublic: values.isPublic,
       sourceUrl: values.sourceUrl ?? '',
+      prepTimeMinutes: values.prepTimeMinutes ?? undefined,
+      cookTimeMinutes: values.cookTimeMinutes ?? undefined,
+      servings: values.servings ?? undefined,
       owned: PublicRecipeOwned.false,
       // Ingredients attach one-by-one afterwards (see the loop below); the
       // generated body type still requires the field even though the

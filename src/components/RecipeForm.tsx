@@ -19,6 +19,9 @@ const recipeFormSchema = z.object({
     `Recipe name must be at most ${createRecipeBodyTwoNameMax} characters.`,
   ),
   sourceUrl: z.string().regex(createRecipeBodyTwoSourceUrlRegExp, 'Enter a valid URL.').nullish(),
+  prepTimeMinutes: z.number().int('Prep time must be a whole number of minutes.').min(0, 'Prep time cannot be negative.').nullable(),
+  cookTimeMinutes: z.number().int('Cook time must be a whole number of minutes.').min(0, 'Cook time cannot be negative.').nullable(),
+  servings: z.number().int('Servings must be a whole number.').min(1, 'Servings must be at least 1.').nullable(),
   steps: z.array(z.string()),
   ingredients: z.array(z.object({
     name: z.string().trim().min(1),
@@ -26,6 +29,10 @@ const recipeFormSchema = z.object({
     amount: z.coerce.number().gt(0, 'Enter an amount greater than 0 for each ingredient.'),
   })),
 });
+
+function toOptionalNumber(value: string): number | null {
+  return value.trim() === '' ? null : Number(value);
+}
 
 type IngredientRowState = {
   key: number;
@@ -49,6 +56,9 @@ export type RecipeFormValues = {
   ingredients: RecipeFormIngredient[];
   isPublic: boolean;
   sourceUrl?: string | null;
+  prepTimeMinutes: number | null;
+  cookTimeMinutes: number | null;
+  servings: number | null;
 };
 
 export type RecipeFormInitial = {
@@ -58,6 +68,9 @@ export type RecipeFormInitial = {
   ingredients: RecipeFormIngredient[];
   isPublic: boolean;
   sourceUrl?: string | null;
+  prepTimeMinutes?: number | null;
+  cookTimeMinutes?: number | null;
+  servings?: number | null;
 };
 
 /**
@@ -171,6 +184,9 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
   const [description, setDescription] = useState(initial?.description ?? '');
   // Private by default for new recipes.
   const [isPublic, setIsPublic] = useState(initial?.isPublic ?? false);
+  const [prepTime, setPrepTime] = useState(initial?.prepTimeMinutes?.toString() ?? '');
+  const [cookTime, setCookTime] = useState(initial?.cookTimeMinutes?.toString() ?? '');
+  const [servings, setServings] = useState(initial?.servings?.toString() ?? '');
 
   // Both lists keep a single trailing empty entry; filling it spawns the next.
   const [steps, setSteps] = useState<string[]>(
@@ -223,6 +239,9 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
     const result = recipeFormSchema.safeParse({
       name,
       sourceUrl: initial?.sourceUrl ?? null,
+      prepTimeMinutes: toOptionalNumber(prepTime),
+      cookTimeMinutes: toOptionalNumber(cookTime),
+      servings: toOptionalNumber(servings),
       steps: cleanedSteps,
       ingredients: filledRows.map((row) => ({
         name: row.name,
@@ -249,6 +268,9 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
         ingredients,
         isPublic,
         sourceUrl: initial?.sourceUrl ?? null,
+        prepTimeMinutes: result.data.prepTimeMinutes,
+        cookTimeMinutes: result.data.cookTimeMinutes,
+        servings: result.data.servings,
       });
 
       return errorMessage ?? null;
@@ -280,6 +302,36 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
           rows={2}
           className="field"
         />
+
+        <div className="flex flex-wrap gap-4">
+          <label className="grid gap-1 text-sm">
+            Prep time (minutes)
+            <input
+              type="number"
+              value={prepTime}
+              onChange={(e) => setPrepTime(e.target.value)}
+              className="field w-36"
+            />
+          </label>
+          <label className="grid gap-1 text-sm">
+            Cook time (minutes)
+            <input
+              type="number"
+              value={cookTime}
+              onChange={(e) => setCookTime(e.target.value)}
+              className="field w-36"
+            />
+          </label>
+          <label className="grid gap-1 text-sm">
+            Servings
+            <input
+              type="number"
+              value={servings}
+              onChange={(e) => setServings(e.target.value)}
+              className="field w-36"
+            />
+          </label>
+        </div>
 
         {initial?.sourceUrl && (
           <a

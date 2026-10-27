@@ -196,6 +196,76 @@ describe('NewRecipe builder', () => {
     });
   });
 
+  it('saves prep time, cook time and servings', async () => {
+    mockApiClientMutator.mockResolvedValue({ data: { recipeId: RECIPE_ID }, status: 200, headers: new Headers() });
+
+    render(<NewRecipe />);
+    fireEvent.change(screen.getByLabelText('Recipe title'), { target: { value: 'Pasta' } });
+    fireEvent.change(screen.getByLabelText('Prep time (minutes)'), { target: { value: '5' } });
+    fireEvent.change(screen.getByLabelText('Cook time (minutes)'), { target: { value: '40' } });
+    fireEvent.change(screen.getByLabelText('Servings'), { target: { value: '4' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save recipe' }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/recipes/${RECIPE_SHORT_ID}`));
+    expect(JSON.parse(findMutatorCall('/api/recipes')![1].body)).toEqual(
+      expect.objectContaining({ prepTimeMinutes: 5, cookTimeMinutes: 40, servings: 4 }),
+    );
+  });
+
+  it('blocks save when servings is zero', async () => {
+    render(<NewRecipe />);
+    fireEvent.change(screen.getByLabelText('Recipe title'), { target: { value: 'Pasta' } });
+    fireEvent.change(screen.getByLabelText('Servings'), { target: { value: '0' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save recipe' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Servings must be at least 1.');
+    });
+    expect(findMutatorCall('/api/recipes')).toBeUndefined();
+  });
+
+  it('blocks save when prep time is negative', async () => {
+    render(<NewRecipe />);
+    fireEvent.change(screen.getByLabelText('Recipe title'), { target: { value: 'Pasta' } });
+    fireEvent.change(screen.getByLabelText('Prep time (minutes)'), { target: { value: '-5' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save recipe' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Prep time cannot be negative.');
+    });
+    expect(findMutatorCall('/api/recipes')).toBeUndefined();
+  });
+
+  it('pre-fills prep time, cook time and servings from an imported recipe', async () => {
+    (fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        name: 'Imported pasta',
+        description: null,
+        steps: ['Boil'],
+        ingredients: [],
+        isPublic: false,
+        prepTimeMinutes: 10,
+        cookTimeMinutes: 70,
+        servings: 6,
+      }),
+    });
+
+    render(<NewRecipe />);
+    fireEvent.change(screen.getByLabelText('Import from BBC Good Food or HelloFresh'), {
+      target: { value: 'https://www.bbcgoodfood.com/recipes/pasta' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+
+    await waitFor(() => expect(screen.getByLabelText('Recipe title')).toHaveValue('Imported pasta'));
+    expect(screen.getByLabelText('Prep time (minutes)')).toHaveValue(10);
+    expect(screen.getByLabelText('Cook time (minutes)')).toHaveValue(70);
+    expect(screen.getByLabelText('Servings')).toHaveValue(6);
+  });
+
   it('blocks save when an ingredient is named without an amount', async () => {
     render(<NewRecipe />);
     fireEvent.change(screen.getByLabelText('Recipe title'), { target: { value: 'Tacos' } });

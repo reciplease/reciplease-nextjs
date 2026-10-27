@@ -94,6 +94,7 @@ const SchemaOrgRecipeSchema = z.object({
   // handles all three shapes, so validate loosely here and defer shape-narrowing to it.
   recipeInstructions: z.unknown().optional(),
   totalTime: z.unknown().optional(),
+  prepTime: z.unknown().optional(),
   cookTime: z.unknown().optional(),
   recipeYield: z.unknown().optional(),
   aggregateRating: z.unknown().optional(),
@@ -186,6 +187,26 @@ function normalizeInstructions(raw: unknown): unknown[] {
   return [];
 }
 
+const ISO_DURATION = /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:\d+S)?)?$/;
+
+function parseDurationMinutes(value: unknown): number | null {
+  if (typeof value !== 'string') return null;
+  const match = value.trim().match(ISO_DURATION);
+  if (!match) return null;
+  const [, days, hours, minutes] = match;
+  const totalMinutes = Number(days ?? 0) * 24 * 60 + Number(hours ?? 0) * 60 + Number(minutes ?? 0);
+  return totalMinutes > 0 ? totalMinutes : null;
+}
+
+function parseServings(value: unknown): number | null {
+  const first = Array.isArray(value) ? value[0] : value;
+  if (typeof first === 'number') return Number.isInteger(first) && first > 0 ? first : null;
+  if (typeof first !== 'string') return null;
+  const digits = first.match(/\d+/);
+  const servings = digits ? parseInt(digits[0], 10) : 0;
+  return servings > 0 ? servings : null;
+}
+
 export function parseImportedRecipe(schema: SchemaOrgRecipe): RecipeFormInitial {
   const steps = extractStepTexts(normalizeInstructions(schema.recipeInstructions));
   const ingredients = (schema.recipeIngredient ?? [])
@@ -198,5 +219,14 @@ export function parseImportedRecipe(schema: SchemaOrgRecipe): RecipeFormInitial 
       ? schema.description.trim()
       : null;
 
-  return { name, description, steps, ingredients, isPublic: false };
+  return {
+    name,
+    description,
+    steps,
+    ingredients,
+    isPublic: false,
+    prepTimeMinutes: parseDurationMinutes(schema.prepTime),
+    cookTimeMinutes: parseDurationMinutes(schema.cookTime),
+    servings: parseServings(schema.recipeYield),
+  };
 }

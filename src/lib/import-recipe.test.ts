@@ -164,6 +164,59 @@ describe('parseImportedRecipe', () => {
     expect(result.isPublic).toBe(false);
   });
 
+  describe('prep time, cook time and servings', () => {
+    it('parses minute durations', () => {
+      const result = parseImportedRecipe({ ...baseSchema, prepTime: 'PT15M', cookTime: 'PT40M' });
+      expect(result.prepTimeMinutes).toBe(15);
+      expect(result.cookTimeMinutes).toBe(40);
+    });
+
+    it('parses hour and minute durations', () => {
+      const result = parseImportedRecipe({ ...baseSchema, cookTime: 'PT1H10M' });
+      expect(result.cookTimeMinutes).toBe(70);
+    });
+
+    it('parses hour-only durations', () => {
+      const result = parseImportedRecipe({ ...baseSchema, cookTime: 'PT2H' });
+      expect(result.cookTimeMinutes).toBe(120);
+    });
+
+    it('parses durations with a day-time designator', () => {
+      const result = parseImportedRecipe({ ...baseSchema, prepTime: 'P0DT0H30M' });
+      expect(result.prepTimeMinutes).toBe(30);
+    });
+
+    it('returns null for missing or unparseable durations', () => {
+      expect(parseImportedRecipe(baseSchema).prepTimeMinutes).toBeNull();
+      expect(parseImportedRecipe(baseSchema).cookTimeMinutes).toBeNull();
+      expect(parseImportedRecipe({ ...baseSchema, prepTime: 'about ten minutes' }).prepTimeMinutes).toBeNull();
+      expect(parseImportedRecipe({ ...baseSchema, prepTime: 42 }).prepTimeMinutes).toBeNull();
+    });
+
+    it('parses servings from a numeric yield', () => {
+      expect(parseImportedRecipe({ ...baseSchema, recipeYield: 4 }).servings).toBe(4);
+    });
+
+    it('parses servings from a numeric string yield', () => {
+      expect(parseImportedRecipe({ ...baseSchema, recipeYield: '6' }).servings).toBe(6);
+    });
+
+    it('parses servings from descriptive text', () => {
+      expect(parseImportedRecipe({ ...baseSchema, recipeYield: 'Serves 4' }).servings).toBe(4);
+      expect(parseImportedRecipe({ ...baseSchema, recipeYield: '4 servings' }).servings).toBe(4);
+    });
+
+    it('uses the first entry of an array yield', () => {
+      expect(parseImportedRecipe({ ...baseSchema, recipeYield: ['4', '4 servings'] }).servings).toBe(4);
+    });
+
+    it('returns null for missing, zero or unparseable yield', () => {
+      expect(parseImportedRecipe(baseSchema).servings).toBeNull();
+      expect(parseImportedRecipe({ ...baseSchema, recipeYield: 0 }).servings).toBeNull();
+      expect(parseImportedRecipe({ ...baseSchema, recipeYield: 'a crowd' }).servings).toBeNull();
+    });
+  });
+
   it('parses HowToStep instruction objects', () => {
     const result = parseImportedRecipe(baseSchema);
     expect(result.steps[0]).toBe('Preheat the oven to 180C.');

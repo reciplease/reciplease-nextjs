@@ -43,6 +43,22 @@ function mockRecipe(state: { isLoading: boolean; data: Recipe | undefined; error
 }
 
 describe('RecipePage', () => {
+  it('shows prep time, cook time and servings when present', () => {
+    mockRecipe({
+      isLoading: false,
+      data: { ...recipe, prepTimeMinutes: 5, cookTimeMinutes: 40, servings: 4 },
+      error: undefined,
+    });
+    render(<RecipePage />);
+    expect(screen.getByText('Prep 5 min · Cook 40 min · Serves 4')).toBeInTheDocument();
+  });
+
+  it('shows no timing line when none of the fields are set', () => {
+    mockRecipe({ isLoading: false, data: recipe, error: undefined });
+    render(<RecipePage />);
+    expect(screen.queryByText(/Prep|Cook|Serves/)).not.toBeInTheDocument();
+  });
+
   it('shows loading state', () => {
     mockRecipe({ isLoading: true, data: undefined, error: undefined });
     render(<RecipePage />);

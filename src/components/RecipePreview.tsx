@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { recipeTitleTransitionName } from '@/lib/viewTransitionNames';
+import { describeTiming } from '@/lib/recipe-timing';
 
 interface Props {
   recipe: Recipe;
@@ -10,6 +11,7 @@ interface Props {
 
 export default function RecipePreview({ recipe, onToggleUpvote, onToggleVisibility }: Props) {
   const [navigating, setNavigating] = useState(false);
+  const timing = describeTiming(recipe);
 
   return (
     <Link
@@ -32,7 +34,10 @@ export default function RecipePreview({ recipe, onToggleUpvote, onToggleVisibili
           </span>
         )}
       </h4>
-      <p className="line-clamp-2 grow basis-64 text-sm">{recipe.description ?? 'No description found'}</p>
+      <div className="grow basis-64">
+        <p className="line-clamp-2 text-sm">{recipe.description ?? 'No description found'}</p>
+        {timing.length > 0 && <p className="text-xs">{timing.join(' · ')}</p>}
+      </div>
       <span
         className="flex shrink-0 flex-col items-end gap-1 text-xs"
         onClick={(e) => e.stopPropagation()}

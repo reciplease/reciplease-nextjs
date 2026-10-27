@@ -187,6 +187,47 @@ describe('EditRecipe page', () => {
     });
   });
 
+  it('pre-fills and saves prep time, cook time and servings', async () => {
+    mockRecipeSWR({
+      isLoading: false,
+      data: { ...recipe, prepTimeMinutes: 5, cookTimeMinutes: 40, servings: 4 },
+      error: undefined,
+    });
+    mockApiClientMutator.mockResolvedValue({ data: recipe, status: 200, headers: new Headers() });
+    render(<EditRecipe />);
+
+    expect(screen.getByLabelText('Prep time (minutes)')).toHaveValue(5);
+    expect(screen.getByLabelText('Cook time (minutes)')).toHaveValue(40);
+    expect(screen.getByLabelText('Servings')).toHaveValue(4);
+
+    fireEvent.change(screen.getByLabelText('Servings'), { target: { value: '6' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/recipes/${recipeShortId}`));
+    const [, options] = mockApiClientMutator.mock.calls.find(([url]) => url === `/api/recipes/${recipeId}`)!;
+    expect(JSON.parse(options.body)).toEqual(
+      expect.objectContaining({ prepTimeMinutes: 5, cookTimeMinutes: 40, servings: 6 }),
+    );
+  });
+
+  it('clears a time by leaving the field blank', async () => {
+    mockRecipeSWR({
+      isLoading: false,
+      data: { ...recipe, prepTimeMinutes: 5, cookTimeMinutes: 40, servings: 4 },
+      error: undefined,
+    });
+    mockApiClientMutator.mockResolvedValue({ data: recipe, status: 200, headers: new Headers() });
+    render(<EditRecipe />);
+
+    fireEvent.change(screen.getByLabelText('Prep time (minutes)'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/recipes/${recipeShortId}`));
+    const [, options] = mockApiClientMutator.mock.calls.find(([url]) => url === `/api/recipes/${recipeId}`)!;
+    expect(JSON.parse(options.body)).not.toHaveProperty('prepTimeMinutes');
+    expect(JSON.parse(options.body)).toEqual(expect.objectContaining({ cookTimeMinutes: 40, servings: 4 }));
+  });
+
   it('shows an error message when save fails', async () => {
     mockRecipeSWR({ isLoading: false, data: recipe, error: undefined });
     mockApiClientMutator.mockResolvedValue({
