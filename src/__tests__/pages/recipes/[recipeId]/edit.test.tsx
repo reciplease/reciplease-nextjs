@@ -179,7 +179,6 @@ describe('EditRecipe page', () => {
       steps: ['Brown the beef', 'Warm the tortillas'],
       isPublic: false,
       sourceUrl: '',
-      owned: 'false',
       ingredients: [
         { name: 'Beef', measure: 'GRAMS', amount: 500 },
         { name: 'Tortilla', measure: 'ITEMS', amount: 1 },

@@ -5,7 +5,7 @@ import Recipe from '@/pages/recipes/[recipeId]';
 import useSWR from 'swr';
 import { fetchOrRedirect } from '@/lib/publicPageFetch';
 import { toRecipe, type BackendRecipe } from '@/lib/recipes';
-import { updateRecipe, upvoteRecipe, removeRecipeUpvote, PublicRecipeOwned } from '@/types/generated/client';
+import { updateRecipe, upvoteRecipe, removeRecipeUpvote } from '@/types/generated/client';
 import { isSuccessResponse } from '@/lib/apiClientMutator';
 import { useCallback } from 'react';
 
@@ -25,7 +25,6 @@ export default function Recipes() {
         steps: recipe.steps,
         isPublic: !recipe.isPublic,
         sourceUrl: recipe.sourceUrl ?? '',
-        owned: PublicRecipeOwned.false,
         ingredients: recipe.ingredients.map((ingredient) => ({
           name: ingredient.name,
           measure: ingredient.measure,

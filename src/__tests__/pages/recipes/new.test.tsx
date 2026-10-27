@@ -135,7 +135,6 @@ describe('NewRecipe builder', () => {
       steps: ['Brown the beef'],
       isPublic: false,
       sourceUrl: '',
-      owned: 'false',
       ingredients: [],
     });
 

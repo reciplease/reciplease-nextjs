@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { full } from '@/lib/recipe-id';
 import { toRecipe, type BackendRecipe } from '@/lib/recipes';
-import { useFindRecipeById, deleteRecipeById, updateRecipe, PublicRecipeOwned } from '@/types/generated/client';
+import { useFindRecipeById, deleteRecipeById, updateRecipe } from '@/types/generated/client';
 import { isSuccessResponse, describeErrorStatus } from '@/lib/apiClientMutator';
 
 export default function EditRecipe() {
@@ -35,14 +35,6 @@ export default function EditRecipe() {
   }, null);
 
   async function handleSubmit(values: RecipeFormValues) {
-    // The backend's `ingredients` field is no longer marked `readOnly` on
-    // `PublicRecipe`, so `NonReadonly<PublicRecipe>` now includes it and this
-    // payload satisfies the generated body type directly, with no cast needed.
-    // `description`/`sourceUrl` are non-nullable strings on PublicRecipe
-    // (sourceUrl's pattern explicitly allows ''), while the form tracks them
-    // as `string | null`, so null coalesces to ''. `owned` is a fixed "false"
-    // discriminant on PublicRecipe (see PublicRecipeOwned); the backend
-    // ignores it on update, but the type requires it.
     const result = await updateRecipe(recipeId as string, {
       name: values.name,
       description: values.description ?? '',
@@ -52,7 +44,6 @@ export default function EditRecipe() {
       prepTimeMinutes: values.prepTimeMinutes ?? undefined,
       cookTimeMinutes: values.cookTimeMinutes ?? undefined,
       servings: values.servings ?? undefined,
-      owned: PublicRecipeOwned.false,
       ingredients: values.ingredients.map((ingredient) => ({
         name: ingredient.name,
         measure: ingredient.measureId,

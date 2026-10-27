@@ -3,22 +3,16 @@ import { useRouter } from 'next/router';
 import { z } from 'zod';
 import { useMeasures } from '@/lib/measures';
 import {
-  createRecipeBodyTwoNameMax,
-  createRecipeBodyTwoSourceUrlRegExp,
+  createRecipeBodyNameMax,
+  createRecipeBodySourceUrlRegExp,
 } from '@/types/generated/zod';
 
-// CreateRecipeBody/UpdateRecipeBody in the generated file are ZodIntersections
-// (they don't expose `.pick()`), so this form-specific schema is assembled from
-// the same underlying business-rule constants (name length, source URL pattern)
-// rather than by picking fields off the generated schema directly. The
-// ingredient amount rule (> 0) is stricter than the backend's `min(0)`, matching
-// this form's existing UX.
 const recipeFormSchema = z.object({
   name: z.string().trim().min(1, 'Enter a recipe name.').max(
-    createRecipeBodyTwoNameMax,
-    `Recipe name must be at most ${createRecipeBodyTwoNameMax} characters.`,
+    createRecipeBodyNameMax,
+    `Recipe name must be at most ${createRecipeBodyNameMax} characters.`,
   ),
-  sourceUrl: z.string().regex(createRecipeBodyTwoSourceUrlRegExp, 'Enter a valid URL.').nullish(),
+  sourceUrl: z.string().regex(createRecipeBodySourceUrlRegExp, 'Enter a valid URL.').nullish(),
   prepTimeMinutes: z.number().int('Prep time must be a whole number of minutes.').min(0, 'Prep time cannot be negative.').nullable(),
   cookTimeMinutes: z.number().int('Cook time must be a whole number of minutes.').min(0, 'Cook time cannot be negative.').nullable(),
   servings: z.number().int('Servings must be a whole number.').min(1, 'Servings must be at least 1.').nullable(),

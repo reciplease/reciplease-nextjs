@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Metadata from '@/components/Metadata';
 import RecipeForm, { type RecipeFormInitial, type RecipeFormValues } from '@/components/RecipeForm';
 import { toRecipe, type BackendRecipe } from '@/lib/recipes';
-import { createRecipe, addRecipeIngredient, PublicRecipeOwned } from '@/types/generated/client';
+import { createRecipe, addRecipeIngredient } from '@/types/generated/client';
 import { isSuccessResponse, describeErrorStatus } from '@/lib/apiClientMutator';
 
 export default function NewRecipe() {
@@ -34,15 +34,6 @@ export default function NewRecipe() {
   }, null);
 
   async function handleSubmit(values: RecipeFormValues) {
-    // createRecipe's generated body type is `NonReadonly<PublicRecipe>`, which
-    // correctly excludes the readonly `recipeId`/`ingredients`/`updatedAt`
-    // fields (verified against the generated utility types), but still
-    // requires `owned` (a fixed "false" discriminant on PublicRecipe — see
-    // PublicRecipeOwned). The backend ignores it on create (the discriminant
-    // is server-computed), but the type requires it, so it's supplied here.
-    // `description`/`sourceUrl` are non-nullable strings on PublicRecipe
-    // (sourceUrl's pattern explicitly allows ''), while the form tracks them
-    // as `string | null`, so null coalesces to ''.
     const createResponse = await createRecipe({
       name: values.name,
       description: values.description ?? '',
@@ -52,10 +43,6 @@ export default function NewRecipe() {
       prepTimeMinutes: values.prepTimeMinutes ?? undefined,
       cookTimeMinutes: values.cookTimeMinutes ?? undefined,
       servings: values.servings ?? undefined,
-      owned: PublicRecipeOwned.false,
-      // Ingredients attach one-by-one afterwards (see the loop below); the
-      // generated body type still requires the field even though the
-      // backend ignores it on create.
       ingredients: [],
     });
     if (!isSuccessResponse(createResponse)) {
