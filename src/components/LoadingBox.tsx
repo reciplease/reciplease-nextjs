@@ -8,7 +8,7 @@ export default function LoadingBox({
   className?: string;
 }) {
   return (
-    <div className={`flex items-center justify-center rounded-lg border border-zinc-200 bg-zinc-100 p-4 ${className}`}>
+    <div className={`flex items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 p-4 ${className}`}>
       <Spinner label={label} />
     </div>
   );

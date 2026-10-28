@@ -415,7 +415,7 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
           <ol className="grid gap-2 list-none">
             {steps.map((step, index) => (
               <li key={index} className="flex items-start gap-2">
-                <span className="mt-3 text-sm text-[#666] shrink-0">{index + 1}.</span>
+                <span className="mt-3 text-sm text-[#999] shrink-0">{index + 1}.</span>
                 <textarea
                   aria-label={`Step ${index + 1}`}
                   value={step}

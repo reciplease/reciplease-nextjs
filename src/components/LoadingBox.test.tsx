@@ -5,7 +5,7 @@ describe('LoadingBox', () => {
   it('renders a shaded, outlined box around the spinner', () => {
     const { container } = render(<LoadingBox />);
     const box = container.firstChild as HTMLElement;
-    expect(box).toHaveClass('border', 'bg-zinc-100');
+    expect(box).toHaveClass('border', 'border-zinc-700', 'bg-zinc-900');
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 

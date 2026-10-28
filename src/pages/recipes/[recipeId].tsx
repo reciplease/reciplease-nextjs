@@ -86,16 +86,16 @@ export default function Recipe() {
           )}
         </div>
         {recipe.updatedAt && (
-          <p className="text-sm text-[#666]">
+          <p className="text-sm text-[#999]">
             Last updated: {formatTimestamp(recipe.updatedAt)}
             {recipe.ownership?.updatedBy?.handle && ` by ${recipe.ownership.updatedBy.handle}`}
           </p>
         )}
         {recipe.ownership?.createdBy?.handle && (
-          <p className="text-sm text-[#666]">Created by {recipe.ownership.createdBy.handle}</p>
+          <p className="text-sm text-[#999]">Created by {recipe.ownership.createdBy.handle}</p>
         )}
         <p className="my-4">{recipe.description}</p>
-        {timing.length > 0 && <p className="my-4 text-sm text-[#666]">{timing.join(' · ')}</p>}
+        {timing.length > 0 && <p className="my-4 text-sm text-[#999]">{timing.join(' · ')}</p>}
         {recipe.sourceUrl && <SourceLink url={recipe.sourceUrl} />}
         <h4 className="mt-12">Ingredients</h4>
         <ul className="ms-16 list-disc">

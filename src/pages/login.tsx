@@ -186,7 +186,7 @@ export default function Login() {
             Sign in with GitHub
           </button>
 
-          <div className='my-1 flex w-full items-center gap-3 text-[0.75rem] text-[#8a8478] dark:text-[#908a7d]'>
+          <div className='my-1 flex w-full items-center gap-3 text-[0.75rem] text-[#8a8478] dark:text-[#a8a295]'>
             <span className='h-px flex-1 bg-[#dadce0] dark:bg-[#4a473f]' />
             or
             <span className='h-px flex-1 bg-[#dadce0] dark:bg-[#4a473f]' />
