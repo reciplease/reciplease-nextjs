@@ -21,7 +21,7 @@ async function mockSession(page: Page) {
         {
           recipeId: 'r1',
           name: 'A Genuinely Very Long Recipe Name That Should Not Fit On One Line',
-          owned: true,
+          ownership: {},
           ingredients: [
             { name: 'Plain flour', measure: 'g', amount: 200 },
             { name: 'Caster sugar', measure: 'g', amount: 100 },

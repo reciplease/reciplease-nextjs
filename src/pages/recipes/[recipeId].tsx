@@ -1,6 +1,7 @@
 import Metadata from '@/components/Metadata';
 import LoadingBox from '@/components/LoadingBox';
 import SourceLink from '@/components/SourceLink';
+import RecipeTable from '@/components/RecipeTable';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
@@ -30,7 +31,7 @@ export default function Recipe() {
     isLoading,
   } = useSWR(recipeId ? `/api/recipes/${recipeId}` : null, fetcher);
   const measures = useMeasures();
-  const editable = recipe?.owned === 'true';
+  const editable = Boolean(recipe?.ownership);
 
   if (!router.isReady || isLoading) {
     return (
@@ -87,11 +88,11 @@ export default function Recipe() {
         {recipe.updatedAt && (
           <p className="text-sm text-[#666]">
             Last updated: {formatTimestamp(recipe.updatedAt)}
-            {recipe.owned === 'true' && recipe.updatedBy?.handle && ` by ${recipe.updatedBy.handle}`}
+            {recipe.ownership?.updatedBy?.handle && ` by ${recipe.ownership.updatedBy.handle}`}
           </p>
         )}
-        {recipe.owned === 'true' && recipe.createdBy?.handle && (
-          <p className="text-sm text-[#666]">Created by {recipe.createdBy.handle}</p>
+        {recipe.ownership?.createdBy?.handle && (
+          <p className="text-sm text-[#666]">Created by {recipe.ownership.createdBy.handle}</p>
         )}
         <p className="my-4">{recipe.description}</p>
         {timing.length > 0 && <p className="my-4 text-sm text-[#666]">{timing.join(' · ')}</p>}
@@ -105,11 +106,17 @@ export default function Recipe() {
           ))}
         </ul>
         <h4 className="mt-12">Method</h4>
-        <ol className="ms-16 list-decimal">
-          {recipe.steps.map((step, index) => (
-            <li key={index} className="my-4">{step}</li>
-          ))}
-        </ol>
+        {'cells' in recipe.method ? (
+          <div className="my-4">
+            <RecipeTable cells={recipe.method.cells} />
+          </div>
+        ) : (
+          <ol aria-label="Method" className="ms-16 list-decimal">
+            {recipe.method.steps.map((step, index) => (
+              <li key={index} className="my-4">{step}</li>
+            ))}
+          </ol>
+        )}
       </section>
     </>
   );

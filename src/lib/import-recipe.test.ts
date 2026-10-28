@@ -159,7 +159,7 @@ describe('parseImportedRecipe', () => {
     const result = parseImportedRecipe(baseSchema);
     expect(result.name).toBe('Lemon drizzle cake');
     expect(result.description).toBe('A wonderfully moist British classic.');
-    expect(result.steps).toEqual(['Preheat the oven to 180C.', 'Cream the butter and sugar.']);
+    expect(result.method).toEqual({ steps: ['Preheat the oven to 180C.', 'Cream the butter and sugar.'] });
     expect(result.ingredients).toHaveLength(3);
     expect(result.isPublic).toBe(false);
   });
@@ -219,7 +219,7 @@ describe('parseImportedRecipe', () => {
 
   it('parses HowToStep instruction objects', () => {
     const result = parseImportedRecipe(baseSchema);
-    expect(result.steps[0]).toBe('Preheat the oven to 180C.');
+    expect(result.method).toEqual({ steps: ['Preheat the oven to 180C.', 'Cream the butter and sugar.'] });
   });
 
   it('parses plain string instructions (some HelloFresh recipes)', () => {
@@ -228,7 +228,7 @@ describe('parseImportedRecipe', () => {
       name: 'Simple Pasta',
       recipeInstructions: ['Boil water.', 'Cook pasta.', 'Drain and serve.'],
     };
-    expect(parseImportedRecipe(schema).steps).toEqual(['Boil water.', 'Cook pasta.', 'Drain and serve.']);
+    expect(parseImportedRecipe(schema).method).toEqual({ steps: ['Boil water.', 'Cook pasta.', 'Drain and serve.'] });
   });
 
   it('flattens HowToSection instruction groups', () => {
@@ -247,7 +247,7 @@ describe('parseImportedRecipe', () => {
         { '@type': 'HowToStep', text: 'Combine everything.' },
       ],
     };
-    expect(parseImportedRecipe(schema).steps).toEqual(['Melt butter.', 'Add flour.', 'Combine everything.']);
+    expect(parseImportedRecipe(schema).method).toEqual({ steps: ['Melt butter.', 'Add flour.', 'Combine everything.'] });
   });
 
   it('returns null description when field is absent', () => {
@@ -262,7 +262,7 @@ describe('parseImportedRecipe', () => {
 
   it('returns empty steps when recipeInstructions is absent', () => {
     const schema: SchemaOrgRecipe = { '@type': 'Recipe', name: 'Test' };
-    expect(parseImportedRecipe(schema).steps).toEqual([]);
+    expect(parseImportedRecipe(schema).method).toEqual({ steps: [] });
   });
 
   it('returns empty ingredients when recipeIngredient is absent', () => {
@@ -294,7 +294,7 @@ describe('parseImportedRecipe', () => {
       name: 'Vinaigrette',
       recipeInstructions: 'Whisk all ingredients together.' as unknown as unknown[],
     };
-    expect(parseImportedRecipe(schema).steps).toEqual(['Whisk all ingredients together.']);
+    expect(parseImportedRecipe(schema).method).toEqual({ steps: ['Whisk all ingredients together.'] });
   });
 
   it('handles recipeInstructions as an ItemList object', () => {
@@ -309,7 +309,7 @@ describe('parseImportedRecipe', () => {
         ],
       } as unknown as unknown[],
     };
-    expect(parseImportedRecipe(schema).steps).toEqual(['Step one.', 'Step two.']);
+    expect(parseImportedRecipe(schema).method).toEqual({ steps: ['Step one.', 'Step two.'] });
   });
 
   it('handles @type as an array containing Recipe', () => {
@@ -326,10 +326,9 @@ describe('parseImportedRecipe', () => {
           { '@type': 'HowToStep', text: '• Preheat oven to 425°.\n• Wash and dry produce.' },
         ],
       };
-      expect(parseImportedRecipe(schema).steps).toEqual([
-        'Preheat oven to 425°.',
-        'Wash and dry produce.',
-      ]);
+      expect(parseImportedRecipe(schema).method).toEqual({
+        steps: ['Preheat oven to 425°.', 'Wash and dry produce.'],
+      });
     });
 
     it('collapses soft-wrapped newlines within a bullet into a single line', () => {
@@ -340,9 +339,9 @@ describe('parseImportedRecipe', () => {
           { '@type': 'HowToStep', text: '• Pat chicken dry with paper\ntowels; season all over\nwith salt and pepper.' },
         ],
       };
-      expect(parseImportedRecipe(schema).steps).toEqual([
-        'Pat chicken dry with paper towels; season all over with salt and pepper.',
-      ]);
+      expect(parseImportedRecipe(schema).method).toEqual({
+        steps: ['Pat chicken dry with paper towels; season all over with salt and pepper.'],
+      });
     });
 
     it('strips *** markers from footnotes while keeping the text', () => {
@@ -353,10 +352,10 @@ describe('parseImportedRecipe', () => {
           { '@type': 'HowToStep', text: '• Slice chicken crosswise.\n\n***Chicken is fully cooked at 165°.***' },
         ],
       };
-      const { steps } = parseImportedRecipe(schema);
-      expect(steps.join(' ')).toContain('Slice chicken crosswise.');
-      expect(steps.join(' ')).toContain('Chicken is fully cooked at 165°.');
-      expect(steps.join(' ')).not.toContain('***');
+      const method = JSON.stringify(parseImportedRecipe(schema).method);
+      expect(method).toContain('Slice chicken crosswise.');
+      expect(method).toContain('Chicken is fully cooked at 165°.');
+      expect(method).not.toContain('***');
     });
 
     it('handles a mix of bulleted and non-bulleted steps', () => {
@@ -368,11 +367,9 @@ describe('parseImportedRecipe', () => {
           { '@type': 'HowToStep', text: '• Cook pasta.\n• Drain and serve.' },
         ],
       };
-      expect(parseImportedRecipe(schema).steps).toEqual([
-        'Boil water.',
-        'Cook pasta.',
-        'Drain and serve.',
-      ]);
+      expect(parseImportedRecipe(schema).method).toEqual({
+        steps: ['Boil water.', 'Cook pasta.', 'Drain and serve.'],
+      });
     });
   });
 });

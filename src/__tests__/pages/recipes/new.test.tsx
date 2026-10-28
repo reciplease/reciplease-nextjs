@@ -132,7 +132,7 @@ describe('NewRecipe builder', () => {
     expect(JSON.parse(findMutatorCall('/api/recipes')![1].body)).toEqual({
       name: 'Tacos',
       description: '',
-      steps: ['Brown the beef'],
+      method: { steps: ['Brown the beef'] },
       isPublic: false,
       sourceUrl: '',
       ingredients: [],
@@ -145,6 +145,70 @@ describe('NewRecipe builder', () => {
       name: 'Beef',
       measure: 'GRAMS',
       amount: 500,
+    });
+  });
+
+  it('starts in list mode', () => {
+    render(<NewRecipe />);
+
+    expect(screen.getByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Table' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByRole('region', { name: 'Method editor' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the steps when switching to the table and back', () => {
+    render(<NewRecipe />);
+    fireEvent.change(screen.getByLabelText('Step 1'), { target: { value: 'Chop' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }));
+    expect(screen.queryByLabelText('Step 1')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Table' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'List' }));
+
+    expect(screen.getByLabelText('Step 1')).toHaveValue('Chop');
+  });
+
+  it('offers the ingredients as table rows, formatted with amount and unit', () => {
+    render(<NewRecipe />);
+    fireEvent.change(screen.getByLabelText('Ingredient 1'), { target: { value: 'Beef' } });
+    fireEvent.change(screen.getByLabelText('Measure 1'), { target: { value: 'GRAMS' } });
+    fireEvent.change(screen.getByLabelText('Amount 1'), { target: { value: '500' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add ingredients as rows' }));
+
+    expect(screen.getByRole('button', { name: '500 g Beef' })).toBeInTheDocument();
+  });
+
+  it('saves a table method instead of the steps when in table mode', async () => {
+    mockApiClientMutator.mockResolvedValue({ data: { recipeId: RECIPE_ID }, status: 200, headers: new Headers() });
+
+    render(<NewRecipe />);
+    fireEvent.change(screen.getByLabelText('Recipe title'), { target: { value: 'Toast' } });
+    fireEvent.change(screen.getByLabelText('Step 1'), { target: { value: 'Ignored' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }));
+    for (const row of ['bread', 'butter']) {
+      fireEvent.change(screen.getByLabelText('New row'), { target: { value: row } });
+      fireEvent.click(screen.getByRole('button', { name: 'Add row' }));
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'bread' }));
+    fireEvent.click(screen.getByRole('button', { name: 'butter' }));
+    fireEvent.change(screen.getByLabelText('Step text'), { target: { value: 'spread' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add step' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save recipe' }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/recipes/${RECIPE_SHORT_ID}`));
+    expect(JSON.parse(findMutatorCall('/api/recipes')![1].body).method).toEqual({
+      cells: [
+        {
+          text: 'spread',
+          inputs: [
+            { text: 'bread', inputs: [] },
+            { text: 'butter', inputs: [] },
+          ],
+        },
+      ],
     });
   });
 
@@ -244,7 +308,7 @@ describe('NewRecipe builder', () => {
       json: async () => ({
         name: 'Imported pasta',
         description: null,
-        steps: ['Boil'],
+        method: { steps: ['Boil'] },
         ingredients: [],
         isPublic: false,
         prepTimeMinutes: 10,

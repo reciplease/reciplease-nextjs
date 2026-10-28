@@ -5,7 +5,7 @@ import RecipeForm, { RecipeFormValues } from '@/components/RecipeForm';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { full } from '@/lib/recipe-id';
-import { toRecipe, type BackendRecipe } from '@/lib/recipes';
+import { toRecipe } from '@/lib/recipes';
 import { useFindRecipeById, deleteRecipeById, updateRecipe } from '@/types/generated/client';
 import { isSuccessResponse, describeErrorStatus } from '@/lib/apiClientMutator';
 
@@ -20,9 +20,9 @@ export default function EditRecipe() {
   } = useFindRecipeById(recipeId as string, {
     swr: { enabled: Boolean(recipeId) },
   });
-  const recipe = recipeResponse && isSuccessResponse(recipeResponse) ? toRecipe(recipeResponse.data as BackendRecipe) : undefined;
+  const recipe = recipeResponse && isSuccessResponse(recipeResponse) ? toRecipe(recipeResponse.data) : undefined;
   const recipeError = error || (recipeResponse && !isSuccessResponse(recipeResponse));
-  const editable = recipe?.owned === 'true';
+  const editable = Boolean(recipe?.ownership);
 
   const [deleteError, handleDelete, deleting] = useActionState(async (): Promise<string | null> => {
     if (!window.confirm(`Delete "${recipe?.name}"? This can't be undone.`)) return null;
@@ -38,7 +38,7 @@ export default function EditRecipe() {
     const result = await updateRecipe(recipeId as string, {
       name: values.name,
       description: values.description ?? '',
-      steps: values.steps,
+      method: values.method,
       isPublic: values.isPublic,
       sourceUrl: values.sourceUrl ?? '',
       prepTimeMinutes: values.prepTimeMinutes ?? undefined,
@@ -107,7 +107,7 @@ export default function EditRecipe() {
           initial={{
             name: recipe.name,
             description: recipe.description,
-            steps: recipe.steps,
+            method: recipe.method,
             isPublic: recipe.isPublic ?? false,
             sourceUrl: recipe.sourceUrl,
             prepTimeMinutes: recipe.prepTimeMinutes,

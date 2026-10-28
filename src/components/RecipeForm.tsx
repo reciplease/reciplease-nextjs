@@ -1,6 +1,8 @@
 import { useActionState, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { z } from 'zod';
+import RecipeTableEditor from '@/components/RecipeTableEditor';
+import { ingredientRowText } from '@/lib/ingredient-row-text';
 import { useMeasures } from '@/lib/measures';
 import {
   createRecipeBodyNameMax,
@@ -16,7 +18,6 @@ const recipeFormSchema = z.object({
   prepTimeMinutes: z.number().int('Prep time must be a whole number of minutes.').min(0, 'Prep time cannot be negative.').nullable(),
   cookTimeMinutes: z.number().int('Cook time must be a whole number of minutes.').min(0, 'Cook time cannot be negative.').nullable(),
   servings: z.number().int('Servings must be a whole number.').min(1, 'Servings must be at least 1.').nullable(),
-  steps: z.array(z.string()),
   ingredients: z.array(z.object({
     name: z.string().trim().min(1),
     measureId: z.string(),
@@ -46,7 +47,7 @@ export type RecipeFormIngredient = {
 export type RecipeFormValues = {
   name: string;
   description: string | null;
-  steps: string[];
+  method: RecipeMethod;
   ingredients: RecipeFormIngredient[];
   isPublic: boolean;
   sourceUrl?: string | null;
@@ -58,7 +59,7 @@ export type RecipeFormValues = {
 export type RecipeFormInitial = {
   name: string;
   description: string | null;
-  steps: string[];
+  method: RecipeMethod;
   ingredients: RecipeFormIngredient[];
   isPublic: boolean;
   sourceUrl?: string | null;
@@ -182,9 +183,17 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
   const [cookTime, setCookTime] = useState(initial?.cookTimeMinutes?.toString() ?? '');
   const [servings, setServings] = useState(initial?.servings?.toString() ?? '');
 
-  // Both lists keep a single trailing empty entry; filling it spawns the next.
+  const initialMethod = initial?.method;
+  const [methodMode, setMethodMode] = useState<'list' | 'table'>(
+    initialMethod && 'cells' in initialMethod ? 'table' : 'list',
+  );
   const [steps, setSteps] = useState<string[]>(
-    initial?.steps.length ? [...initial.steps, ''] : [''],
+    initialMethod && 'steps' in initialMethod && initialMethod.steps.length
+      ? [...initialMethod.steps, '']
+      : [''],
+  );
+  const [cells, setCells] = useState<TableCell[]>(
+    initialMethod && 'cells' in initialMethod ? initialMethod.cells : [],
   );
   const [rows, setRows] = useState<IngredientRowState[]>(() =>
     initial?.ingredients.length
@@ -194,6 +203,19 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
   const nextKey = useRef(rows.length);
 
   const measures = useMeasures();
+
+  const tableIngredients = rows
+    .filter((row) => row.name.trim() && Number(row.amount) > 0)
+    .map((row) =>
+      ingredientRowText(
+        {
+          name: row.name,
+          measureId: row.measureId || measures[0]?.measureId || '',
+          amount: Number(row.amount),
+        },
+        measures,
+      ),
+    );
 
   function setRowName(key: number, value: string) {
     setRows((prev) => {
@@ -228,7 +250,8 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
 
   const [error, handleSubmit, submitting] = useActionState(async (): Promise<string | null> => {
     const filledRows = rows.filter((r) => r.name.trim());
-    const cleanedSteps = steps.map((s) => s.trim()).filter(Boolean);
+    const method: RecipeMethod =
+      methodMode === 'table' ? { cells } : { steps: steps.map((s) => s.trim()).filter(Boolean) };
 
     const result = recipeFormSchema.safeParse({
       name,
@@ -236,7 +259,6 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
       prepTimeMinutes: toOptionalNumber(prepTime),
       cookTimeMinutes: toOptionalNumber(cookTime),
       servings: toOptionalNumber(servings),
-      steps: cleanedSteps,
       ingredients: filledRows.map((row) => ({
         name: row.name,
         measureId: row.measureId || measures?.[0]?.measureId || '',
@@ -258,7 +280,7 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
       const errorMessage = await onSubmit({
         name: result.data.name,
         description: description.trim() || null,
-        steps: result.data.steps,
+        method,
         ingredients,
         isPublic,
         sourceUrl: initial?.sourceUrl ?? null,
@@ -348,7 +370,6 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
         </label>
       </div>
 
-      {/* Ingredients */}
       <div>
         <h4 className="mb-2">Ingredients</h4>
         <ul className="grid gap-2 list-none">
@@ -371,44 +392,61 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
         </ul>
       </div>
 
-      {/* Method */}
       <div>
-        <h4 className="mb-2">Method</h4>
-        <ol className="grid gap-2 list-none">
-          {steps.map((step, index) => (
-            <li key={index} className="flex items-start gap-2">
-              <span className="mt-3 text-sm text-[#666] shrink-0">{index + 1}.</span>
-              <textarea
-                aria-label={`Step ${index + 1}`}
-                value={step}
-                onChange={(e) => {
-                  const updated = [...steps];
-                  updated[index] = e.target.value;
-                  // Typing in the last step spawns a new empty one.
-                  if (index === steps.length - 1 && e.target.value.trim()) {
-                    updated.push('');
-                  }
-                  setSteps(updated);
-                }}
-                placeholder="Describe this step"
-                rows={2}
-                className="field flex-1 min-w-0"
-              />
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h4>Method</h4>
+          <div className="flex gap-1">
+            {(['list', 'table'] as const).map((mode) => (
               <button
+                key={mode}
                 type="button"
-                onClick={() => {
-                  const updated = steps.filter((_, i) => i !== index);
-                  if (!updated.length || updated[updated.length - 1].trim()) updated.push('');
-                  setSteps(updated);
-                }}
-                aria-label={`Remove step ${index + 1}`}
-                className="mt-1 shrink-0"
+                aria-pressed={methodMode === mode}
+                onClick={() => setMethodMode(mode)}
+                className={methodMode === mode ? 'font-semibold underline' : ''}
               >
-                ×
+                {mode === 'list' ? 'List' : 'Table'}
               </button>
-            </li>
-          ))}
-        </ol>
+            ))}
+          </div>
+        </div>
+        {methodMode === 'table' ? (
+          <RecipeTableEditor cells={cells} ingredients={tableIngredients} onChange={setCells} />
+        ) : (
+          <ol className="grid gap-2 list-none">
+            {steps.map((step, index) => (
+              <li key={index} className="flex items-start gap-2">
+                <span className="mt-3 text-sm text-[#666] shrink-0">{index + 1}.</span>
+                <textarea
+                  aria-label={`Step ${index + 1}`}
+                  value={step}
+                  onChange={(e) => {
+                    const updated = [...steps];
+                    updated[index] = e.target.value;
+                    if (index === steps.length - 1 && e.target.value.trim()) {
+                      updated.push('');
+                    }
+                    setSteps(updated);
+                  }}
+                  placeholder="Describe this step"
+                  rows={2}
+                  className="field flex-1 min-w-0"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated = steps.filter((_, i) => i !== index);
+                    if (!updated.length || updated[updated.length - 1].trim()) updated.push('');
+                    setSteps(updated);
+                  }}
+                  aria-label={`Remove step ${index + 1}`}
+                  className="mt-1 shrink-0"
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
 
       {error && <p role="alert" className="text-red-600">{error}</p>}

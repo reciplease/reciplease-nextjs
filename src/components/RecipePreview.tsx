@@ -42,7 +42,7 @@ export default function RecipePreview({ recipe, onToggleUpvote, onToggleVisibili
         className="flex shrink-0 flex-col items-end gap-1 text-xs"
         onClick={(e) => e.stopPropagation()}
       >
-        {recipe.owned === 'true' ? (
+        {recipe.ownership ? (
           <button
             type="button"
             aria-pressed={recipe.isPublic}

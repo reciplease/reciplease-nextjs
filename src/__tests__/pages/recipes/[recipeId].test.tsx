@@ -18,9 +18,7 @@ const items: Measure = { measureId: 'ITEMS', singular: 'item', plural: 'items', 
 const recipe: Recipe = {
   recipeId: '111111111111111111111111',
   recipeShortId: 'EREREREREREREREREREREQ',
-  owned: 'true',
-  createdBy: undefined,
-  updatedBy: undefined,
+  ownership: {},
   isPublic: false,
   name: 'Tacos',
   description: 'Tasty tacos',
@@ -29,7 +27,7 @@ const recipe: Recipe = {
     { name: 'Beef', measure: grams.measureId ?? 'GRAMS', amount: 500 },
     { name: 'Tortilla', measure: items.measureId ?? 'ITEMS', amount: 1 },
   ],
-  steps: ['Brown the beef', 'Warm the tortillas'],
+  method: { steps: ['Brown the beef', 'Warm the tortillas'] },
   updatedAt: '',
   upvoteCount: 0,
   upvotedByCurrentUser: false,
@@ -90,6 +88,27 @@ describe('RecipePage', () => {
     expect(screen.getByText('Warm the tortillas')).toBeInTheDocument();
   });
 
+  it('renders a table recipe as a table instead of a numbered list', () => {
+    const tableRecipe: Recipe = {
+      ...recipe,
+      method: { cells: [{ text: 'fry', inputs: [{ text: 'beef', inputs: [] }] }] },
+    };
+    mockRecipe({ isLoading: false, data: tableRecipe, error: undefined });
+    render(<RecipePage />);
+
+    expect(screen.getByRole('region', { name: 'Method' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'fry' })).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Method' })).not.toBeInTheDocument();
+  });
+
+  it('renders a list recipe as a numbered list', () => {
+    mockRecipe({ isLoading: false, data: recipe, error: undefined });
+    render(<RecipePage />);
+
+    expect(screen.getByRole('list', { name: 'Method' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Method' })).not.toBeInTheDocument();
+  });
+
   it('shows an edit link when the caller owns the recipe', () => {
     mockRecipe({ isLoading: false, data: recipe, error: undefined });
     render(<RecipePage />);
@@ -102,7 +121,7 @@ describe('RecipePage', () => {
   it('does not show an edit link when the recipe is not owned', () => {
     mockRecipe({
       isLoading: false,
-      data: { ...recipe, owned: 'false' as const },
+      data: { ...recipe, ownership: undefined },
       error: undefined,
     });
     render(<RecipePage />);
@@ -114,13 +133,42 @@ describe('RecipePage', () => {
       isLoading: false,
       data: {
         ...recipe,
-        owned: 'false' as const,
+        ownership: undefined,
         updatedAt: '2026-06-10T12:00:00.000Z',
       },
       error: undefined,
     });
     render(<RecipePage />);
     expect(screen.getByText(/Last updated:/)).toBeInTheDocument();
+  });
+
+  it('shows who created and last updated the recipe to its owner', () => {
+    mockRecipe({
+      isLoading: false,
+      data: {
+        ...recipe,
+        updatedAt: '2026-06-10T12:00:00.000Z',
+        ownership: {
+          createdBy: { userId: 'user-1', handle: 'alice' },
+          updatedBy: { userId: 'user-2', handle: 'bob' },
+        },
+      },
+      error: undefined,
+    });
+    render(<RecipePage />);
+    expect(screen.getByText('Created by alice')).toBeInTheDocument();
+    expect(screen.getByText(/Last updated:.* by bob/)).toBeInTheDocument();
+  });
+
+  it('shows neither creator nor updater to a non-owner', () => {
+    mockRecipe({
+      isLoading: false,
+      data: { ...recipe, updatedAt: '2026-06-10T12:00:00.000Z', ownership: undefined },
+      error: undefined,
+    });
+    render(<RecipePage />);
+    expect(screen.queryByText(/Created by/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Last updated:/)).not.toHaveTextContent(/ by /);
   });
 
   it('omits the last updated line when absent', () => {

@@ -42,9 +42,7 @@ const recipeId = full(recipeShortId);
 const recipe: Recipe = {
   recipeId,
   recipeShortId,
-  owned: 'true',
-  createdBy: undefined,
-  updatedBy: undefined,
+  ownership: {},
   isPublic: false,
   name: 'Tacos',
   description: 'Tasty tacos',
@@ -53,7 +51,7 @@ const recipe: Recipe = {
     { name: 'Beef', measure: grams.measureId ?? 'GRAMS', amount: 500 },
     { name: 'Tortilla', measure: items.measureId ?? 'ITEMS', amount: 1 },
   ],
-  steps: ['Brown the beef', 'Warm the tortillas'],
+  method: { steps: ['Brown the beef', 'Warm the tortillas'] },
   updatedAt: '2026-06-06T18:00:00Z',
   upvoteCount: 0,
   upvotedByCurrentUser: false,
@@ -97,7 +95,7 @@ describe('EditRecipe page', () => {
   });
 
   it('shows not-authorized when the recipe is not owned', () => {
-    mockRecipeSWR({ isLoading: false, data: { ...recipe, owned: 'false' as const }, error: undefined });
+    mockRecipeSWR({ isLoading: false, data: { ...recipe, ownership: undefined }, error: undefined });
     render(<EditRecipe />);
     expect(screen.getByText('You do not have permission to edit this recipe.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Back to recipe' })).toHaveAttribute(
@@ -176,13 +174,82 @@ describe('EditRecipe page', () => {
     expect(JSON.parse(options.body)).toEqual({
       name: 'Tacos',
       description: 'Tasty tacos',
-      steps: ['Brown the beef', 'Warm the tortillas'],
+      method: { steps: ['Brown the beef', 'Warm the tortillas'] },
       isPublic: false,
       sourceUrl: '',
       ingredients: [
         { name: 'Beef', measure: 'GRAMS', amount: 500 },
         { name: 'Tortilla', measure: 'ITEMS', amount: 1 },
       ],
+    });
+  });
+
+  describe('table method', () => {
+    const cells: TableCell[] = [
+      {
+        text: 'toast',
+        inputs: [
+          { text: 'bread', inputs: [] },
+          { text: 'butter', inputs: [] },
+        ],
+      },
+    ];
+    const tableRecipe: Recipe = { ...recipe, method: { cells } };
+
+    function savedBody() {
+      const [, options] = mockApiClientMutator.mock.calls.find(([url]) => url === `/api/recipes/${recipeId}`)!;
+      return JSON.parse(options.body);
+    }
+
+    it('pre-fills the table editor from a table recipe', () => {
+      mockRecipeSWR({ isLoading: false, data: tableRecipe, error: undefined });
+      render(<EditRecipe />);
+
+      expect(screen.getByRole('button', { name: 'Table' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('region', { name: 'Method editor' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'toast' })).toBeInTheDocument();
+      expect(screen.queryByLabelText('Step 1')).not.toBeInTheDocument();
+    });
+
+    it('saves the cells unchanged when nothing is edited', async () => {
+      mockRecipeSWR({ isLoading: false, data: tableRecipe, error: undefined });
+      mockApiClientMutator.mockResolvedValue({ data: tableRecipe, status: 200, headers: new Headers() });
+      render(<EditRecipe />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/recipes/${recipeShortId}`));
+      expect(savedBody().method).toEqual({ cells });
+    });
+
+    it('sends cells after switching a list recipe to a table and building one', async () => {
+      mockRecipeSWR({ isLoading: false, data: recipe, error: undefined });
+      mockApiClientMutator.mockResolvedValue({ data: recipe, status: 200, headers: new Headers() });
+      render(<EditRecipe />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Table' }));
+      fireEvent.change(screen.getByLabelText('New row'), { target: { value: 'oven' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Add row' }));
+      fireEvent.click(screen.getByRole('button', { name: 'oven' }));
+      fireEvent.change(screen.getByLabelText('Step text'), { target: { value: 'preheat' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Add step' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/recipes/${recipeShortId}`));
+      expect(savedBody().method).toEqual({
+        cells: [{ text: 'preheat', inputs: [{ text: 'oven', inputs: [] }] }],
+      });
+    });
+
+    it('keeps the table when switching to the list and back', () => {
+      mockRecipeSWR({ isLoading: false, data: tableRecipe, error: undefined });
+      render(<EditRecipe />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'List' }));
+      expect(screen.getByLabelText('Step 1')).toHaveValue('');
+      fireEvent.click(screen.getByRole('button', { name: 'Table' }));
+
+      expect(screen.getByRole('button', { name: 'toast' })).toBeInTheDocument();
     });
   });
 

@@ -19,8 +19,7 @@ describe('Recipes list data fetching', () => {
         name: 'Pizza',
         description: 'Cheesy pizza',
         ingredients: [],
-        steps: [],
-        owned: 'false',
+        method: { steps: [] },
         isPublic: false,
       },
     ];

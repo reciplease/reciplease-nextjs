@@ -2,7 +2,7 @@ import { useActionState, useState } from 'react';
 import { useRouter } from 'next/router';
 import Metadata from '@/components/Metadata';
 import RecipeForm, { type RecipeFormInitial, type RecipeFormValues } from '@/components/RecipeForm';
-import { toRecipe, type BackendRecipe } from '@/lib/recipes';
+import { toRecipe } from '@/lib/recipes';
 import { createRecipe, addRecipeIngredient } from '@/types/generated/client';
 import { isSuccessResponse, describeErrorStatus } from '@/lib/apiClientMutator';
 
@@ -10,7 +10,6 @@ export default function NewRecipe() {
   const router = useRouter();
   const [importUrl, setImportUrl] = useState('');
   const [formInitial, setFormInitial] = useState<RecipeFormInitial | undefined>(undefined);
-  // Increment to remount RecipeForm when imported data replaces the blank form.
   const [formKey, setFormKey] = useState(0);
 
   const [importError, handleImport, importing] = useActionState(async (): Promise<string | null> => {
@@ -37,7 +36,7 @@ export default function NewRecipe() {
     const createResponse = await createRecipe({
       name: values.name,
       description: values.description ?? '',
-      steps: values.steps,
+      method: values.method,
       isPublic: values.isPublic,
       sourceUrl: values.sourceUrl ?? '',
       prepTimeMinutes: values.prepTimeMinutes ?? undefined,
@@ -48,9 +47,8 @@ export default function NewRecipe() {
     if (!isSuccessResponse(createResponse)) {
       return describeErrorStatus(createResponse.status);
     }
-    const recipe: Recipe = toRecipe(createResponse.data as BackendRecipe);
+    const recipe: Recipe = toRecipe(createResponse.data);
 
-    // Ingredients attach one-by-one on the backend.
     for (const ingredient of values.ingredients) {
       const addResponse = await addRecipeIngredient(recipe.recipeId, {
         name: ingredient.name,

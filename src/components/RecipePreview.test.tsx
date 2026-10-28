@@ -22,13 +22,12 @@ jest.mock(
 const recipe: Recipe = {
   recipeId: 'dbdc02be-a311-4aee-b974-c88d3c61f51b',
   recipeShortId: 'abc123',
-  owned: 'false',
   isPublic: true,
   name: 'Toast',
   description: 'A staple and classic',
   sourceUrl: '',
   ingredients: [],
-  steps: [],
+  method: { steps: [] },
   updatedAt: '2026-06-06T18:00:00Z',
   upvoteCount: 0,
   upvotedByCurrentUser: false,
@@ -36,7 +35,7 @@ const recipe: Recipe = {
 
 const ownedRecipe: Recipe = {
   ...recipe,
-  owned: 'true',
+  ownership: {},
   isPublic: false,
 };
 

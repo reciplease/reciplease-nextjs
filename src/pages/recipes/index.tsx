@@ -22,7 +22,7 @@ export default function Recipes() {
       const response = await updateRecipe(recipe.recipeId, {
         name: recipe.name,
         description: recipe.description ?? '',
-        steps: recipe.steps,
+        method: recipe.method,
         isPublic: !recipe.isPublic,
         sourceUrl: recipe.sourceUrl ?? '',
         ingredients: recipe.ingredients.map((ingredient) => ({
@@ -92,7 +92,7 @@ export default function Recipes() {
               <RecipePreview
                 recipe={recipe}
                 onToggleUpvote={toggleUpvote}
-                onToggleVisibility={recipe.owned === 'true' ? toggleVisibility : undefined}
+                onToggleVisibility={recipe.ownership ? toggleVisibility : undefined}
               />
             </li>
           ))}

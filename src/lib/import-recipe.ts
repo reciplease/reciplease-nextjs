@@ -222,7 +222,7 @@ export function parseImportedRecipe(schema: SchemaOrgRecipe): RecipeFormInitial 
   return {
     name,
     description,
-    steps,
+    method: { steps },
     ingredients,
     isPublic: false,
     prepTimeMinutes: parseDurationMinutes(schema.prepTime),

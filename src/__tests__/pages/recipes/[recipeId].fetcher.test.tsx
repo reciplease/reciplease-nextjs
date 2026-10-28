@@ -36,7 +36,7 @@ describe('RecipePage data fetching', () => {
           name: 'Tacos',
           description: 'Tasty tacos',
           ingredients: [],
-          steps: [],
+          method: { steps: [] },
         }),
       });
     });

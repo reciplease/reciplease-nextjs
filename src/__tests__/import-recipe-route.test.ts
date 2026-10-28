@@ -92,7 +92,7 @@ describe('POST /api/import-recipe', () => {
 
     it('returns all 5 method steps', async () => {
       mockHtml(bbcHtml);
-      const { steps } = await (await post({ url: 'https://www.bbcgoodfood.com/recipes/lemon-drizzle-cake' })).json();
+      const { method: { steps } } = await (await post({ url: 'https://www.bbcgoodfood.com/recipes/lemon-drizzle-cake' })).json();
       expect(steps).toHaveLength(5);
       expect(steps[0]).toContain('180C');
     });
@@ -138,7 +138,7 @@ describe('POST /api/import-recipe', () => {
 
     it('returns all 5 method steps', async () => {
       mockHtml(hellofreshHtml);
-      const { steps } = await (await post({ url: 'https://www.hellofresh.com/recipes/creamy-mushroom-pasta' })).json();
+      const { method: { steps } } = await (await post({ url: 'https://www.hellofresh.com/recipes/creamy-mushroom-pasta' })).json();
       expect(steps).toHaveLength(5);
     });
 
@@ -160,7 +160,7 @@ describe('POST /api/import-recipe', () => {
 
     it('extracts steps from an ItemList-wrapped recipeInstructions', async () => {
       mockHtml(hellofreshItemListHtml);
-      const { steps } = await (await post({ url: 'https://www.hellofresh.com/recipes/spiced-chickpea-stew' })).json();
+      const { method: { steps } } = await (await post({ url: 'https://www.hellofresh.com/recipes/spiced-chickpea-stew' })).json();
       expect(steps).toHaveLength(4);
       expect(steps[0]).toBe('Finely dice the onion and garlic.');
     });
@@ -184,7 +184,7 @@ describe('POST /api/import-recipe', () => {
       mockHtml(bbcPlainStringHtml);
       const res = await post({ url: 'https://www.bbcgoodfood.com/recipes/classic-vinaigrette' });
       expect(res.status).toBe(200);
-      const { steps } = await res.json();
+      const { method: { steps } } = await res.json();
       expect(steps).toHaveLength(1);
       expect(steps[0]).toContain('Whisk together');
     });
@@ -201,21 +201,20 @@ describe('POST /api/import-recipe', () => {
   describe('HelloFresh real-world multi-bullet format', () => {
     it('splits bullet-separated sub-steps into individual steps', async () => {
       mockHtml(hellofreshBulletsHtml);
-      const { steps } = await (await post({ url: 'https://www.hellofresh.com/recipes/creamy-herb-chicken' })).json();
-      // 3 HowToStep objects, each with 2–4 bullet sub-steps → should expand to 8 steps total
+      const { method: { steps } } = await (await post({ url: 'https://www.hellofresh.com/recipes/creamy-herb-chicken' })).json();
       expect(steps.length).toBeGreaterThan(3);
       expect(steps.every((s: string) => !s.startsWith('•'))).toBe(true);
     });
 
     it('collapses soft-wrapped newlines inside each step', async () => {
       mockHtml(hellofreshBulletsHtml);
-      const { steps } = await (await post({ url: 'https://www.hellofresh.com/recipes/creamy-herb-chicken' })).json();
+      const { method: { steps } } = await (await post({ url: 'https://www.hellofresh.com/recipes/creamy-herb-chicken' })).json();
       expect(steps.every((s: string) => !s.includes('\n'))).toBe(true);
     });
 
     it('strips ***footnote*** markers', async () => {
       mockHtml(hellofreshBulletsHtml);
-      const { steps } = await (await post({ url: 'https://www.hellofresh.com/recipes/creamy-herb-chicken' })).json();
+      const { method: { steps } } = await (await post({ url: 'https://www.hellofresh.com/recipes/creamy-herb-chicken' })).json();
       expect(steps.join(' ')).not.toContain('***');
     });
 

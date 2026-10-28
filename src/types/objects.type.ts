@@ -1,30 +1,9 @@
 import type { components } from '@/types/generated/api';
 
-// These types are consumed as bare globals throughout the app (no import
-// needed) — `declare global` preserves that while still tying them directly
-// to the generated OpenAPI schema, which now correctly marks fields
-// required/optional to match what the backend actually always returns.
 declare global {
-  // The shared shape both recipe views allOf onto — never carries owner or
-  // user info on its own, since PublicRecipe (returned to anonymous/public
-  // browsing and to anyone who isn't the owner) must never expose them.
-  type BaseRecipe = components['schemas']['RecipeDto'];
+  type Recipe = components['schemas']['Recipe'] & { recipeShortId: RecipeShortId };
 
-  // Adds the UI-only `recipeShortId` (derived client-side from `recipeId`,
-  // see lib/recipes.ts) on top of the generated, now-fully-required schema.
-  type PublicRecipe = components['schemas']['PublicRecipe'] & {
-    recipeShortId: RecipeShortId;
-  };
-
-  // Only returned to the recipe's owner — carries createdBy/updatedBy and who
-  // created/last updated it.
-  type OwnedRecipe = components['schemas']['OwnedRecipe'] & {
-    recipeShortId: RecipeShortId;
-  };
-
-  // Discriminated on `owned` — only OwnedRecipe (owned === 'true') grants its
-  // owner edit/toggle rights.
-  type Recipe = PublicRecipe | OwnedRecipe;
+  type Ownership = components['schemas']['Ownership'];
 
   // Public-safe subset of a user for display — no email or provider identity.
   type UserSummary = components['schemas']['UserSummary'];
@@ -34,6 +13,10 @@ declare global {
   // `measure` is the raw measureId as returned by the backend — components needing
   // to display it look it up via `useMeasures()`/`findMeasure()`.
   type RecipeIngredient = components['schemas']['RecipeIngredient'];
+
+  type TableCell = components['schemas']['TableCell'];
+
+  type RecipeMethod = components['schemas']['RecipeMethod'];
 
   // A physical pantry item. Carries its own name/measure plus an optional barcode
   // (recorded when scanned) used to suggest items when planning a recipe again.

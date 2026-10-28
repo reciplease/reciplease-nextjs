@@ -23,8 +23,8 @@ const recipes: Recipe[] = [
     description: 'Tasty tacos',
     sourceUrl: '',
     ingredients: [],
-    steps: [],
-    owned: 'true',
+    method: { cells: [{ text: 'toast', inputs: [{ text: 'bread', inputs: [] }] }] },
+    ownership: {},
     isPublic: false,
     updatedAt: '2026-06-06T18:00:00Z',
     upvoteCount: 0,
@@ -37,8 +37,7 @@ const recipes: Recipe[] = [
     description: null as unknown as string,
     sourceUrl: '',
     ingredients: [],
-    steps: [],
-    owned: 'false',
+    method: { steps: [] },
     isPublic: false,
     updatedAt: '2026-06-06T18:00:00Z',
     upvoteCount: 0,
@@ -79,6 +78,22 @@ describe('Recipes list page', () => {
     useSWR.mockReturnValue({ isLoading: false, data: recipes, error: undefined, mutate: jest.fn() });
     render(<Recipes />);
     expect(screen.getByRole('button', { name: 'Make public' })).toBeInTheDocument();
+  });
+
+  it('keeps the method unchanged when toggling visibility', async () => {
+    mockApiClientMutator.mockResolvedValue({ data: undefined, status: 200, headers: new Headers() });
+    useSWR.mockReturnValue({ isLoading: false, data: recipes, error: undefined, mutate: jest.fn() });
+    render(<Recipes />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Make public' }));
+
+    await waitFor(() => expect(mockApiClientMutator).toHaveBeenCalled());
+    const [url, init] = mockApiClientMutator.mock.calls[0];
+    expect(url).toBe('/api/recipes/111111111111111111111111');
+    expect(JSON.parse(init.body)).toMatchObject({
+      isPublic: true,
+      method: { cells: [{ text: 'toast', inputs: [{ text: 'bread', inputs: [] }] }] },
+    });
   });
 
   it('shows a passive badge for non-owned recipes', () => {
