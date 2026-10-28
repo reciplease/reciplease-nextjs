@@ -59,6 +59,12 @@ describe('RecipeTable', () => {
     expect(cell('bread').closest('td')).toHaveAttribute('colspan', '1');
   });
 
+  it('wraps cell text at 40 characters wide instead of stretching across a long cell', () => {
+    renderTable();
+
+    expect(screen.getByText('butter')).toHaveClass('max-w-[40ch]');
+  });
+
   it('marks a cell and everything feeding into it as done', () => {
     renderTable();
 

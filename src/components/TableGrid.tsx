@@ -42,7 +42,7 @@ export default function TableGrid({
                       onClick={() => onCellClick(cell.path)}
                       className="flex h-full w-full items-center rounded-none border-0 p-0 text-left hover:bg-black/5 hover:text-inherit"
                     >
-                      <span className="sticky left-0 px-2 py-1">{cell.text}</span>
+                      <span className="sticky left-0 max-w-[40ch] px-2 py-1">{cell.text}</span>
                     </button>
                   </td>
                 );
