@@ -38,7 +38,9 @@ describe('toRecipe', () => {
   });
 
   it('passes a table method through untouched', () => {
-    const cells = [{ text: 'toast', inputs: [{ text: 'bread', inputs: [] }] }];
+    const cells = [
+      { text: 'toast', handsOff: false, inputs: [{ text: 'bread', handsOff: false, inputs: [] }] },
+    ];
     const backend: BackendRecipe = {
       recipeId,
       isPublic: false,

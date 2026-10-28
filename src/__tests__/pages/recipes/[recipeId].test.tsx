@@ -91,7 +91,7 @@ describe('RecipePage', () => {
   it('renders a table recipe as a table instead of a numbered list', () => {
     const tableRecipe: Recipe = {
       ...recipe,
-      method: { cells: [{ text: 'fry', inputs: [{ text: 'beef', inputs: [] }] }] },
+      method: { cells: [{ text: 'fry', handsOff: false, inputs: [{ text: 'beef', handsOff: false, inputs: [] }] }] },
     };
     mockRecipe({ isLoading: false, data: tableRecipe, error: undefined });
     render(<RecipePage />);

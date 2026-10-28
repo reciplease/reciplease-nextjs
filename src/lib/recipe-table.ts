@@ -41,7 +41,7 @@ export function layoutTable(cells: TableCell[]): TableLayout {
   return { columns, rows };
 }
 
-function cellAt(cells: TableCell[], path: string): TableCell {
+export function cellAt(cells: TableCell[], path: string): TableCell {
   const [first, ...rest] = path.split('.').map(Number);
   return rest.reduce((cell, index) => cell.inputs[index], cells[first]);
 }
@@ -66,12 +66,12 @@ export function ancestorPaths(path: string): string[] {
 
 
 export function addRow(cells: TableCell[], text: string): TableCell[] {
-  return [...cells, { text, inputs: [] }];
+  return [...cells, { text, inputs: [], handsOff: false }];
 }
 
 export function combine(cells: TableCell[], rootIndices: number[], text: string): TableCell[] {
   const selected = [...rootIndices].sort((a, b) => a - b);
-  const combined: TableCell = { text, inputs: selected.map((index) => cells[index]) };
+  const combined: TableCell = { text, inputs: selected.map((index) => cells[index]), handsOff: false };
   return cells.flatMap((cell, index) => {
     if (index === selected[0]) return [combined];
     return selected.includes(index) ? [] : [cell];
@@ -89,6 +89,14 @@ function replaceAt(cells: TableCell[], path: string, replacement: (cell: TableCe
 
 export function rename(cells: TableCell[], path: string, text: string): TableCell[] {
   return replaceAt(cells, path, (cell) => [{ ...cell, text }]);
+}
+
+export function setTiming(
+  cells: TableCell[],
+  path: string,
+  timing: Pick<TableCell, 'duration' | 'handsOff'>,
+): TableCell[] {
+  return replaceAt(cells, path, (cell) => [{ ...cell, ...timing }]);
 }
 
 export function remove(cells: TableCell[], path: string): TableCell[] {

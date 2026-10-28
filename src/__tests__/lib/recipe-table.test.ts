@@ -5,11 +5,12 @@ import {
   layoutTable,
   remove,
   rename,
+  setTiming,
   subtreePaths,
 } from '@/lib/recipe-table';
 
-const row = (text: string): TableCell => ({ text, inputs: [] });
-const step = (text: string, ...inputs: TableCell[]): TableCell => ({ text, inputs });
+const row = (text: string): TableCell => ({ text, inputs: [], handsOff: false });
+const step = (text: string, ...inputs: TableCell[]): TableCell => ({ text, inputs, handsOff: false });
 
 const toast = [step('spread', step('toast', row('bread')), row('butter'))];
 
@@ -97,6 +98,28 @@ describe('editing', () => {
   it('renames any cell', () => {
     expect(rename(toast, '0.0', 'grill')).toEqual([
       step('spread', step('grill', row('bread')), row('butter')),
+    ]);
+  });
+
+  it('keeps the duration and hands-off flag when renaming', () => {
+    const bake: TableCell = { ...step('bake', row('dough')), duration: { minMinutes: 20, maxMinutes: 25 }, handsOff: true };
+
+    expect(rename([bake], '0', 'roast')).toEqual([{ ...bake, text: 'roast' }]);
+  });
+
+  it('sets a duration and hands-off flag on any cell', () => {
+    const duration = { minMinutes: 5, maxMinutes: 10 };
+
+    expect(setTiming(toast, '0.0', { duration, handsOff: true })).toEqual([
+      step('spread', { ...step('toast', row('bread')), duration, handsOff: true }, row('butter')),
+    ]);
+  });
+
+  it('clears a duration', () => {
+    const timedCell: TableCell = { ...row('bread'), duration: { minMinutes: 5, maxMinutes: 10 } };
+
+    expect(setTiming([timedCell], '0', { duration: undefined, handsOff: false })).toEqual([
+      { ...row('bread'), duration: undefined },
     ]);
   });
 

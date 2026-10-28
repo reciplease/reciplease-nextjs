@@ -1,15 +1,20 @@
 import type { Ref } from 'react';
 import type { TableLayout } from '@/lib/recipe-table';
 
+export type CellNote = { lines: string[]; emphasis?: string };
+
 type Props = {
   layout: TableLayout;
   label: string;
   pressed: Set<string>;
   pressedClassName: string;
   onCellClick: (path: string) => void;
+  cellNote?: (path: string) => CellNote;
   scrollerRef?: Ref<HTMLDivElement>;
   className?: string;
 };
+
+const noNote: CellNote = { lines: [] };
 
 export default function TableGrid({
   layout,
@@ -17,6 +22,7 @@ export default function TableGrid({
   pressed,
   pressedClassName,
   onCellClick,
+  cellNote = () => noNote,
   scrollerRef,
   className = '',
 }: Props) {
@@ -28,6 +34,7 @@ export default function TableGrid({
             <tr key={rowIndex}>
               {cellsInRow.map((cell) => {
                 const isPressed = pressed.has(cell.path);
+                const { lines, emphasis } = cellNote(cell.path);
                 return (
                   <td
                     key={cell.path}
@@ -41,9 +48,20 @@ export default function TableGrid({
                       type="button"
                       aria-pressed={isPressed}
                       onClick={() => onCellClick(cell.path)}
-                      className="flex h-full w-full items-center rounded-none border-0 p-0 text-left hover:bg-black/5 hover:text-inherit"
+                      title={emphasis}
+                      className={`flex h-full w-full items-center rounded-none border-0 p-0 text-left hover:bg-black/5 hover:text-inherit ${
+                        emphasis ? 'border-l-8 border-highlight' : ''
+                      }`}
                     >
-                      <span className="sticky left-0 max-w-[40ch] px-2 py-1">{cell.text}</span>
+                      <span className="sticky left-0 max-w-[40ch] px-2 py-1">
+                        {cell.text}
+                        {emphasis && <span className="sr-only">, {emphasis}</span>}
+                        {lines.map((line) => (
+                          <span key={line} className="block text-sm">
+                            {line}
+                          </span>
+                        ))}
+                      </span>
                     </button>
                   </td>
                 );

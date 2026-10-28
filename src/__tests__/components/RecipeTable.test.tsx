@@ -1,10 +1,26 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import RecipeTable from '@/components/RecipeTable';
 
-const row = (text: string): TableCell => ({ text, inputs: [] });
-const step = (text: string, ...inputs: TableCell[]): TableCell => ({ text, inputs });
+const row = (text: string): TableCell => ({ text, inputs: [], handsOff: false });
+const step = (text: string, ...inputs: TableCell[]): TableCell => ({ text, inputs, handsOff: false });
+const timed = (
+  text: string,
+  minMinutes: number,
+  maxMinutes: number,
+  inputs: TableCell[] = [],
+  handsOff = false,
+): TableCell => ({ text, inputs, handsOff, duration: { minMinutes, maxMinutes } });
 
 const toast = [step('spread', step('toast', row('bread')), row('butter'))];
+const pie = [
+  timed(
+    'bake',
+    25,
+    25,
+    [step('mash', timed('boil', 15, 20, [row('potato')], true)), step('stir', timed('cook', 10, 10, [row('mince')]))],
+    true,
+  ),
+];
 const folding = [step('fold', step('mix', step('cream', row('butter'))), row('chips'))];
 
 const defaultTextWidth = 50;
@@ -174,6 +190,105 @@ describe('RecipeTable', () => {
     fireEvent.click(cell('bread'));
 
     expect(scroller.scrollTo).not.toHaveBeenCalled();
+  });
+
+  describe('timings', () => {
+    const named = (prefix: string) => screen.getByRole('button', { name: new RegExp(`^${prefix}`) });
+
+    it('shows nothing extra when no cell has a duration', () => {
+      renderTable();
+
+      expect(screen.queryByText(/Total/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/start \d+ min before end/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/critical path/)).not.toBeInTheDocument();
+    });
+
+    it('shows the total time above the table', () => {
+      renderTable(pie);
+
+      expect(screen.getByText('Total 45 min')).toBeInTheDocument();
+    });
+
+    it('shows each duration under its cell text, as a range or a single time', () => {
+      renderTable(pie);
+
+      expect(within(named('boil')).getByText(/^15–20 min/)).toBeInTheDocument();
+      expect(within(named('cook')).getByText(/^10 min/)).toBeInTheDocument();
+      expect(within(named('potato')).queryByText(/min/)).not.toBeInTheDocument();
+    });
+
+    it('marks hands-off cells with the word hands-off', () => {
+      renderTable(pie);
+
+      expect(within(named('boil')).getByText(/hands-off/)).toBeInTheDocument();
+      expect(within(named('cook')).queryByText(/hands-off/)).not.toBeInTheDocument();
+    });
+
+    it('says when each step must start relative to the end, skipping steps that start straight away', () => {
+      renderTable(pie);
+
+      expect(within(named('cook')).getByText('start 35 min before end')).toBeInTheDocument();
+      expect(within(named('bake')).getByText('start 25 min before end')).toBeInTheDocument();
+      expect(within(named('boil')).queryByText(/start/)).not.toBeInTheDocument();
+    });
+
+    it('gives plain rows no start label', () => {
+      renderTable(pie);
+
+      expect(within(named('mince')).queryByText(/start/)).not.toBeInTheDocument();
+    });
+
+    it('drops the start label once a cell is ticked', () => {
+      renderTable(pie);
+
+      fireEvent.click(named('cook'));
+
+      expect(within(named('cook')).queryByText(/start/)).not.toBeInTheDocument();
+    });
+
+    it('keeps the duration visible on ticked cells', () => {
+      renderTable(pie);
+
+      fireEvent.click(named('cook'));
+
+      expect(within(named('cook')).getByText(/^10 min/)).toBeInTheDocument();
+    });
+
+    it('marks steps on the critical path with a thick border, a title and a screen reader label', () => {
+      renderTable(pie);
+
+      ['bake', 'mash', 'boil'].forEach((name) => {
+        expect(named(name)).toHaveAttribute('title', 'on the critical path');
+        expect(named(name)).toHaveClass('border-l-8', 'border-highlight');
+        expect(within(named(name)).getByText(/on the critical path/)).toHaveClass('sr-only');
+      });
+    });
+
+    it('leaves steps off the critical path and plain rows unmarked', () => {
+      renderTable(pie);
+
+      ['stir', 'cook', 'potato', 'mince'].forEach((name) => {
+        expect(named(name)).not.toHaveAttribute('title');
+        expect(named(name)).not.toHaveClass('border-l-8');
+      });
+    });
+
+    it('stops marking a cell once it is ticked', () => {
+      renderTable(pie);
+
+      fireEvent.click(named('boil'));
+
+      expect(named('boil')).not.toHaveAttribute('title');
+      expect(named('boil')).not.toHaveClass('border-l-8');
+    });
+
+    it('keeps the labels inside the sticky text so they stay visible while scrolling', () => {
+      renderTable(pie);
+
+      expect(screen.getByText('start 35 min before end').closest('span.sticky')).toBe(
+        screen.getByText('cook').closest('span.sticky'),
+      );
+    });
   });
 
   describe('full screen', () => {

@@ -45,12 +45,19 @@ const tableRecipe = {
     cells: [
       {
         text: 'Combine',
+        handsOff: false,
+        duration: { minMinutes: 10, maxMinutes: 12 },
         inputs: [
-          { text: 'Mix the flour', inputs: [] },
-          { text: 'Whisk the egg', inputs: [] },
+          { text: 'Mix the flour', inputs: [], handsOff: false, duration: { minMinutes: 5, maxMinutes: 5 } },
+          { text: 'Whisk the egg', inputs: [], handsOff: true, duration: { minMinutes: 2, maxMinutes: 3 } },
         ],
       },
-      { text: 'Bake until golden', inputs: [] },
+      {
+        text: 'Bake until golden',
+        inputs: [],
+        handsOff: true,
+        duration: { minMinutes: 20, maxMinutes: 25 },
+      },
     ],
   },
 };
@@ -236,6 +243,22 @@ test.describe('Colour contrast: loaded states', () => {
     await page.goto(`/recipes/${shortIds[tableRecipeId]}`);
     await expect(page.getByRole('heading', { name: 'Table Recipe' })).toBeVisible();
     await expect(page.getByText('Whisk the egg')).toBeVisible();
+    expect(await contrastViolations(page)).toEqual([]);
+  });
+
+  test('a table recipe with durations, before and after ticking cells', async ({ page }) => {
+    await mockSession(page);
+    await mockRecipes(page);
+    await page.goto(`/recipes/${shortIds[tableRecipeId]}`);
+    await expect(page.getByText('Total 25 min')).toBeVisible();
+    await expect(page.getByText('start 17 min before end').first()).toBeVisible();
+    await expect(page.getByText('hands-off').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Bake until golden/ })).toHaveCSS('border-left-width', '8px');
+    expect(await contrastViolations(page)).toEqual([]);
+
+    await page.getByRole('button', { name: /^Whisk the egg/ }).click();
+    await page.getByRole('button', { name: /^Bake until golden/ }).click();
+    await expect(page.getByRole('button', { name: /^Bake until golden/ })).toHaveAttribute('aria-pressed', 'true');
     expect(await contrastViolations(page)).toEqual([]);
   });
 

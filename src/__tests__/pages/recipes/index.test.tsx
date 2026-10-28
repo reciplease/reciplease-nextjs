@@ -23,7 +23,7 @@ const recipes: Recipe[] = [
     description: 'Tasty tacos',
     sourceUrl: '',
     ingredients: [],
-    method: { cells: [{ text: 'toast', inputs: [{ text: 'bread', inputs: [] }] }] },
+    method: { cells: [{ text: 'toast', handsOff: false, inputs: [{ text: 'bread', handsOff: false, inputs: [] }] }] },
     ownership: {},
     isPublic: false,
     updatedAt: '2026-06-06T18:00:00Z',
@@ -92,7 +92,7 @@ describe('Recipes list page', () => {
     expect(url).toBe('/api/recipes/111111111111111111111111');
     expect(JSON.parse(init.body)).toMatchObject({
       isPublic: true,
-      method: { cells: [{ text: 'toast', inputs: [{ text: 'bread', inputs: [] }] }] },
+      method: { cells: [{ text: 'toast', handsOff: false, inputs: [{ text: 'bread', handsOff: false, inputs: [] }] }] },
     });
   });
 

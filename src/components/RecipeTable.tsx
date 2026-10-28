@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import TableGrid from '@/components/TableGrid';
-import { ancestorPaths, layoutTable, subtreePaths } from '@/lib/recipe-table';
+import TableGrid, { type CellNote } from '@/components/TableGrid';
+import { formatDuration, hasDuration, scheduleTable } from '@/lib/recipe-schedule';
+import { ancestorPaths, cellAt, layoutTable, subtreePaths } from '@/lib/recipe-table';
 
 export default function RecipeTable({ cells }: { cells: TableCell[] }) {
   const layout = useMemo(() => layoutTable(cells), [cells]);
+  const schedule = useMemo(() => scheduleTable(cells), [cells]);
+  const timed = useMemo(() => hasDuration(cells), [cells]);
   const [done, setDone] = useState<Set<string>>(new Set());
   const [fullScreen, setFullScreen] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
@@ -39,6 +42,19 @@ export default function RecipeTable({ cells }: { cells: TableCell[] }) {
     scroller.current.scrollTo({ left });
   }
 
+  function cellNote(path: string): CellNote {
+    const cell = cellAt(cells, path);
+    const timing = schedule.cells.get(path);
+    const lines: string[] = [];
+    if (cell.duration || cell.handsOff) {
+      lines.push([cell.duration && formatDuration(cell.duration), cell.handsOff && 'hands-off'].filter(Boolean).join(' · '));
+    }
+    const isStep = cell.inputs.length > 0 || cell.duration !== undefined;
+    if (!timed || !timing || !isStep || done.has(path)) return { lines };
+    if (timing.startOffset > 0) lines.push(`start ${timing.startsBeforeEnd} min before end`);
+    return { lines, emphasis: timing.critical ? 'on the critical path' : undefined };
+  }
+
   function toggleFullScreen() {
     if (fullScreen) {
       if (document.fullscreenElement) document.exitFullscreen();
@@ -68,12 +84,14 @@ export default function RecipeTable({ cells }: { cells: TableCell[] }) {
       >
         {fullScreen ? 'Exit full screen' : 'Full screen'}
       </button>
+      {timed && <p className="font-semibold">Total {schedule.total} min</p>}
       <TableGrid
         layout={layout}
         label="Method"
         pressed={done}
         pressedClassName="bg-[#e5e5e5] text-[#555] line-through"
         onCellClick={toggle}
+        cellNote={cellNote}
         scrollerRef={scroller}
         className={fullScreen ? 'min-h-0 flex-1 overflow-y-auto' : ''}
       />

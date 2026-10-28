@@ -203,9 +203,10 @@ describe('NewRecipe builder', () => {
       cells: [
         {
           text: 'spread',
+          handsOff: false,
           inputs: [
-            { text: 'bread', inputs: [] },
-            { text: 'butter', inputs: [] },
+            { text: 'bread', inputs: [], handsOff: false },
+            { text: 'butter', inputs: [], handsOff: false },
           ],
         },
       ],

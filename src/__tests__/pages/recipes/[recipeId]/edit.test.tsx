@@ -188,9 +188,10 @@ describe('EditRecipe page', () => {
     const cells: TableCell[] = [
       {
         text: 'toast',
+        handsOff: false,
         inputs: [
-          { text: 'bread', inputs: [] },
-          { text: 'butter', inputs: [] },
+          { text: 'bread', inputs: [], handsOff: false },
+          { text: 'butter', inputs: [], handsOff: false },
         ],
       },
     ];
@@ -237,8 +238,40 @@ describe('EditRecipe page', () => {
 
       await waitFor(() => expect(push).toHaveBeenCalledWith(`/recipes/${recipeShortId}`));
       expect(savedBody().method).toEqual({
-        cells: [{ text: 'preheat', inputs: [{ text: 'oven', inputs: [] }] }],
+        cells: [
+          { text: 'preheat', handsOff: false, inputs: [{ text: 'oven', inputs: [], handsOff: false }] },
+        ],
       });
+    });
+
+    it('sends the duration and hands-off flag set in the editor', async () => {
+      mockRecipeSWR({ isLoading: false, data: tableRecipe, error: undefined });
+      mockApiClientMutator.mockResolvedValue({ data: tableRecipe, status: 200, headers: new Headers() });
+      render(<EditRecipe />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'toast' }));
+      fireEvent.change(screen.getByLabelText('Min minutes'), { target: { value: '15' } });
+      fireEvent.change(screen.getByLabelText('Max minutes'), { target: { value: '20' } });
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Hands-off' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/recipes/${recipeShortId}`));
+      expect(savedBody().method).toEqual({
+        cells: [{ ...cells[0], duration: { minMinutes: 15, maxMinutes: 20 }, handsOff: true }],
+      });
+    });
+
+    it('keeps the saved duration when nothing is edited', async () => {
+      const timedCells: TableCell[] = [{ ...cells[0], duration: { minMinutes: 10, maxMinutes: 10 }, handsOff: true }];
+      const timedRecipe: Recipe = { ...recipe, method: { cells: timedCells } };
+      mockRecipeSWR({ isLoading: false, data: timedRecipe, error: undefined });
+      mockApiClientMutator.mockResolvedValue({ data: timedRecipe, status: 200, headers: new Headers() });
+      render(<EditRecipe />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/recipes/${recipeShortId}`));
+      expect(savedBody().method).toEqual({ cells: timedCells });
     });
 
     it('keeps the table when switching to the list and back', () => {
