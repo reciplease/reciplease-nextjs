@@ -98,10 +98,13 @@ export default function Recipe() {
         {timing.length > 0 && <p className="my-4 text-sm text-[#999]">{timing.join(' · ')}</p>}
         {recipe.sourceUrl && <SourceLink url={recipe.sourceUrl} />}
         <h4 className="mt-12">Ingredients</h4>
-        <ul className="ms-16 list-disc">
+        <ul className="ms-16 list-none">
           {recipe.ingredients.map((ingredient, index) => (
             <li key={index} className="my-4">
-              {displayIngredient(ingredient, measures)}
+              <label className="flex cursor-pointer items-center gap-2 has-checked:text-[#555] has-checked:line-through">
+                <input type="checkbox" className="size-5" />
+                {displayIngredient(ingredient, measures)}
+              </label>
             </li>
           ))}
         </ul>

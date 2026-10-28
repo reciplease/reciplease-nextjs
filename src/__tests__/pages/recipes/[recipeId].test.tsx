@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import RecipePage from '@/pages/recipes/[recipeId]';
 
 jest.mock('swr');
@@ -86,6 +86,24 @@ describe('RecipePage', () => {
     expect(screen.getByText('Tortilla - 1 item')).toBeInTheDocument();
     expect(screen.getByText('Brown the beef')).toBeInTheDocument();
     expect(screen.getByText('Warm the tortillas')).toBeInTheDocument();
+  });
+
+  it('lets each ingredient be ticked off independently', () => {
+    mockRecipe({ isLoading: false, data: recipe, error: undefined });
+    render(<RecipePage />);
+
+    const beef = screen.getByRole('checkbox', { name: 'Beef - 500 grams' });
+    const tortilla = screen.getByRole('checkbox', { name: 'Tortilla - 1 item' });
+    expect(beef).not.toBeChecked();
+
+    fireEvent.click(beef);
+
+    expect(beef).toBeChecked();
+    expect(tortilla).not.toBeChecked();
+
+    fireEvent.click(beef);
+
+    expect(beef).not.toBeChecked();
   });
 
   it('renders a table recipe as a table instead of a numbered list', () => {
