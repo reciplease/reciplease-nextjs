@@ -21,13 +21,21 @@ export default function RecipeTable({ cells }: { cells: TableCell[] }) {
     setDone(next);
 
     const table = scroller.current?.querySelector('table');
-    if (wasDone || !scroller.current || !table) return;
+    const [parent] = ancestorPaths(path);
+    if (wasDone || !scroller.current || !table || !parent) return;
 
-    const cell = layout.rows.flat().find((c) => c.path === path);
+    const gridCells = layout.rows.flat();
+    const cell = gridCells.find((c) => c.path === path);
     if (!cell) return;
-    const lastColumn = cell.col + cell.colSpan - 1;
-    if (lastColumn >= layout.columns - 1) return;
-    const left = lastColumn * (table.offsetWidth / layout.columns);
+    const columnWidth = table.offsetWidth / layout.columns;
+    const textWidth = (inputPath: string) =>
+      scroller.current?.querySelector<HTMLSpanElement>(`[data-path="${inputPath}"] span`)?.offsetWidth ?? 0;
+    const neededWidth = Math.max(
+      ...gridCells
+        .filter((c) => ancestorPaths(c.path)[0] === parent)
+        .map((input) => Math.min(textWidth(input.path), input.colSpan * columnWidth)),
+    );
+    const left = Math.max(0, (cell.col + cell.colSpan) * columnWidth - neededWidth);
     scroller.current.scrollTo({ left });
   }
 
@@ -64,7 +72,7 @@ export default function RecipeTable({ cells }: { cells: TableCell[] }) {
         layout={layout}
         label="Method"
         pressed={done}
-        pressedClassName="bg-[#e5e5e5] text-[#888] line-through"
+        pressedClassName="bg-[#e5e5e5] text-[#555] line-through"
         onCellClick={toggle}
         scrollerRef={scroller}
         className={fullScreen ? 'min-h-0 flex-1 overflow-y-auto' : ''}

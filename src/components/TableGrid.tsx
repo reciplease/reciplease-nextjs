@@ -32,6 +32,7 @@ export default function TableGrid({
                   <td
                     key={cell.path}
                     data-col={cell.col}
+                    data-path={cell.path}
                     rowSpan={cell.rowSpan}
                     colSpan={cell.colSpan}
                     className={`h-px border border-[#999] p-0 ${isPressed ? pressedClassName : ''}`}
