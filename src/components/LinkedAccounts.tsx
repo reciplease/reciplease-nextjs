@@ -79,12 +79,12 @@ export default function LinkedAccounts({ returnTo }: { returnTo: string }) {
       </p>
 
       {session?.error === 'IdentityConflict' && (
-        <p role="alert" className="mb-3 text-red-600">
+        <p role="alert" className="mb-3 text-red-500">
           That account is already linked to a different Reciplease user.
         </p>
       )}
       {error && (
-        <p role="alert" className="mb-3 text-red-600">
+        <p role="alert" className="mb-3 text-red-500">
           {error}
         </p>
       )}

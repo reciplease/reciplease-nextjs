@@ -185,8 +185,8 @@ describe('PantryList', () => {
     openSortFilterMenu();
     fireEvent.click(screen.getByLabelText('Expiration'));
 
-    expect(screen.getByRole('heading', { level: 4, name: 'Expired' })).toHaveClass('opacity-40');
-    expect(screen.getByRole('heading', { level: 4, name: 'Later' })).not.toHaveClass('opacity-40');
+    expect(screen.getByRole('heading', { level: 4, name: 'Expired' })).toHaveClass('opacity-60');
+    expect(screen.getByRole('heading', { level: 4, name: 'Later' })).not.toHaveClass('opacity-60');
   });
 
   it('shows the alphabetical view again when switching back to name sort', () => {

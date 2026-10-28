@@ -47,7 +47,7 @@ async function nextDestination(justCompletedUuid: string): Promise<string> {
 function CapturedPhoto({ image, alt }: { image?: string; alt: string }) {
   if (!image) {
     return (
-      <div className="w-full max-w-xs aspect-[4/3] rounded-lg bg-zinc-800 flex items-center justify-center text-sm text-zinc-500">
+      <div className="w-full max-w-xs aspect-[4/3] rounded-lg bg-zinc-800 flex items-center justify-center text-sm text-zinc-400">
         No photo captured
       </div>
     );
@@ -299,7 +299,7 @@ function ProcessForm({ uuid, pending }: { uuid: string; pending: PendingPantryIt
             placeholder="Item name"
             className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-600 rounded-lg text-white focus:outline-none focus:border-highlight"
           />
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-zinc-400">
             Lowercase, phrased how a recipe would say it — e.g. &quot;cherry tomatoes&quot;, not
             &quot;Cherry Tomatoes&quot; or &quot;Sainsbury&apos;s cherry tomatoes&quot; (brand goes below).
           </p>

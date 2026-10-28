@@ -106,7 +106,7 @@ export default function EditPlannedMeal() {
       <section className="grid gap-6">
         <h3 className="text-xl font-semibold">Edit meal</h3>
 
-        {deleteError && <p role="alert" className="text-red-600">{deleteError}</p>}
+        {deleteError && <p role="alert" className="text-red-500">{deleteError}</p>}
         <PlannedMealForm
           submitLabel="Save changes"
           onSubmit={handleSubmit}

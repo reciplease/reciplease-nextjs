@@ -215,7 +215,7 @@ export default function ScanPage() {
             // Camera off during data entry — show a dark placeholder. Expiration
             // date is typed in below; scanning it never worked reliably enough
             // (small print, varied date formats, glare) to be worth keeping.
-            <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-zinc-600 text-sm">
+            <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-zinc-400 text-sm">
               Camera paused
             </div>
           )}
@@ -278,7 +278,7 @@ export default function ScanPage() {
                 placeholder="Item name"
                 className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-600 rounded-lg text-white focus:outline-none focus:border-highlight"
               />
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-zinc-400">
                 Lowercase, phrased how a recipe would say it — e.g. &quot;cherry tomatoes&quot;, not
                 &quot;Cherry Tomatoes&quot; or &quot;Sainsbury&apos;s cherry tomatoes&quot; (brand goes below).
               </p>
@@ -322,7 +322,7 @@ export default function ScanPage() {
               />
             </div>
 
-            {barcode && <p className="text-xs text-zinc-500">Barcode: {barcode}</p>}
+            {barcode && <p className="text-xs text-zinc-400">Barcode: {barcode}</p>}
             <div className="flex gap-3 flex-wrap pt-1">
               <button
                 type="button"
@@ -407,7 +407,7 @@ export default function ScanPage() {
           <button
             type="button"
             onClick={() => router.push('/pantry')}
-            className="text-zinc-500 text-sm hover:text-white"
+            className="text-zinc-400 text-sm hover:text-white"
           >
             ← Back to pantry
           </button>

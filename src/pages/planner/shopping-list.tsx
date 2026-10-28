@@ -60,7 +60,7 @@ export default function ShoppingListPage() {
           <Link href="/planner" className="text-sm underline">← Planner</Link>
         </div>
 
-        <p className="text-sm text-[#666]">
+        <p className="text-sm text-[#999]">
           Ingredients planned in the next two weeks that aren&apos;t already covered by your pantry.
         </p>
 

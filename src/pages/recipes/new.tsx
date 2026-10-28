@@ -89,7 +89,7 @@ export default function NewRecipe() {
             </button>
           </div>
           {importError && (
-            <p role="alert" className="text-red-600 text-sm">
+            <p role="alert" className="text-red-500 text-sm">
               {importError}
             </p>
           )}

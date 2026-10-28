@@ -13,7 +13,7 @@ import { isSuccessResponse } from '@/lib/apiClientMutator';
 function PendingThumb({ image, label }: { image?: string; label: string }) {
   if (!image) {
     return (
-      <div className="w-14 h-14 rounded bg-zinc-100 flex items-center justify-center text-[10px] text-zinc-400 text-center leading-tight">
+      <div className="w-14 h-14 rounded bg-zinc-100 flex items-center justify-center text-[10px] text-zinc-600 text-center leading-tight">
         No {label}
       </div>
     );
@@ -124,7 +124,7 @@ export default function ProcessListPage() {
                     disabled={discarding === item.uuid}
                     aria-label="Discard"
                     title="Discard"
-                    className="w-7 h-7 shrink-0 grid place-items-center rounded-full border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white disabled:opacity-50"
+                    className="w-7 h-7 shrink-0 grid place-items-center rounded-full border-2 border-red-600 text-red-500 hover:bg-red-600 hover:text-white disabled:opacity-50"
                   >
                     <svg
                       aria-hidden="true"
@@ -141,7 +141,7 @@ export default function ProcessListPage() {
                   </button>
                 </div>
                 {item.updatedAt && (
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-zinc-400">
                     Scanned {new Date(item.updatedAt).toLocaleString()}
                   </p>
                 )}

@@ -354,7 +354,7 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
             href={initial.sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-[#666] hover:underline truncate"
+            className="text-xs text-[#999] hover:underline truncate"
           >
             Source: {initial.sourceUrl}
           </a>
@@ -449,7 +449,7 @@ export default function RecipeForm({ initial, submitLabel, onSubmit, onDelete }:
         )}
       </div>
 
-      {error && <p role="alert" className="text-red-600">{error}</p>}
+      {error && <p role="alert" className="text-red-500">{error}</p>}
 
       <div className="flex items-center justify-between gap-3">
         {onDelete ? (

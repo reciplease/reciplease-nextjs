@@ -253,7 +253,7 @@ export default function ShopPage() {
           <button
             type="button"
             onClick={() => router.push('/pantry')}
-            className="text-zinc-500 text-sm hover:text-white"
+            className="text-zinc-400 text-sm hover:text-white"
           >
             ← Back to pantry
           </button>

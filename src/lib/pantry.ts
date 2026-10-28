@@ -27,7 +27,7 @@ export function formatDaysLeft(daysLeft: number): string {
 // Red/amber/green by urgency: already-expired-or-expiring-imminently, due
 // within the week, or comfortably further out.
 export function daysLeftColor(daysLeft: number): string {
-  if (daysLeft <= 2) return 'text-red-600';
+  if (daysLeft <= 2) return 'text-red-500';
   if (daysLeft <= 7) return 'text-amber-600';
   return 'text-green-600';
 }

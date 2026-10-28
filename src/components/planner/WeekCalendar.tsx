@@ -65,7 +65,7 @@ export default function WeekCalendar({
         Today
       </button>
 
-      <div className="grid grid-cols-7 gap-1 text-center text-xs text-[#666]">
+      <div className="grid grid-cols-7 gap-1 text-center text-xs text-[#999]">
         {WEEKDAY_LABELS.map((label) => (
           <span key={label}>{label}</span>
         ))}

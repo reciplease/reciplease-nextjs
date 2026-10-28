@@ -114,7 +114,7 @@ function MealListItem({ meal, editable, onEaten }: { meal: PlannedMeal; editable
   return (
     <li className="border border-[#ccc] rounded p-3">
       <div className="flex items-baseline gap-3">
-        <span className="text-sm text-[#666] shrink-0">{meal.date}</span>
+        <span className="text-sm text-[#999] shrink-0">{meal.date}</span>
         <h4 className="font-medium">{meal.name}</h4>
         <div className="ml-auto flex items-baseline gap-3">
           {meal.recipe && (
@@ -122,7 +122,7 @@ function MealListItem({ meal, editable, onEaten }: { meal: PlannedMeal; editable
               {meal.recipe.name}
             </Link>
           )}
-          {editable && meal.eatenAt && <span className="text-sm text-[#666]">Eaten</span>}
+          {editable && meal.eatenAt && <span className="text-sm text-[#999]">Eaten</span>}
           {editable && !meal.eatenAt && hasAllocations && (
             <button type="button" onClick={handleMarkEaten} disabled={markingEaten} className="p-0 border-0 text-sm underline">
               {markingEaten ? 'Marking…' : 'Mark eaten'}
@@ -136,7 +136,7 @@ function MealListItem({ meal, editable, onEaten }: { meal: PlannedMeal; editable
         </div>
       </div>
       {meal.items.length > 0 && (
-        <ul className="list-none p-0 mt-2 text-sm text-[#666] grid gap-0.5">
+        <ul className="list-none p-0 mt-2 text-sm text-[#999] grid gap-0.5">
           {meal.items.map((item, itemIndex) => (
             <li key={itemIndex}>
               {item.ingredient.amount} {item.ingredient.measure} {item.ingredient.name}
@@ -145,7 +145,7 @@ function MealListItem({ meal, editable, onEaten }: { meal: PlannedMeal; editable
           ))}
         </ul>
       )}
-      {error && <p role="alert" className="text-sm text-red-600 mt-1">{error}</p>}
+      {error && <p role="alert" className="text-sm text-red-500 mt-1">{error}</p>}
     </li>
   );
 }

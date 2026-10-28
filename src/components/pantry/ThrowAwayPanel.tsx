@@ -49,7 +49,7 @@ export default function ThrowAwayPanel({ uuid, item, onSaved, onClose }: ThrowAw
         </div>
 
         {error && (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-red-500">
             {error}
           </p>
         )}

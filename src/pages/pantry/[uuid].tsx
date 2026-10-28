@@ -75,7 +75,7 @@ export default function PantryItemPage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="text-xl font-semibold">{item.name}</h3>
-            {item.brand && <p className="text-sm text-[#666]">{item.brand}</p>}
+            {item.brand && <p className="text-sm text-[#999]">{item.brand}</p>}
           </div>
           <Link
             href={`/pantry/${uuid}/edit`}
@@ -109,10 +109,10 @@ export default function PantryItemPage() {
             </p>
           )}
           {item.barcode && (
-            <p className="text-sm text-[#666]">Barcode: {item.barcode}</p>
+            <p className="text-sm text-[#999]">Barcode: {item.barcode}</p>
           )}
           {item.updatedAt && (
-            <p className="text-sm text-[#666]">
+            <p className="text-sm text-[#999]">
               Last updated: {formatTimestamp(item.updatedAt)}
             </p>
           )}

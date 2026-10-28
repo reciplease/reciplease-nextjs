@@ -206,7 +206,7 @@ export default function HouseSettingsPage() {
         </div>
 
         {error && (
-          <p role="alert" className="mb-4 text-red-600">
+          <p role="alert" className="mb-4 text-red-500">
             {error}
           </p>
         )}
@@ -230,7 +230,7 @@ export default function HouseSettingsPage() {
                       title="Remove member"
                       disabled={updatingUserId === member.userId}
                       onClick={() => removeMember(member.userId, member.handle)}
-                      className="shrink-0 cursor-pointer rounded border-2 border-red-600 px-2 text-sm text-red-600 hover:bg-red-600 hover:text-white disabled:opacity-50"
+                      className="shrink-0 cursor-pointer rounded border-2 border-red-600 px-2 text-sm text-red-500 hover:bg-red-600 hover:text-white disabled:opacity-50"
                     >
                       ×
                     </button>

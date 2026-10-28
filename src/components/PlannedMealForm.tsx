@@ -281,7 +281,7 @@ function IngredientRow({
       </div>
 
       <div className="col-span-2 sm:col-span-4 grid gap-1.5">
-        <span className="text-sm text-[#666]">From stock:</span>
+        <span className="text-sm text-[#999]">From stock:</span>
         {displayAllocations.map((allocation) => (
           <AllocationLine
             key={allocation.key}
@@ -500,7 +500,7 @@ export default function PlannedMealForm({ initial, submitLabel, excludeMealId, o
       <div>
         <h4 className="mb-2">Ingredients ({rows.length})</h4>
         {rows.length === 0 ? (
-          <p className="text-sm text-[#666]">No ingredients yet — load them from a recipe or add one above.</p>
+          <p className="text-sm text-[#999]">No ingredients yet — load them from a recipe or add one above.</p>
         ) : (
           <ul className="grid gap-2 list-none">
             {rows.map((row) => (
@@ -519,7 +519,7 @@ export default function PlannedMealForm({ initial, submitLabel, excludeMealId, o
         )}
       </div>
 
-      {error && <p role="alert" className="text-red-600">{error}</p>}
+      {error && <p role="alert" className="text-red-500">{error}</p>}
 
       <div className="flex items-center justify-between gap-3">
         {onDelete ? (

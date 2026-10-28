@@ -128,7 +128,7 @@ export default function InvitePage({ code, initialPreview }: Props) {
           <>
             <p className="mb-4">Joining {preview.houseName}…</p>
             {acceptError && (
-              <p role="alert" className="mt-4 text-red-600">
+              <p role="alert" className="mt-4 text-red-500">
                 {acceptError}
               </p>
             )}
@@ -142,7 +142,7 @@ export default function InvitePage({ code, initialPreview }: Props) {
               {accepting ? 'Joining…' : 'Accept invite'}
             </button>
             {acceptError && (
-              <p role="alert" className="mt-4 text-red-600">
+              <p role="alert" className="mt-4 text-red-500">
                 {acceptError}
               </p>
             )}

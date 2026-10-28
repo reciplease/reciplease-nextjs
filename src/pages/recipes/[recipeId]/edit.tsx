@@ -99,7 +99,7 @@ export default function EditRecipe() {
       <Metadata title={`Edit ${recipe.name}`} description="Edit recipe" />
 
       <section>
-        {deleteError && <p role="alert" className="mb-2 text-red-600">{deleteError}</p>}
+        {deleteError && <p role="alert" className="mb-2 text-red-500">{deleteError}</p>}
         <RecipeForm
           submitLabel="Save changes"
           onSubmit={handleSubmit}

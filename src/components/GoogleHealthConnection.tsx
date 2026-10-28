@@ -46,12 +46,12 @@ export default function GoogleHealthConnection() {
       </p>
 
       {googleHealthStatus === 'error' && (
-        <p role="alert" className="mb-3 text-red-600">
+        <p role="alert" className="mb-3 text-red-500">
           Could not connect Google Health. Please try again.
         </p>
       )}
       {error && (
-        <p role="alert" className="mb-3 text-red-600">
+        <p role="alert" className="mb-3 text-red-500">
           {error}
         </p>
       )}

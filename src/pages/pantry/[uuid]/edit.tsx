@@ -167,7 +167,7 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
             placeholder="e.g. milk"
             className="p-2 text-base"
           />
-          <p className="text-xs text-[#666] -mt-1">
+          <p className="text-xs text-[#999] -mt-1">
             Lowercase, phrased how a recipe would say it — e.g. &quot;cherry tomatoes&quot;, not
             &quot;Cherry Tomatoes&quot; or &quot;Sainsbury&apos;s cherry tomatoes&quot; (brand goes below).
           </p>
@@ -266,7 +266,7 @@ function EditForm({ uuid, item, measures, measuresLoading }: EditFormProps) {
           <button
             type="submit"
             disabled={deleting}
-            className="mt-4 w-fit rounded border-2 border-red-600 px-2 py-1 text-sm text-red-600 hover:bg-red-600 hover:text-white disabled:opacity-50"
+            className="mt-4 w-fit rounded border-2 border-red-600 px-2 py-1 text-sm text-red-500 hover:bg-red-600 hover:text-white disabled:opacity-50"
           >
             {deleting ? 'Deleting…' : 'Delete item'}
           </button>

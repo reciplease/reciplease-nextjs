@@ -64,12 +64,12 @@ export default function MeasureCombobox({ value, onChange }: Props) {
                   className="w-full text-left px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-700 hover:text-white"
                 >
                   {m.singular} / {m.plural}{' '}
-                  <span className="text-zinc-500">({m.short})</span>
+                  <span className="text-zinc-400">({m.short})</span>
                 </button>
               </li>
             ))}
             {filtered.length === 0 && (
-              <li className="px-3 py-2 text-sm text-zinc-500">No measures found</li>
+              <li className="px-3 py-2 text-sm text-zinc-400">No measures found</li>
             )}
           </ul>
         </div>

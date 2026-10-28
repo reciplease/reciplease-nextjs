@@ -27,7 +27,7 @@ export default function SourceLink({ url }: { url: string }) {
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-xs text-[#666] hover:underline truncate block mb-4"
+        className="text-xs text-[#999] hover:underline truncate block mb-4"
       >
         Source: {url}
       </a>

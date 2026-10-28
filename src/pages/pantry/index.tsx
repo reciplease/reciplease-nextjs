@@ -80,10 +80,10 @@ function PantryTile({
           ) : (
             <h5 className="font-medium text-center text-sm line-clamp-2">{item.name}</h5>
           )}
-          {item.brand && <p className="text-center text-xs text-[#666]">{item.brand}</p>}
+          {item.brand && <p className="text-center text-xs text-[#999]">{item.brand}</p>}
           {daysLeft !== undefined && (
             <>
-              <p className="text-center text-xs text-[#666]">
+              <p className="text-center text-xs text-[#999]">
                 {item.remaining} {displayMeasure(item, measures)}
               </p>
               <p className={`text-center text-xs font-medium ${daysLeftColor(daysLeft)}`}>
@@ -132,7 +132,7 @@ function ExpirationSection({
 }) {
   return (
     <div>
-      <h4 className={`text-lg font-medium${items.length === 0 ? ' opacity-40' : ''}`}>
+      <h4 className={`text-lg font-medium${items.length === 0 ? ' opacity-60' : ''}`}>
         {title}
       </h4>
       {items.length > 0 && (
