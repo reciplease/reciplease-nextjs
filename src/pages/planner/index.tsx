@@ -59,7 +59,7 @@ export default function Planner() {
           onVisibleRangeChange={(start, end) => setVisibleRange({ start, end })}
         />
 
-        <p className="font-medium">
+        <p className="font-medium" suppressHydrationWarning>
           {formatDate(rangeStart)} – {formatDate(rangeEnd)}
         </p>
 
