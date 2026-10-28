@@ -49,7 +49,7 @@ describe('settings store', () => {
         addListener: () => {},
         removeListener: () => {},
         dispatchEvent: () => false,
-      }) as unknown as MediaQueryList;
+      }) as never;
 
     render(<TestComponent />);
     fireEvent.click(screen.getByText('use system'));
@@ -65,5 +65,109 @@ describe('settings store', () => {
     });
 
     expect(screen.getByText('motion:system')).toBeInTheDocument();
+  });
+});
+
+describe('settings store on page load', () => {
+  const originalMatchMedia = window.matchMedia;
+  const changeListeners = new Set<() => void>();
+  let osPrefersReducedMotion = false;
+
+  function mockMatchMedia() {
+    window.matchMedia = (query: string) =>
+      ({
+        get matches() {
+          return osPrefersReducedMotion;
+        },
+        media: query,
+        onchange: null,
+        addEventListener: (type: string, listener: () => void) => {
+          if (type === 'change') changeListeners.add(listener);
+        },
+        removeEventListener: (type: string, listener: () => void) => {
+          if (type === 'change') changeListeners.delete(listener);
+        },
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      }) as never;
+  }
+
+  function changeOsPreference(reduced: boolean) {
+    osPrefersReducedMotion = reduced;
+    act(() => {
+      changeListeners.forEach((listener) => listener());
+    });
+  }
+
+  const hasReduceMotionClass = () => document.documentElement.classList.contains('reduce-motion');
+
+  beforeEach(() => {
+    osPrefersReducedMotion = false;
+    changeListeners.clear();
+    mockMatchMedia();
+    window.localStorage.clear();
+    document.documentElement.classList.remove('reduce-motion', 'theme-dark');
+  });
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+    window.localStorage.clear();
+    document.documentElement.classList.remove('reduce-motion', 'theme-dark');
+  });
+
+  it('applies reduce-motion on load when the stored motion setting is reduced', () => {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ motion: 'reduced' }));
+
+    render(<TestComponent />);
+
+    expect(hasReduceMotionClass()).toBe(true);
+    expect(document.documentElement.classList.contains('theme-dark')).toBe(true);
+  });
+
+  it('applies reduce-motion on load when motion is system and the OS prefers reduced motion', () => {
+    osPrefersReducedMotion = true;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ motion: 'system' }));
+
+    render(<TestComponent />);
+
+    expect(hasReduceMotionClass()).toBe(true);
+  });
+
+  it('does not apply reduce-motion on load when motion is system and the OS has no preference', () => {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ motion: 'system' }));
+
+    render(<TestComponent />);
+
+    expect(hasReduceMotionClass()).toBe(false);
+  });
+
+  it('follows OS preference changes while motion is system', () => {
+    render(<TestComponent />);
+    expect(hasReduceMotionClass()).toBe(false);
+
+    changeOsPreference(true);
+    expect(hasReduceMotionClass()).toBe(true);
+
+    changeOsPreference(false);
+    expect(hasReduceMotionClass()).toBe(false);
+  });
+
+  it('ignores OS preference changes when motion is full', () => {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ motion: 'full' }));
+    render(<TestComponent />);
+
+    changeOsPreference(true);
+
+    expect(hasReduceMotionClass()).toBe(false);
+  });
+
+  it('stops listening for OS preference changes once unmounted', () => {
+    const { unmount } = render(<TestComponent />);
+    expect(changeListeners.size).toBe(1);
+
+    unmount();
+
+    expect(changeListeners.size).toBe(0);
   });
 });

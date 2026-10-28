@@ -46,7 +46,6 @@ function prefersReducedMotion(): boolean {
 
 const listeners = new Set<() => void>();
 
-// 1. Keep this strictly for DOM side-effects. Do not trigger listeners here.
 function applyDOMClasses(settings: Settings) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
@@ -59,7 +58,6 @@ function applyDOMClasses(settings: Settings) {
   root.classList.toggle('reduce-motion', reduced);
 }
 
-// 2. Create a clean broadcast mechanism
 function updateSettings(settings: Settings) {
   if (typeof window === 'undefined') return;
 
@@ -75,23 +73,33 @@ function updateSettings(settings: Settings) {
 
 const subscribe = (listener: () => void): (() => void) => {
   listeners.add(listener);
+  applyDOMClasses(readStored());
 
-  // This handles changes coming from OTHER tabs/windows
   const onStorage = (e: StorageEvent) => {
     if (e.key === STORAGE_KEY) {
-      // Apply classes when another tab changes things
       applyDOMClasses(readStored());
       listener();
     }
   };
+  const onOsPreferenceChange = () => {
+    applyDOMClasses(readStored());
+    listener();
+  };
 
+  const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   window.addEventListener('storage', onStorage);
+  reducedMotionQuery.addEventListener('change', onOsPreferenceChange);
 
   return () => {
     listeners.delete(listener);
     window.removeEventListener('storage', onStorage);
+    reducedMotionQuery.removeEventListener('change', onOsPreferenceChange);
   };
 };
+
+export function useApplySettings() {
+  useSettings();
+}
 
 export function useSettings() {
   const settings = useSyncExternalStore(

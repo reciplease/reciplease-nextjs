@@ -40,8 +40,11 @@ afterAll(() => {
   process.env = ORIGINAL_ENV;
 });
 
+const sharedReact = jest.requireActual('react');
+
 function loadApp(envOverrides: Record<string, string | undefined> = {}) {
   jest.resetModules();
+  jest.doMock('react', () => sharedReact);
   process.env = { ...ORIGINAL_ENV, ...envOverrides };
   const useRouterMock = require('next/router').useRouter as jest.Mock;
   const App = require('@/pages/_app').default as ComponentType<{
@@ -126,6 +129,44 @@ describe('_app', () => {
     expect(JSON.parse(provider.getAttribute('data-session')!)).toMatchObject({
       user: { handle: 'local-dev-user' },
     });
+  });
+
+  describe('reduced motion preference', () => {
+    const originalMatchMedia = window.matchMedia;
+
+    beforeEach(() => {
+      window.localStorage.clear();
+      window.matchMedia = (query: string) =>
+        ({
+          matches: true,
+          media: query,
+          onchange: null,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          addListener: () => {},
+          removeListener: () => {},
+          dispatchEvent: () => false,
+        }) as never;
+    });
+
+    afterEach(() => {
+      window.matchMedia = originalMatchMedia;
+      window.localStorage.clear();
+      document.documentElement.classList.remove('reduce-motion', 'theme-dark');
+    });
+
+    it.each(['/login', '/pantry/scan', '/onboarding/handle', '/recipes/[recipeId]', '/pantry'])(
+      'applies reduce-motion to the document on %s when the OS prefers reduced motion',
+      (pathname) => {
+        const { App, useRouterMock } = loadApp();
+        useRouterMock.mockReturnValue({ pathname });
+
+        render(<App Component={TestComponent} pageProps={{}} />);
+
+        expect(document.documentElement).toHaveClass('reduce-motion');
+        expect(document.documentElement).toHaveClass('theme-dark');
+      },
+    );
   });
 
   it('prefers a session passed in pageProps over the fake session', () => {

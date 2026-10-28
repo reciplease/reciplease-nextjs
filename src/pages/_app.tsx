@@ -6,6 +6,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Layout from '@/components/Layout';
 import AccessGate from '@/components/AccessGate';
+import { useApplySettings } from '@/lib/settings';
 
 // NOTE: Cross-page View Transitions were removed. On the Pages Router they have
 // to be driven manually (open on routeChangeStart, hold the updateCallback promise
@@ -33,6 +34,7 @@ export default function App({
                               pageProps,
                             }: AppProps<{ session?: Session }>) {
   const router = useRouter();
+  useApplySettings();
   // The login page renders standalone (no chrome, no AccessGate).
   // login and the scanner are full-screen standalone pages (no header/layout chrome).
   // The handle onboarding page must also stay outside AccessGate, since
