@@ -36,6 +36,14 @@ export function hasDuration(cells: TableCell[]): boolean {
   return cells.some((cell) => cell.duration !== undefined || hasDuration(cell.inputs));
 }
 
+export function formatRemaining(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.ceil(totalSeconds));
+  if (seconds >= 3600) return `${Math.floor(seconds / 3600)} h`;
+  if (seconds > 600) return `${Math.ceil(seconds / 300) * 5} min`;
+  if (seconds >= 120) return `${Math.ceil(seconds / 60)} min`;
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
 export function formatDuration({ minMinutes, maxMinutes }: NonNullable<TableCell['duration']>): string {
   return minMinutes === maxMinutes ? `${maxMinutes} min` : `${minMinutes}–${maxMinutes} min`;
 }

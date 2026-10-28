@@ -1,4 +1,4 @@
-import { formatDuration, hasDuration, scheduleTable } from '@/lib/recipe-schedule';
+import { formatDuration, formatRemaining, hasDuration, scheduleTable } from '@/lib/recipe-schedule';
 
 const plain = (text: string, ...inputs: TableCell[]): TableCell => ({ text, inputs, handsOff: false });
 const timed = (text: string, maxMinutes: number, ...inputs: TableCell[]): TableCell => ({
@@ -94,5 +94,26 @@ describe('formatDuration', () => {
 
   it('shows a single time once', () => {
     expect(formatDuration({ minMinutes: 10, maxMinutes: 10 })).toBe('10 min');
+  });
+});
+
+describe('formatRemaining', () => {
+  it.each([
+    [2 * 3600, '2 h'],
+    [3600 + 1799, '1 h'],
+    [3599, '60 min'],
+    [3001, '55 min'],
+    [601, '15 min'],
+    [600, '10 min'],
+    [599, '10 min'],
+    [121, '3 min'],
+    [120, '2 min'],
+    [119, '1:59'],
+    [61, '1:01'],
+    [1, '0:01'],
+    [0, '0:00'],
+    [-5, '0:00'],
+  ])('shows %i seconds as %s', (seconds, expected) => {
+    expect(formatRemaining(seconds)).toBe(expected);
   });
 });

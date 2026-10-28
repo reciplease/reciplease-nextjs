@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import TableGrid, { type CellNote } from '@/components/TableGrid';
-import { formatDuration, hasDuration, scheduleTable } from '@/lib/recipe-schedule';
+import { createDing } from '@/lib/ding';
+import { formatRemaining, formatDuration, hasDuration, scheduleTable } from '@/lib/recipe-schedule';
 import { ancestorPaths, cellAt, layoutTable, subtreePaths } from '@/lib/recipe-table';
 
 export default function RecipeTable({ cells }: { cells: TableCell[] }) {
@@ -9,6 +10,10 @@ export default function RecipeTable({ cells }: { cells: TableCell[] }) {
   const timed = useMemo(() => hasDuration(cells), [cells]);
   const [done, setDone] = useState<Set<string>>(new Set());
   const [fullScreen, setFullScreen] = useState(false);
+  const [elapsed, setElapsed] = useState<number | null>(null);
+  const ding = useRef<() => void>(() => {});
+  const lastElapsed = useRef(0);
+  const startedAt = useRef(0);
   const scroller = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -20,6 +25,7 @@ export default function RecipeTable({ cells }: { cells: TableCell[] }) {
       ancestorPaths(path).forEach((ancestor) => next.delete(ancestor));
     } else {
       subtreePaths(cells, path).forEach((donePath) => next.add(donePath));
+      skipTimerTo((schedule.cells.get(path)?.finishOffset ?? 0) * 60);
     }
     setDone(next);
     scrollPastFinishedColumns(next);
@@ -43,9 +49,50 @@ export default function RecipeTable({ cells }: { cells: TableCell[] }) {
     }
     const isStep = cell.inputs.length > 0 || cell.duration !== undefined;
     if (!timed || !timing || !isStep || done.has(path)) return { lines };
-    if (timing.startOffset > 0) lines.push(`start ${timing.startsBeforeEnd} min before end`);
+    if (elapsed !== null) {
+      const untilStart = timing.startOffset * 60 - elapsed;
+      lines.push(untilStart > 0 ? `start in ${formatRemaining(untilStart)}` : 'start now');
+    }
     return { lines, emphasis: timing.critical ? 'on the critical path' : undefined };
   }
+
+  function toggleTimer() {
+    if (elapsed !== null) {
+      setElapsed(null);
+      return;
+    }
+    ding.current = createDing();
+    lastElapsed.current = 0;
+    startedAt.current = Date.now();
+    setElapsed(0);
+  }
+
+  function skipTimerTo(seconds: number) {
+    if (elapsed === null || seconds <= elapsed) return;
+    startedAt.current = Date.now() - seconds * 1000;
+    setElapsed(seconds);
+  }
+
+  const running = elapsed !== null;
+  useEffect(() => {
+    if (!running) return;
+    const interval = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt.current) / 1000)), 1000);
+    return () => clearInterval(interval);
+  }, [running]);
+
+  useEffect(() => {
+    if (elapsed === null) return;
+    const previous = lastElapsed.current;
+    lastElapsed.current = elapsed;
+    const startsNow = Array.from(schedule.cells).some(
+      ([path, timing]) =>
+        timing.startOffset > 0 &&
+        !done.has(path) &&
+        previous < timing.startOffset * 60 &&
+        timing.startOffset * 60 <= elapsed,
+    );
+    if (startsNow) ding.current();
+  }, [elapsed, done, schedule.cells]);
 
   function toggleFullScreen() {
     if (fullScreen) {
@@ -76,7 +123,22 @@ export default function RecipeTable({ cells }: { cells: TableCell[] }) {
       >
         {fullScreen ? 'Exit full screen' : 'Full screen'}
       </button>
-      {timed && <p className="font-semibold">Total {schedule.total} min</p>}
+      {timed && (
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={toggleTimer}
+            className="w-fit rounded border-2 border-secondary px-2 py-1 text-sm whitespace-nowrap"
+          >
+            {elapsed === null ? 'Start recipe timer' : 'Stop recipe timer'}
+          </button>
+          <p className="font-semibold">
+            {elapsed === null
+              ? `Total ${schedule.total} min`
+              : `Time left ${formatRemaining(schedule.total * 60 - elapsed)}`}
+          </p>
+        </div>
+      )}
       <TableGrid
         layout={layout}
         label="Method"

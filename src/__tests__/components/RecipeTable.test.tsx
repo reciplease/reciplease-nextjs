@@ -169,6 +169,7 @@ describe('RecipeTable', () => {
   });
 
   describe('timings', () => {
+    const startTimer = () => screen.getByRole('button', { name: 'Start recipe timer' });
     const named = (prefix: string) => screen.getByRole('button', { name: new RegExp(`^${prefix}`) });
 
     it('shows nothing extra when no cell has a duration', () => {
@@ -200,22 +201,126 @@ describe('RecipeTable', () => {
       expect(within(named('cook')).queryByText(/hands-off/)).not.toBeInTheDocument();
     });
 
-    it('says when each step must start relative to the end, skipping steps that start straight away', () => {
+    it('shows no start labels until the recipe timer is running', () => {
       renderTable(pie);
 
-      expect(within(named('cook')).getByText('start 35 min before end')).toBeInTheDocument();
-      expect(within(named('bake')).getByText('start 25 min before end')).toBeInTheDocument();
-      expect(within(named('boil')).queryByText(/start/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/start/)).not.toBeInTheDocument();
+    });
+
+    describe('recipe timer', () => {
+      const ding = jest.fn();
+      beforeEach(() => {
+        jest.useFakeTimers();
+        ding.mockClear();
+        const oscillator = { type: '', frequency: {}, connect: () => ({ connect: jest.fn() }), start: ding, stop: jest.fn() };
+        const param = { setValueAtTime: jest.fn(), exponentialRampToValueAtTime: jest.fn() };
+        window.AudioContext = jest.fn(() => ({
+          currentTime: 0,
+          destination: {},
+          createOscillator: () => oscillator,
+          createGain: () => ({ gain: param }),
+        })) as unknown as typeof AudioContext;
+      });
+      afterEach(() => {
+        jest.useRealTimers();
+        Reflect.deleteProperty(window, 'AudioContext');
+      });
+      const tick = (seconds: number) => act(() => void jest.advanceTimersByTime(seconds * 1000));
+
+      it('counts the whole recipe down from its total', () => {
+        renderTable(pie);
+        fireEvent.click(startTimer());
+        expect(screen.getByText('Time left 45 min')).toBeInTheDocument();
+
+        tick(65);
+
+        expect(screen.getByText('Time left 45 min')).toBeInTheDocument();
+      });
+
+      it('counts each step down to when it must start, then says start now', () => {
+        renderTable(pie);
+        fireEvent.click(startTimer());
+
+        expect(within(named('cook')).getByText('start in 10 min')).toBeInTheDocument();
+        expect(within(named('boil')).getByText('start now')).toBeInTheDocument();
+
+        tick(10 * 60);
+
+        expect(within(named('cook')).getByText('start now')).toBeInTheDocument();
+      });
+
+      it('dings when a step reaches its start time, but not for ticked steps', () => {
+        renderTable(pie);
+        fireEvent.click(startTimer());
+        tick(10 * 60 - 1);
+        expect(ding).not.toHaveBeenCalled();
+
+        tick(1);
+        expect(ding).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not ding for a step that is already ticked', () => {
+        renderTable(pie);
+        fireEvent.click(startTimer());
+        fireEvent.click(named('cook'));
+        ding.mockClear();
+
+        tick(10 * 60);
+
+        expect(ding).not.toHaveBeenCalled();
+      });
+
+      it('jumps forward to when a ticked step finishes, so a refresh can be caught up by re-ticking', () => {
+        renderTable(pie);
+        fireEvent.click(startTimer());
+
+        fireEvent.click(named('mash'));
+
+        expect(screen.getByText('Time left 25 min')).toBeInTheDocument();
+        tick(1);
+        expect(screen.getByText('Time left 25 min')).toBeInTheDocument();
+      });
+
+      it('never winds the timer back when ticking an earlier step', () => {
+        renderTable(pie);
+        fireEvent.click(startTimer());
+        tick(30 * 60);
+
+        fireEvent.click(named('boil'));
+
+        expect(screen.getByText('Time left 15 min')).toBeInTheDocument();
+      });
+
+      it('leaves the timer alone when a step is un-ticked', () => {
+        renderTable(pie);
+        fireEvent.click(startTimer());
+        fireEvent.click(named('mash'));
+        fireEvent.click(named('mash'));
+
+        expect(screen.getByText('Time left 25 min')).toBeInTheDocument();
+      });
+
+      it('stops the timer and returns to the total', () => {
+        renderTable(pie);
+        fireEvent.click(startTimer());
+
+        fireEvent.click(screen.getByRole('button', { name: 'Stop recipe timer' }));
+
+        expect(screen.getByText('Total 45 min')).toBeInTheDocument();
+        expect(screen.queryByText(/start/)).not.toBeInTheDocument();
+      });
     });
 
     it('gives plain rows no start label', () => {
       renderTable(pie);
+      fireEvent.click(startTimer());
 
       expect(within(named('mince')).queryByText(/start/)).not.toBeInTheDocument();
     });
 
     it('drops the start label once a cell is ticked', () => {
       renderTable(pie);
+      fireEvent.click(startTimer());
 
       fireEvent.click(named('cook'));
 
@@ -261,7 +366,9 @@ describe('RecipeTable', () => {
     it('keeps the labels inside the sticky text so they stay visible while scrolling', () => {
       renderTable(pie);
 
-      expect(screen.getByText('start 35 min before end').closest('span.sticky')).toBe(
+      fireEvent.click(startTimer());
+
+      expect(screen.getByText('start in 10 min').closest('span.sticky')).toBe(
         screen.getByText('cook').closest('span.sticky'),
       );
     });
