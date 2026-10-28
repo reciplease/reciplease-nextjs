@@ -133,61 +133,37 @@ describe('RecipeTable', () => {
     expect(cell('bread').closest('td')).toHaveClass('text-[#555]');
   });
 
-  it('scrolls so the widest input to the next step fits left of it when marking done', () => {
+  it('does not scroll while an unfinished cell still occupies the first column', () => {
     const scroller = renderTable();
 
     fireEvent.click(cell('bread'));
-    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ left: 50 });
-
-    fireEvent.click(cell('butter'));
-    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ left: 150 });
-
-    fireEvent.click(cell('toast'));
-    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ left: 150 });
-  });
-
-  it('keeps the full text of a long sibling input in view when marking a cell done', () => {
-    tableWidth = 400;
-    textWidths = { mix: 60, chips: 120 };
-    const scroller = renderTable(folding);
-
-    fireEvent.click(cell('mix'));
-
-    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ left: 180 });
-  });
-
-  it('caps a sibling input text at the width of its own span', () => {
-    textWidths = { toast: 250, butter: 150 };
-    const scroller = renderTable();
-
-    fireEvent.click(cell('butter'));
-
-    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ left: 50 });
-  });
-
-  it('does not scroll past the left edge when an input fills the whole width', () => {
-    textWidths = { toast: 250, butter: 250 };
-    const scroller = renderTable();
-
-    fireEvent.click(cell('toast'));
 
     expect(scroller.scrollTo).toHaveBeenLastCalledWith({ left: 0 });
   });
 
-  it('does not scroll when marking the root cell', () => {
+  it('scrolls past a column only once every cell starting in it is done', () => {
+    const scroller = renderTable();
+
+    fireEvent.click(cell('bread'));
+    fireEvent.click(cell('butter'));
+
+    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ left: 100 });
+  });
+
+  it('does not scroll when un-marking brings an unfinished cell back to the first column', () => {
+    const scroller = renderTable();
+
+    fireEvent.click(cell('bread'));
+    fireEvent.click(cell('butter'));
+    fireEvent.click(cell('butter'));
+
+    expect(scroller.scrollTo).toHaveBeenLastCalledWith({ left: 0 });
+  });
+
+  it('does not scroll when everything is done', () => {
     const scroller = renderTable();
 
     fireEvent.click(cell('spread'));
-
-    expect(scroller.scrollTo).not.toHaveBeenCalled();
-  });
-
-  it('does not scroll when un-marking a cell', () => {
-    const scroller = renderTable();
-
-    fireEvent.click(cell('bread'));
-    (scroller.scrollTo as jest.Mock).mockClear();
-    fireEvent.click(cell('bread'));
 
     expect(scroller.scrollTo).not.toHaveBeenCalled();
   });
@@ -344,9 +320,10 @@ describe('RecipeTable', () => {
         const scroller = renderTable();
         fireEvent.click(enterButton());
 
+        fireEvent.click(cell('bread'));
         fireEvent.click(cell('butter'));
 
-        expect(scroller.scrollTo).toHaveBeenLastCalledWith({ left: 150 });
+        expect(scroller.scrollTo).toHaveBeenLastCalledWith({ left: 100 });
       });
     });
 

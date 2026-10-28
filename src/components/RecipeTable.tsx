@@ -22,24 +22,16 @@ export default function RecipeTable({ cells }: { cells: TableCell[] }) {
       subtreePaths(cells, path).forEach((donePath) => next.add(donePath));
     }
     setDone(next);
+    scrollPastFinishedColumns(next);
+  }
 
+  function scrollPastFinishedColumns(donePaths: Set<string>) {
     const table = scroller.current?.querySelector('table');
-    const [parent] = ancestorPaths(path);
-    if (wasDone || !scroller.current || !table || !parent) return;
-
-    const gridCells = layout.rows.flat();
-    const cell = gridCells.find((c) => c.path === path);
-    if (!cell) return;
-    const columnWidth = table.offsetWidth / layout.columns;
-    const textWidth = (inputPath: string) =>
-      scroller.current?.querySelector<HTMLSpanElement>(`[data-path="${inputPath}"] span`)?.offsetWidth ?? 0;
-    const neededWidth = Math.max(
-      ...gridCells
-        .filter((c) => ancestorPaths(c.path)[0] === parent)
-        .map((input) => Math.min(textWidth(input.path), input.colSpan * columnWidth)),
-    );
-    const left = Math.max(0, (cell.col + cell.colSpan) * columnWidth - neededWidth);
-    scroller.current.scrollTo({ left });
+    if (!scroller.current || !table) return;
+    const unfinished = layout.rows.flat().filter((c) => !donePaths.has(c.path));
+    if (unfinished.length === 0) return;
+    const firstUnfinishedColumn = Math.min(...unfinished.map((c) => c.col));
+    scroller.current.scrollTo({ left: firstUnfinishedColumn * (table.offsetWidth / layout.columns) });
   }
 
   function cellNote(path: string): CellNote {
