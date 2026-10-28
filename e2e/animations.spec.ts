@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { mockPublicRecipes } from './recipe-fixtures';
 
 // Cross-page View Transitions (useViewTransitionRouter) were removed in favour
 // of the App Router's native support post-migration — see the NOTE in
@@ -6,6 +7,7 @@ import { test, expect } from '@playwright/test';
 // still works; it no longer asserts anything about document.startViewTransition.
 test.describe('Recipe navigation', () => {
   test('client-side navigation still lands on the right page', async ({ page }) => {
+    await mockPublicRecipes(page);
     await page.goto('/recipes');
     // Wait for the SPA to hydrate before clicking — a click that lands before
     // React attaches its handlers falls through to a plain browser navigation.

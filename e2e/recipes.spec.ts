@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { mockPublicRecipes } from './recipe-fixtures';
 
 test.describe('Recipes (public)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockPublicRecipes(page);
+  });
+
   test('recipes page loads without sign-in', async ({ page }) => {
     await page.goto('/recipes');
     await expect(page).toHaveTitle(/Recipes/i);
