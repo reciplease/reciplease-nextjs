@@ -251,7 +251,8 @@ test.describe('Colour contrast: loaded states', () => {
     await mockRecipes(page);
     await page.goto(`/recipes/${shortIds[tableRecipeId]}`);
     await expect(page.getByText('Total 25 min')).toBeVisible();
-    await expect(page.getByText('start 17 min before end').first()).toBeVisible();
+    await page.getByRole('button', { name: 'Start recipe timer' }).click();
+    await expect(page.getByText('start in 8 min').first()).toBeVisible();
     await expect(page.getByText('hands-off').first()).toBeVisible();
     await expect(page.getByRole('button', { name: /^Bake until golden/ })).toHaveCSS('border-left-width', '8px');
     expect(await contrastViolations(page)).toEqual([]);
