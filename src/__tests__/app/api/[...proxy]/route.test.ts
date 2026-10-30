@@ -88,4 +88,26 @@ describe('generic API proxy', () => {
     expect(init.body).toBeUndefined();
     expect(response.status).toBe(204);
   });
+
+  it('strips the upstream content-encoding so an already-decompressed body does not mismatch its header', async () => {
+    (accessToken as jest.Mock).mockResolvedValue('rcpls-jwt');
+    const payload = [{ recipeId: '1', isPublic: true, name: 'Toast' }];
+    (fetch as jest.Mock).mockResolvedValue(
+      new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { 'content-encoding': 'br', 'content-type': 'application/json' },
+      }),
+    );
+
+    const request = new NextRequest('http://localhost/api/recipes', {
+      headers: { 'accept-encoding': 'gzip, deflate, br' },
+    });
+    const response = await GET(request, { params: Promise.resolve({ proxy: ['recipes'] }) });
+
+    expect(response.headers.get('content-encoding')).toBeNull();
+    expect(await response.json()).toEqual(payload);
+
+    const [, init] = (fetch as jest.Mock).mock.calls[0];
+    expect((init.headers as Headers).get('accept-encoding')).toBeNull();
+  });
 });

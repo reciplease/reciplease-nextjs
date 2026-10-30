@@ -27,6 +27,9 @@ async function handleRequest(req: NextRequest, segments: string[]): Promise<Resp
     headers.delete('cookie');
   }
 
+  // undici already decompressed the body; re-forwarding the encoding header makes browsers throw ERR_CONTENT_DECODING_FAILED, so ask upstream for identity and drop the encoding headers on the reply.
+  headers.delete('accept-encoding');
+
   const qs = searchParams.size > 0 ? `?${searchParams.toString()}` : '';
   const url = `${BACKEND_URL}/api/${segments.join('/')}${qs}`;
 
@@ -36,7 +39,11 @@ async function handleRequest(req: NextRequest, segments: string[]): Promise<Resp
     ...(req.method !== 'GET' && req.method !== 'DELETE' ? { body: await req.text() } : {}),
   });
 
-  return new Response(response.body, { status: response.status, headers: response.headers });
+  const outHeaders = new Headers(response.headers);
+  for (const hop of ['content-encoding', 'content-length', 'transfer-encoding']) outHeaders.delete(hop);
+  const hasBody = response.status !== 204 && response.status !== 205 && response.status !== 304;
+  const body = hasBody ? Buffer.from(await response.arrayBuffer()) : null;
+  return new Response(body, { status: response.status, headers: outHeaders });
 }
 
 type RouteParams = { params: Promise<{ proxy: string[] }> };
